@@ -1,0 +1,13 @@
+{
+  "type" : "grape",
+  "slave" : "/home/bugsbunny/grape-worker/testapp",
+  "drivers" : {
+      "fs": {
+            "type": "filesystem-monitor",
+            "args": {
+                "emit": "exit",
+                "path": "/home/bugsbunny/tmp.file"
+            }
+        }
+  }
+}
