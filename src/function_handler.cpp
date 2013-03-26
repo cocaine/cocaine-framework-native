@@ -1,4 +1,4 @@
-#include <cocaine/framework/factories.hpp>
+#include <cocaine/framework/handlers/functional.hpp>
 
 using namespace cocaine::framework;
 
@@ -9,8 +9,8 @@ function_handler_t::function_handler_t(function_handler_t::function_type f) :
 }
 
 void
-function_handler_t::write(const char *chunk,
-                          size_t size)
+function_handler_t::on_chunk(const char *chunk,
+                             size_t size)
 {
     if (!closed()) {
         m_input.push_back(std::string(chunk, size));
@@ -18,9 +18,8 @@ function_handler_t::write(const char *chunk,
 }
 
 void
-function_handler_t::close() {
+function_handler_t::on_close() {
     std::string result = m_func(m_event, m_input);
     m_response->write(result.data(), result.size());
     m_response->close();
-    base_handler_t::close();
 }

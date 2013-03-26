@@ -55,8 +55,8 @@ application_t::on_unregistered(std::shared_ptr<base_factory_t> factory) {
 
 void
 application_t::initialize(const std::string& name,
-                          std::shared_ptr<logger_t> logger)
+                          std::shared_ptr<service_manager_t> service_manager)
 {
     m_name = name;
-    m_log.reset(new log_t(logger, cocaine::format("app/%s", name)));
+    m_service_manager = service_manager;
 }

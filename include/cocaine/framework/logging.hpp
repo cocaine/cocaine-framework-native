@@ -23,11 +23,6 @@
 
 #include <string>
 #include <cocaine/forwards.hpp>
-#include <cocaine/asio/service.hpp>
-#include <cocaine/asio/writable_stream.hpp>
-#include <cocaine/asio/socket.hpp>
-#include <cocaine/asio/tcp.hpp>
-#include <cocaine/rpc/encoder.hpp>
 #include <cocaine/json.hpp>
 #include <cocaine/format.hpp>
 
@@ -100,33 +95,6 @@ private:
 
     // The name of this log, to be used as the logging source.
     const std::string m_source;
-};
-
-class remote_t:
-    public logger_t
-{
-public:
-    remote_t(const std::string& name,
-             const Json::Value& args,
-             cocaine::io::service_t& service);
-
-    virtual
-    cocaine::logging::priorities
-    verbosity() const {
-        return cocaine::logging::priorities::debug;
-    }
-
-    virtual
-    void
-    emit(cocaine::logging::priorities priority,
-         const std::string& source,
-         const std::string& message);
-
-private:
-    cocaine::io::encoder<
-        cocaine::io::writable_stream<
-            cocaine::io::socket<cocaine::io::tcp>
-    >> m_encoder;
 };
 
 }} // namespace cocaine::framework

@@ -1,5 +1,5 @@
-#ifndef COCAINE_FRAMEWORK_FACTORIES_HPP
-#define COCAINE_FRAMEWORK_FACTORIES_HPP
+#ifndef COCAINE_FRAMEWORK_HANDLERS_FUNCTIONAL_HPP
+#define COCAINE_FRAMEWORK_HANDLERS_FUNCTIONAL_HPP
 
 #include <string>
 #include <vector>
@@ -20,11 +20,11 @@ struct function_handler_t :
     function_handler_t(function_type f);
 
     void
-    write(const char *chunk,
-         size_t size);
+    on_chunk(const char *chunk,
+             size_t size);
 
     void
-    close();
+    on_close();
 
 private:
     function_type m_func;
@@ -59,7 +59,7 @@ function_factory(function_handler_t::function_type f) {
 }
 
 template<class AppT>
-struct method_factory_t :
+struct method_factory :
     public base_factory_t
 {
     friend class application_t;
@@ -69,7 +69,7 @@ struct method_factory_t :
     typedef std::function<std::string(AppT*, const std::string&, const std::vector<std::string>&)>
             method_type;
 
-    method_factory_t(method_type f) :
+    method_factory(method_type f) :
         m_func(f),
         m_app(nullptr)
     {
@@ -92,7 +92,7 @@ protected:
 
 template<class AppT>
 std::shared_ptr<base_handler_t>
-method_factory_t<AppT>::make_handler() {
+method_factory<AppT>::make_handler() {
     if (m_app) {
         return std::shared_ptr<base_handler_t>(
             new function_handler_t(std::bind(m_func,
@@ -107,4 +107,4 @@ method_factory_t<AppT>::make_handler() {
 
 }} // namespace cocaine::framework
 
-#endif // COCAINE_FRAMEWORK_FACTORIES_HPP
+#endif // COCAINE_FRAMEWORK_HANDLERS_FUNCTIONAL_HPP

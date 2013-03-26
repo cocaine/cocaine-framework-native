@@ -1,9 +1,9 @@
 #include <stdexcept>
 #include <boost/program_options.hpp>
 #include <cocaine/messages.hpp>
-#include <cocaine/traits/unique_id.hpp>
 
 #include <cocaine/framework/worker.hpp>
+#include <cocaine/framework/services/logger.hpp>
 
 using namespace cocaine;
 using namespace cocaine::framework;
@@ -92,29 +92,24 @@ namespace {
 }
 
 worker_t::worker_t(const std::string& name,
-                   const std::string& uuid):
+                   const std::string& uuid,
+                   const std::string& endpoint):
     m_id(uuid),
-    m_heartbeat_timer(m_service.loop()),
-    m_disown_timer(m_service.loop()),
+    m_heartbeat_timer(m_service.native()),
+    m_disown_timer(m_service.native()),
+    m_service_manager(new service_manager_t(m_service)),
     m_app_name(name)
 {
-    auto logger = std::shared_ptr<logger_t>(new remote_t("remote", Json::Value(), m_service));
-
-    m_log.reset(new log_t(logger, cocaine::format("worker/%s", name)));
-
-//    auto endpoint = io::local::endpoint(format(
-//        "%2%/%1%",
-//        engines,
-//        name
-//    ));
-    auto endpoint = io::local::endpoint(format(
-        "/var/run/cocaine/engines/%1%",
-        name
+    m_log.reset(new log_t(
+        m_service_manager->get_service<logging_service>(
+            io::tcp::endpoint("127.0.0.1", 12501)
+        ),
+        cocaine::format("worker/%s", name)
     ));
 
-    auto socket_ = std::make_shared<io::socket<io::local>>(endpoint);
+    auto socket = std::make_shared<io::socket<io::local>>(io::local::endpoint(endpoint));
 
-    m_channel.reset(new io::channel<io::socket<io::local>>(m_service, socket_));
+    m_channel.reset(new io::channel<io::socket<io::local>>(m_service, socket));
 
     m_channel->rd->bind(std::bind(&worker_t::on_message, this, std::placeholders::_1), ignore_t());
     m_channel->wr->bind(ignore_t());
@@ -136,7 +131,7 @@ worker_t::~worker_t() {
 void
 worker_t::run() {
     if (m_application) {
-        m_service.loop().loop();
+        m_service.run();
     }
 }
 
@@ -158,6 +153,8 @@ worker_t::on_message(const io::message_t& message) {
         case io::event_traits<io::rpc::invoke>::id: {
             std::string event;
             message.as<io::rpc::invoke>(event);
+
+            std::cerr << "worker invoke " << event << std::endl;
 
             COCAINE_LOG_DEBUG(m_log, "worker %s invoking session %s with event '%s'", m_id, message.band(), event);
 
@@ -184,6 +181,8 @@ worker_t::on_message(const io::message_t& message) {
         case io::event_traits<io::rpc::chunk>::id: {
             std::string chunk;
             message.as<io::rpc::chunk>(chunk);
+
+            std::cerr << "worker chunk " << chunk << std::endl;
 
             stream_map_t::iterator it(m_streams.find(message.band()));
 
@@ -254,7 +253,7 @@ worker_t::on_disown(ev::timer&, int) {
         m_id
     );
 
-    m_service.loop().unloop(ev::ALL);
+    m_service.native().unloop(ev::ALL);
 }
 
 void
@@ -262,7 +261,7 @@ worker_t::terminate(int reason,
                     const std::string& message)
 {
     send<io::rpc::terminate>(0ul, reason, message);
-    m_service.loop().unloop(ev::ALL);
+    m_service.native().unloop(ev::ALL);
 }
 
 
@@ -277,7 +276,8 @@ cocaine::framework::make_worker(int argc,
     options_description options;
     options.add_options()
         ("app", value<std::string>())
-        ("uuid", value<std::string>());
+        ("uuid", value<std::string>())
+        ("endpoint", value<std::string>());
 
     try {
         command_line_parser parser(argc, argv);
@@ -292,7 +292,8 @@ cocaine::framework::make_worker(int argc,
 
     try {
         return std::make_shared<worker_t>(vm["app"].as<std::string>(),
-                                          vm["uuid"].as<std::string>());
+                                          vm["uuid"].as<std::string>(),
+                                          vm["endpoint"].as<std::string>());
     } catch(const std::exception& e) {
         std::cerr << cocaine::format("ERROR: unable to start the worker - %s", e.what()) << std::endl;
         throw;

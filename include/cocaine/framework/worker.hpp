@@ -8,13 +8,13 @@
 #include <ev++.h>
 #include <cocaine/api/stream.hpp>
 #include <cocaine/asio/local.hpp>
-#include <cocaine/asio/service.hpp>
+#include <cocaine/asio/reactor.hpp>
 #include <cocaine/asio/socket.hpp>
 #include <cocaine/rpc/channel.hpp>
-#include <cocaine/unique_id.hpp>
 
 #include <cocaine/framework/application.hpp>
-#include <cocaine/framework/logger.hpp>
+#include <cocaine/framework/logging.hpp>
+#include <cocaine/framework/service.hpp>
 
 namespace cocaine { namespace framework {
 
@@ -30,7 +30,8 @@ class worker_t :
 
 public:
     worker_t(const std::string& name,
-             const std::string& uuid);
+             const std::string& uuid,
+             const std::string& endpoint);
 
     ~worker_t();
 
@@ -60,19 +61,20 @@ private:
               const std::string& reason);
 
 private:
-    const cocaine::unique_id_t m_id;
-    cocaine::io::service_t m_service;
+    const std::string m_id;
+    cocaine::io::reactor_t m_service;
     ev::timer m_heartbeat_timer,
               m_disown_timer;
-    std::shared_ptr<log_t> m_log;
-
     std::shared_ptr<
         cocaine::io::channel<
             cocaine::io::socket<cocaine::io::local>
     >> m_channel;
+    std::shared_ptr<service_manager_t> m_service_manager;
 
     std::string m_app_name;
     std::shared_ptr<application_t> m_application;
+
+    std::shared_ptr<log_t> m_log;
 
     stream_map_t m_streams;
 };
@@ -88,10 +90,7 @@ void
 worker_t::add(const std::string& name, const AppT& a) {
     if (name == m_app_name) {
         m_application.reset(new AppT(a));
-
-        auto logger = std::shared_ptr<logger_t>(new remote_t("remote", Json::Value(), m_service));
-        m_application->initialize(name, logger);
-
+        m_application->initialize(name, m_service_manager);
     }
 }
 

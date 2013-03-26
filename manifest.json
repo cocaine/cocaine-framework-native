@@ -1,7 +1,13 @@
 {
   "type" : "grape",
-  "slave" : "/home/bugsbunny/grape-worker/testapp",
+  "slave" : "/home/bugsbunny/cocaine-framework-native/testapp",
   "drivers" : {
+      "dealer": {
+            "type": "native-server",
+            "args": {
+                "emit": "event1"
+            }
+        },
       "fs": {
             "type": "filesystem-monitor",
             "args": {
