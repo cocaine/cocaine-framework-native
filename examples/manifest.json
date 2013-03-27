@@ -1,0 +1,26 @@
+{
+    "slave": "test",
+    "drivers": {
+        "fs1": {
+            "type": "filesystem-monitor",
+            "args": {
+                "path": "/tmp/dummy.file.1",
+                "emit": "event1"
+            }
+        },
+        "fs2": {
+            "type": "filesystem-monitor",
+            "args": {
+                "path": "/tmp/dummy.file.2",
+                "emit": "event2"
+            }
+        },
+        "fs3": {
+            "type": "filesystem-monitor",
+            "args": {
+                "path": "/tmp/dummy.file.3",
+                "emit": "event3"
+            }
+        }
+    }
+}
