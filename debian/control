@@ -1,0 +1,27 @@
+Source: cocaine-framework-native
+Section: utils
+Priority: extra
+Maintainer: Andrey Sibiryov <kobolog@yandex-team.ru>
+Build-Depends: cdbs, debhelper (>= 7.0.13), libcocaine-dev (>= 0.10.0-rc5)
+Standards-Version: 3.8.4
+Vcs-Git: git://github.com/cocaine/cocaine-framework-native.git
+Vcs-Browser: https://github.com/cocaine/cocaine-framework-native
+
+Package: cocaine-framework-native
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Cocaine - Native Framework
+ A simple framework to ease the development of native Cocaine apps.
+
+Package: cocaine-framework-native-dev
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Cocaine - Native Framework Development Headers
+ Cocaine Native Framework development headers.
+
+Package: cocaine-framework-native-dbg
+Architecture: any
+Section: debug
+Depends: ${shlibs:Depends}, ${misc:Depends}, cocaine-framework-native (= ${Source-Version})
+Description: Cocaine - Native Framework Debug Files
+ Cocaine Native Framework debug files and symbols.
