@@ -1,14 +1,14 @@
 #ifndef COCAINE_FRAMEWORK_SERVICE_HPP
 #define COCAINE_FRAMEWORK_SERVICE_HPP
 
-#include <memory>
-#include <string>
-#include <boost/utility.hpp>
-
 #include <cocaine/rpc/channel.hpp>
 #include <cocaine/asio/socket.hpp>
 #include <cocaine/asio/tcp.hpp>
 #include <cocaine/asio/reactor.hpp>
+
+#include <memory>
+#include <string>
+#include <boost/utility.hpp>
 
 namespace cocaine { namespace framework {
 

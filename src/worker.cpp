@@ -1,95 +1,97 @@
-#include <stdexcept>
-#include <boost/program_options.hpp>
-#include <cocaine/messages.hpp>
-
 #include <cocaine/framework/worker.hpp>
 #include <cocaine/framework/services/logger.hpp>
+
+#include <cocaine/messages.hpp>
+
+#include <stdexcept>
+#include <boost/program_options.hpp>
 
 using namespace cocaine;
 using namespace cocaine::framework;
 
 namespace {
-    class upstream_t:
-        public api::stream_t
+class upstream_t:
+    public api::stream_t
+{
+    enum class state_t: int {
+        open,
+        closed
+    };
+public:
+    upstream_t(uint64_t id,
+               worker_t * const worker):
+        m_id(id),
+        m_worker(worker),
+        m_state(state_t::open)
     {
-        enum class state_t: int {
-            open,
-            closed
-        };
-    public:
-        upstream_t(uint64_t id,
-                   worker_t * const worker):
-            m_id(id),
-            m_worker(worker),
-            m_state(state_t::open)
-        {
-            // pass
-        }
+        // pass
+    }
 
-        virtual
-        ~upstream_t() {
-            if(m_state != state_t::closed) {
-                close();
-            }
+    virtual
+    ~upstream_t() {
+        if(m_state != state_t::closed) {
+            close();
         }
+    }
 
-        virtual
-        void
-        write(const char * chunk,
-             size_t size)
-        {
-            if(m_state == state_t::closed) {
-                throw cocaine::error_t("the stream has been closed");
-            } else {
-                send<io::rpc::chunk>(std::string(chunk, size));
-            }
+    virtual
+    void
+    write(const char * chunk,
+         size_t size)
+    {
+        if(m_state == state_t::closed) {
+            throw std::runtime_error("The stream has been closed.");
+        } else {
+            send<io::rpc::chunk>(std::string(chunk, size));
         }
+    }
 
-        virtual
-        void
-        error(error_code code,
-              const std::string& message)
-        {
-            if(m_state == state_t::closed) {
-                throw cocaine::error_t("the stream has been closed");
-            } else {
-                m_state = state_t::closed;
-                send<io::rpc::error>(static_cast<int>(code), message);
-                send<io::rpc::choke>();
-            }
+    virtual
+    void
+    error(error_code code,
+          const std::string& message)
+    {
+        if(m_state == state_t::closed) {
+            throw std::runtime_error("The stream has been closed.");
+        } else {
+            m_state = state_t::closed;
+            send<io::rpc::error>(static_cast<int>(code), message);
+            send<io::rpc::choke>();
         }
+    }
 
-        virtual
-        void
-        close() {
-            if(m_state == state_t::closed) {
-                throw cocaine::error_t("the stream has been closed");
-            } else {
-                m_state = state_t::closed;
-                send<io::rpc::choke>();
-            }
+    virtual
+    void
+    close() {
+        if(m_state == state_t::closed) {
+            throw std::runtime_error("The stream has been closed.");
+        } else {
+            m_state = state_t::closed;
+            send<io::rpc::choke>();
         }
+    }
 
-    private:
-        template<class Event, typename... Args>
-        void
-        send(Args&&... args) {
-            m_worker->send<Event>(m_id, std::forward<Args>(args)...);
-        }
+private:
+    template<class Event, typename... Args>
+    void
+    send(Args&&... args) {
+        m_worker->send<Event>(m_id, std::forward<Args>(args)...);
+    }
 
-    private:
-        const uint64_t m_id;
-        worker_t * const m_worker;
-        state_t m_state;
-    };
+private:
+    const uint64_t m_id;
+    worker_t * const m_worker;
+    state_t m_state;
+};
 
-    struct ignore_t {
-        void
-        operator()(const std::error_code& /* ec */) {
-            // Empty.
-        }
-    };
-}
+struct ignore_t {
+    void
+    operator()(const std::error_code& /* ec */) {
+        // Empty.
+    }
+};
+
+} // namespace
 
 worker_t::worker_t(const std::string& name,
                    const std::string& uuid,
@@ -154,8 +156,6 @@ worker_t::on_message(const io::message_t& message) {
             std::string event;
             message.as<io::rpc::invoke>(event);
 
-            std::cerr << "worker invoke " << event << std::endl;
-
             COCAINE_LOG_DEBUG(m_log, "worker %s invoking session %s with event '%s'", m_id, message.band(), event);
 
             std::shared_ptr<api::stream_t> upstream(
@@ -181,8 +181,6 @@ worker_t::on_message(const io::message_t& message) {
         case io::event_traits<io::rpc::chunk>::id: {
             std::string chunk;
             message.as<io::rpc::chunk>(chunk);
-
-            std::cerr << "worker chunk " << chunk << std::endl;
 
             stream_map_t::iterator it(m_streams.find(message.band()));
 
@@ -240,13 +238,17 @@ worker_t::on_message(const io::message_t& message) {
 }
 
 void
-worker_t::on_heartbeat(ev::timer&, int) {
+worker_t::on_heartbeat(ev::timer&,
+                       int)
+{
     send<io::rpc::heartbeat>(0ul);
     m_disown_timer.start(2.0f);
 }
 
 void
-worker_t::on_disown(ev::timer&, int) {
+worker_t::on_disown(ev::timer&,
+                    int)
+{
     COCAINE_LOG_ERROR(
         m_log,
         "worker %s has lost the controlling engine",

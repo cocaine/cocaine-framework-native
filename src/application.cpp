@@ -1,6 +1,6 @@
-#include <cocaine/format.hpp>
-
 #include <cocaine/framework/application.hpp>
+
+#include <cocaine/format.hpp>
 
 using namespace cocaine::framework;
 
@@ -8,6 +8,8 @@ void
 base_handler_t::error(cocaine::error_code code,
                       const std::string& message)
 {
+    on_error(code, message);
+
     if (m_state == state_t::closed) {
         throw handler_error("Handler has been closed.");
     } else {
@@ -19,6 +21,14 @@ base_handler_t::error(cocaine::error_code code,
     }
 }
 
+
+application_t::application_t(const std::string& name,
+                             std::shared_ptr<service_manager_t> service_manager) :
+    m_name(name),
+    m_service_manager(service_manager)
+{
+    // pass
+}
 
 std::shared_ptr<base_handler_t>
 application_t::invoke(const std::string& event,
@@ -51,12 +61,4 @@ application_t::on(const std::string& event,
 void
 application_t::on_unregistered(std::shared_ptr<base_factory_t> factory) {
     m_default_handler = factory;
-}
-
-void
-application_t::initialize(const std::string& name,
-                          std::shared_ptr<service_manager_t> service_manager)
-{
-    m_name = name;
-    m_service_manager = service_manager;
 }

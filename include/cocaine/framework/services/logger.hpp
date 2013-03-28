@@ -1,10 +1,10 @@
-#ifndef COCAINE_FRAMEWORK_LOGGER_HPP
-#define COCAINE_FRAMEWORK_LOGGER_HPP
-
-#include <cocaine/essentials/services/logging.hpp>
+#ifndef COCAINE_FRAMEWORK_SERVICES_LOGGER_HPP
+#define COCAINE_FRAMEWORK_SERVICES_LOGGER_HPP
 
 #include <cocaine/framework/service.hpp>
 #include <cocaine/framework/logging.hpp>
+
+#include <cocaine/essentials/services/logging.hpp>
 
 namespace cocaine { namespace framework {
 
@@ -35,4 +35,4 @@ struct logging_service :
 
 }} // namespace cocaine::framework
 
-#endif // COCAINE_FRAMEWORK_LOGGER_HPP
+#endif // COCAINE_FRAMEWORK_SERVICES_LOGGER_HPP

@@ -1,6 +1,10 @@
 #ifndef COCAINE_FRAMEWORK_APPLICATION_HPP
 #define COCAINE_FRAMEWORK_APPLICATION_HPP
 
+#include <cocaine/framework/service.hpp>
+
+#include <cocaine/api/stream.hpp>
+
 #include <stdexcept>
 #include <typeinfo>
 #include <memory>
@@ -8,15 +12,7 @@
 #include <map>
 #include <boost/utility.hpp>
 
-#include <cocaine/api/stream.hpp>
-
-#include <cocaine/framework/logging.hpp>
-#include <cocaine/framework/service.hpp>
-#include <cocaine/framework/services/logger.hpp>
-
 namespace cocaine { namespace framework {
-
-class application_t;
 
 struct bad_factory_exception :
     public std::runtime_error
@@ -39,9 +35,11 @@ struct handler_error :
 };
 
 struct base_handler_t :
-    public cocaine::api::stream_t,
     public boost::noncopyable
 {
+    friend class application_t;
+    friend class worker_t;
+
     enum class state_t: int {
         opened,
         closed
@@ -61,6 +59,12 @@ struct base_handler_t :
 
     virtual
     void
+    on_invoke() {
+        // pass
+    }
+
+    virtual
+    void
     on_chunk(const char *chunk,
              size_t size) = 0;
 
@@ -70,8 +74,20 @@ struct base_handler_t :
         // pass
     }
 
-
     virtual
+    void
+    on_error(cocaine::error_code code,
+             const std::string& message)
+    {
+        // pass
+    }
+
+    bool
+    closed() const {
+        return m_state == state_t::closed;
+    }
+
+private:
     void
     invoke(const std::string& event,
            std::shared_ptr<cocaine::api::stream_t> response)
@@ -79,6 +95,8 @@ struct base_handler_t :
         m_event = event;
         m_response = response;
         m_state = state_t::opened;
+
+        on_invoke();
     }
 
     void
@@ -94,42 +112,38 @@ struct base_handler_t :
         m_state = state_t::closed;
     }
 
-    bool
-    closed() const {
-        return m_state == state_t::closed;
-    }
-
     void
     error(cocaine::error_code code,
           const std::string& message);
 
 protected:
-    state_t m_state;
     std::string m_event;
     std::shared_ptr<cocaine::api::stream_t> m_response;
+
+private:
+    state_t m_state;
 };
 
-class base_factory_t {
-public:
+struct base_factory_t {
     virtual
     std::shared_ptr<base_handler_t>
     make_handler() = 0;
 };
 
 template<class AppT>
-struct user_handler :
+struct user_handler_t :
     public base_handler_t
 {
     typedef AppT application_type;
 
-    user_handler(application_type& a) :
-        app(a)
+    user_handler_t(application_type& a) :
+        m_app(a)
     {
         // pass
     }
 
 protected:
-    application_type& app;
+    application_type& m_app;
 };
 
 template<class UserHandlerT>
@@ -150,7 +164,8 @@ public:
     std::shared_ptr<base_handler_t>
     make_handler();
 
-protected:
+private:
+    virtual
     void
     set_application(application_type *a) {
         m_app = a;
@@ -174,15 +189,13 @@ class application_t {
     typedef std::map<std::string, std::shared_ptr<base_factory_t>>
             handlers_map;
 public:
+    application_t(const std::string& name,
+                  std::shared_ptr<service_manager_t> service_manager);
+
     virtual
     ~application_t() {
         // pass
     }
-
-    virtual
-    void
-    initialize(const std::string& name,
-               std::shared_ptr<service_manager_t> service_manager);
 
     virtual
     std::shared_ptr<base_handler_t>
@@ -194,7 +207,11 @@ public:
         return m_name;
     }
 
-protected:
+    std::shared_ptr<service_manager_t>
+    service_manager() const {
+        return m_service_manager;
+    }
+
     virtual
     void
     on(const std::string& event,
@@ -223,9 +240,9 @@ protected:
 
 private:
     std::string m_name;
+    std::shared_ptr<service_manager_t> m_service_manager;
     handlers_map m_handlers;
     std::shared_ptr<base_factory_t> m_default_handler;
-    std::shared_ptr<service_manager_t> m_service_manager;
 };
 
 template<class FactoryT>
@@ -233,9 +250,7 @@ void
 application_t::on(const std::string& event,
                   const FactoryT& factory)
 {
-    FactoryT *new_factory = new FactoryT(factory);
-    new_factory->set_application(dynamic_cast<typename FactoryT::application_type*>(this));
-    this->on(event, std::shared_ptr<base_factory_t>(new_factory));
+    this->on(event, std::shared_ptr<base_factory_t>(new FactoryT(factory)));
 }
 
 template<class UserHandlerT>
@@ -249,9 +264,7 @@ application_t::on(const std::string& event) {
 template<class FactoryT>
 void
 application_t::on_unregistered(const FactoryT& factory) {
-    FactoryT *new_factory = new FactoryT(factory);
-    new_factory->set_application(dynamic_cast<typename FactoryT::application_type*>(this));
-    this->on_unregistered(std::shared_ptr<base_factory_t>(new_factory));
+    this->on_unregistered(std::shared_ptr<base_factory_t>(new FactoryT(factory)));
 }
 
 template<class UserHandlerT>

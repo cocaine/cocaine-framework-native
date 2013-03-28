@@ -18,13 +18,15 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef COCAINE_REMOTE_LOGGER_HPP
-#define COCAINE_REMOTE_LOGGER_HPP
+#ifndef COCAINE_FRAMEWORK_LOGGING_HPP
+#define COCAINE_FRAMEWORK_LOGGING_HPP
 
-#include <string>
 #include <cocaine/forwards.hpp>
 #include <cocaine/json.hpp>
 #include <cocaine/format.hpp>
+
+#include <string>
+
 
 #define COCAINE_LOG(log, level, ...) \
     if(log->verbosity() >= level) log->emit(level, __VA_ARGS__);
@@ -92,11 +94,9 @@ struct log_t {
 
 private:
     std::shared_ptr<logger_t> m_logger;
-
-    // The name of this log, to be used as the logging source.
     const std::string m_source;
 };
 
 }} // namespace cocaine::framework
 
-#endif
+#endif // COCAINE_FRAMEWORK_LOGGING_HPP
