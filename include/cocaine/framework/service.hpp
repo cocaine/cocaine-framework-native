@@ -3,6 +3,8 @@
 
 #include <cocaine/detail/locator.hpp>
 #include <cocaine/rpc/channel.hpp>
+#include <cocaine/rpc/message.hpp>
+#include <cocaine/messages.hpp>
 #include <cocaine/asio/socket.hpp>
 #include <cocaine/asio/tcp.hpp>
 #include <cocaine/asio/reactor.hpp>
@@ -53,7 +55,7 @@ public:
 
 private:
     void
-    on_response(const io::message_t& message);
+    on_response(const cocaine::io::message_t& message);
 
     void
     on_error(const std::error_code&);
@@ -79,10 +81,11 @@ private:
 class service_t :
     private boost::noncopyable
 {
-    typedef cocaine::io::channel<cocaine::io::socket<cocaine::io::tcp>>
-            iochannel_t;
+public:
     typedef std::function<void(const cocaine::io::message_t&)>
             message_handler_t;
+
+    typedef uint64_t session_id_t;
 
 public:
     service_t(const std::string& name,
@@ -90,12 +93,16 @@ public:
               const cocaine::io::tcp::endpoint& resolver_endpoint);
 
     template<class Event, typename... Args>
-    void
+    session_id_t
     call(const message_handler_t& handler, Args&&... args) {
         m_handlers[m_session_counter] = handler;
         m_channel->wr->write<Event>(m_session_counter, args...);
-        ++m_session_counter;
+        return m_session_counter++;
     }
+
+private:
+    typedef cocaine::io::channel<cocaine::io::socket<cocaine::io::tcp>>
+            iochannel_t;
 
 private:
     void
@@ -113,8 +120,8 @@ private:
     std::shared_ptr<resolver_t> m_resolver;
     std::shared_ptr<iochannel_t> m_channel;
 
-    uint64_t m_session_counter;
-    std::map<unsigned int, message_handler_t> m_handlers;
+    session_id_t m_session_counter;
+    std::map<session_id_t, message_handler_t> m_handlers;
 };
 
 class service_manager_t :

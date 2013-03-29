@@ -53,7 +53,7 @@ void
 resolver_t::on_error(const std::error_code&) {
     m_error_flag = true;
     m_last_error.code = cocaine::error_code::invocation_error;
-    m_last_error.message = "Unknown error has occurred.";
+    m_last_error.message = "Socket error has occurred in resolver.";
     m_ioservice.native().unloop(ev::ALL);
 }
 
@@ -106,7 +106,7 @@ service_t::on_message(const cocaine::io::message_t& message) {
     auto it = m_handlers.find(message.band());
 
     if (it == m_handlers.end()) {
-        std::cout << "Message with unknown session id has been received from service " << m_name
+        std::cout << "Message with unknown session id has been received from service " << m_name << "."
                   << std::endl;
     } else if (message.id() == io::event_traits<io::rpc::choke>::id) {
         m_handlers.erase(it);

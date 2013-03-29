@@ -15,7 +15,7 @@ class logging_service_t :
 public:
     logging_service_t(const std::string& name,
                       cocaine::io::reactor_t& service,
-                    const cocaine::io::tcp::endpoint& resolver) :
+                      const cocaine::io::tcp::endpoint& resolver) :
         service_t(name, service, resolver)
     {
         // pass

@@ -109,11 +109,11 @@ worker_t::worker_t(const std::string& name,
                    const std::string& uuid,
                    const std::string& endpoint):
     m_id(uuid),
-    m_heartbeat_timer(m_service.native()),
-    m_disown_timer(m_service.native()),
+    m_heartbeat_timer(m_ioservice.native()),
+    m_disown_timer(m_ioservice.native()),
     m_app_name(name)
 {
-    m_service_manager.reset(new service_manager_t(m_service));
+    m_service_manager.reset(new service_manager_t(m_ioservice));
 
     m_log.reset(new log_t(
         m_service_manager->get_service<logging_service_t>("logging"),
@@ -122,7 +122,7 @@ worker_t::worker_t(const std::string& name,
 
     auto socket = std::make_shared<io::socket<io::local>>(io::local::endpoint(endpoint));
 
-    m_channel.reset(new io::channel<io::socket<io::local>>(m_service, socket));
+    m_channel.reset(new io::channel<io::socket<io::local>>(m_ioservice, socket));
 
     m_channel->rd->bind(std::bind(&worker_t::on_message, this, std::placeholders::_1),
                         killer_t(name));
@@ -145,7 +145,7 @@ worker_t::~worker_t() {
 void
 worker_t::run() {
     if (m_application) {
-        m_service.run();
+        m_ioservice.run();
     }
 }
 
@@ -285,7 +285,7 @@ worker_t::on_disown(ev::timer&,
         m_id
     );
 
-    m_service.native().unloop(ev::ALL);
+    m_ioservice.native().unloop(ev::ALL);
 }
 
 void
@@ -293,7 +293,7 @@ worker_t::terminate(int reason,
                     const std::string& message)
 {
     send<io::rpc::terminate>(0ul, reason, message);
-    m_service.native().unloop(ev::ALL);
+    m_ioservice.native().unloop(ev::ALL);
 }
 
 
@@ -319,7 +319,7 @@ worker_t::create(int argc,
         notify(vm);
     } catch(const std::exception& e) {
         std::cerr << "ERROR: " << e.what() << std::endl;
-        throw;
+        exit(-1);
     }
 
     try {
@@ -328,6 +328,6 @@ worker_t::create(int argc,
                                                       vm["endpoint"].as<std::string>()));
     } catch(const std::exception& e) {
         std::cerr << cocaine::format("ERROR: unable to start the worker - %s", e.what()) << std::endl;
-        throw;
+        exit(-1);
     }
 }

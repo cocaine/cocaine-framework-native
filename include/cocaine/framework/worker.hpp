@@ -22,13 +22,6 @@ namespace cocaine { namespace framework {
 class worker_t :
     private boost::noncopyable
 {
-    struct io_pair_t {
-        std::shared_ptr<cocaine::api::stream_t> upstream;
-        std::shared_ptr<base_handler_t> downstream;
-    };
-
-    typedef std::map<uint64_t, io_pair_t> stream_map_t;
-
 public:
     static
     std::shared_ptr<worker_t>
@@ -55,6 +48,14 @@ public:
     send(Args&&... args);
 
 private:
+    struct io_pair_t {
+        std::shared_ptr<cocaine::api::stream_t> upstream;
+        std::shared_ptr<base_handler_t> downstream;
+    };
+
+    typedef std::map<uint64_t, io_pair_t> stream_map_t;
+
+private:
     worker_t(const std::string& name,
              const std::string& uuid,
              const std::string& endpoint);
@@ -74,7 +75,7 @@ private:
 
 private:
     const std::string m_id;
-    cocaine::io::reactor_t m_service;
+    cocaine::io::reactor_t m_ioservice;
     ev::timer m_heartbeat_timer,
               m_disown_timer;
     std::shared_ptr<
