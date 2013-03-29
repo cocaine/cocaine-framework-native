@@ -29,7 +29,7 @@ public:
 
     virtual
     ~upstream_t() {
-        if(m_state != state_t::closed) {
+        if (m_state != state_t::closed) {
             close();
         }
     }
@@ -39,7 +39,7 @@ public:
     write(const char * chunk,
          size_t size)
     {
-        if(m_state == state_t::closed) {
+        if (m_state == state_t::closed) {
             throw std::runtime_error("The stream has been closed.");
         } else {
             send<io::rpc::chunk>(std::string(chunk, size));
@@ -51,7 +51,7 @@ public:
     error(error_code code,
           const std::string& message)
     {
-        if(m_state == state_t::closed) {
+        if (m_state == state_t::closed) {
             throw std::runtime_error("The stream has been closed.");
         } else {
             m_state = state_t::closed;
@@ -63,7 +63,7 @@ public:
     virtual
     void
     close() {
-        if(m_state == state_t::closed) {
+        if (m_state == state_t::closed) {
             throw std::runtime_error("The stream has been closed.");
         } else {
             m_state = state_t::closed;
@@ -99,13 +99,12 @@ worker_t::worker_t(const std::string& name,
     m_id(uuid),
     m_heartbeat_timer(m_service.native()),
     m_disown_timer(m_service.native()),
-    m_service_manager(new service_manager_t(m_service)),
     m_app_name(name)
 {
+    m_service_manager.reset(new service_manager_t(m_service));
+
     m_log.reset(new log_t(
-        m_service_manager->get_service<logging_service>(
-            io::tcp::endpoint("127.0.0.1", 12501)
-        ),
+        m_service_manager->get_service<logging_service_t>("logging"),
         cocaine::format("worker/%s", name)
     ));
 
@@ -145,13 +144,18 @@ worker_t::on_message(const io::message_t& message) {
         m_id,
         message.id()
     );
+    COCAINE_LOG_WARNING(
+        m_log,
+        "worker %s received type %d message",
+        m_id,
+        message.id()
+    );
 
     switch(message.id()) {
         case io::event_traits<io::rpc::heartbeat>::id: {
             m_disown_timer.stop();
             break;
         }
-
         case io::event_traits<io::rpc::invoke>::id: {
             std::string event;
             message.as<io::rpc::invoke>(event);
@@ -177,7 +181,6 @@ worker_t::on_message(const io::message_t& message) {
 
             break;
         }
-
         case io::event_traits<io::rpc::chunk>::id: {
             std::string chunk;
             message.as<io::rpc::chunk>(chunk);
@@ -200,7 +203,6 @@ worker_t::on_message(const io::message_t& message) {
 
             break;
         }
-
         case io::event_traits<io::rpc::choke>::id: {
             stream_map_t::iterator it = m_streams.find(message.band());
 
@@ -220,12 +222,33 @@ worker_t::on_message(const io::message_t& message) {
 
             break;
         }
+        case io::event_traits<io::rpc::error>::id: {
+            int error_code;
+            std::string error_message;
+            message.as<io::rpc::error>(error_code, error_message);
 
+            stream_map_t::iterator it(m_streams.find(message.band()));
+
+            // NOTE: This may be a chunk for a failed invocation, in which case there
+            // will be no active stream, so drop the message.
+            if(it != m_streams.end()) {
+                try {
+                    it->second.downstream->error(error_code, error_message);
+                } catch(const std::exception& e) {
+                    it->second.upstream->error(invocation_error, e.what());
+                    m_streams.erase(it);
+                } catch(...) {
+                    it->second.upstream->error(invocation_error, "unexpected exception");
+                    m_streams.erase(it);
+                }
+            }
+
+            break;
+        }
         case io::event_traits<io::rpc::terminate>::id: {
             terminate(io::rpc::terminate::normal, "per request");
             break;
         }
-
         default: {
             COCAINE_LOG_WARNING(
                 m_log,
@@ -268,8 +291,8 @@ worker_t::terminate(int reason,
 
 
 std::shared_ptr<worker_t>
-cocaine::framework::make_worker(int argc,
-                              char *argv[])
+worker_t::create(int argc,
+                 char *argv[])
 {
     using namespace boost::program_options;
 
@@ -293,9 +316,9 @@ cocaine::framework::make_worker(int argc,
     }
 
     try {
-        return std::make_shared<worker_t>(vm["app"].as<std::string>(),
-                                          vm["uuid"].as<std::string>(),
-                                          vm["endpoint"].as<std::string>());
+        return std::shared_ptr<worker_t>(new worker_t(vm["app"].as<std::string>(),
+                                                      vm["uuid"].as<std::string>(),
+                                                      vm["endpoint"].as<std::string>()));
     } catch(const std::exception& e) {
         std::cerr << cocaine::format("ERROR: unable to start the worker - %s", e.what()) << std::endl;
         throw;

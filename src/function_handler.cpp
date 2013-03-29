@@ -23,3 +23,10 @@ function_handler_t::on_close() {
     m_response->write(result.data(), result.size());
     m_response->close();
 }
+
+void
+function_handler_t::on_error(int code,
+                             const std::string& message)
+{
+    // pass
+}

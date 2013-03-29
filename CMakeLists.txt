@@ -34,6 +34,7 @@ INCLUDE_DIRECTORIES(BEFORE
 ADD_LIBRARY(cocaine-framework SHARED
     src/application
     src/function_handler
+    src/service
     src/worker)
 
 TARGET_LINK_LIBRARIES(cocaine-framework

@@ -45,7 +45,8 @@
 
 namespace cocaine { namespace framework {
 
-struct logger_t {
+class logger_t {
+public:
     virtual
     ~logger_t() {
         // Empty.
@@ -62,7 +63,8 @@ struct logger_t {
          const std::string& message) = 0;
 };
 
-struct log_t {
+class log_t {
+public:
     log_t(std::shared_ptr<logger_t> logger,
           const std::string& source) :
         m_logger(logger),

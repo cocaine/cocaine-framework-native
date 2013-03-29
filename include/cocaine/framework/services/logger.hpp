@@ -8,13 +8,22 @@
 
 namespace cocaine { namespace framework {
 
-struct logging_service :
-    public stub,
+class logging_service_t :
+    public service_t,
     public logger_t
 {
-    logging_service(const cocaine::io::tcp::endpoint& endpoint,
-                    cocaine::io::reactor_t& service) :
-        stub(endpoint, service)
+public:
+    logging_service_t(const cocaine::io::tcp::endpoint& endpoint,
+                      cocaine::io::reactor_t& service) :
+        service_t(endpoint, service)
+    {
+        // pass
+    }
+
+    logging_service_t(const std::string& name,
+                      cocaine::io::reactor_t& service,
+                    const cocaine::io::tcp::endpoint& resolver) :
+        service_t(name, service, resolver)
     {
         // pass
     }

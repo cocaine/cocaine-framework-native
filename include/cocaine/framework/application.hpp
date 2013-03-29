@@ -14,9 +14,10 @@
 
 namespace cocaine { namespace framework {
 
-struct bad_factory_exception :
+class bad_factory_exception :
     public std::runtime_error
 {
+public:
     explicit bad_factory_exception(const std::string& what) :
         runtime_error(what)
     {
@@ -24,9 +25,10 @@ struct bad_factory_exception :
     }
 };
 
-struct handler_error :
+class handler_error :
     public std::runtime_error
 {
+public:
     explicit handler_error(const std::string& what) :
         runtime_error(what)
     {
@@ -34,12 +36,13 @@ struct handler_error :
     }
 };
 
-struct base_handler_t :
-    public boost::noncopyable
+class base_handler_t :
+    private boost::noncopyable
 {
     friend class application_t;
     friend class worker_t;
 
+public:
     enum class state_t: int {
         opened,
         closed
@@ -76,11 +79,8 @@ struct base_handler_t :
 
     virtual
     void
-    on_error(cocaine::error_code code,
-             const std::string& message)
-    {
-        // pass
-    }
+    on_error(int code,
+             const std::string& message) = 0;
 
     bool
     closed() const {
@@ -113,8 +113,11 @@ private:
     }
 
     void
-    error(cocaine::error_code code,
-          const std::string& message);
+    error(int code,
+          const std::string& message)
+    {
+        on_error(code, message);
+    }
 
 protected:
     std::string m_event;
@@ -124,16 +127,18 @@ private:
     state_t m_state;
 };
 
-struct base_factory_t {
+class base_factory_t {
+public:
     virtual
     std::shared_ptr<base_handler_t>
     make_handler() = 0;
 };
 
 template<class AppT>
-struct user_handler_t :
+class user_handler_t :
     public base_handler_t
 {
+public:
     typedef AppT application_type;
 
     user_handler_t(application_type& a) :

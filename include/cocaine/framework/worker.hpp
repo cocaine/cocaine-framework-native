@@ -20,7 +20,7 @@
 namespace cocaine { namespace framework {
 
 class worker_t :
-    public boost::noncopyable
+    private boost::noncopyable
 {
     struct io_pair_t {
         std::shared_ptr<cocaine::api::stream_t> upstream;
@@ -30,10 +30,11 @@ class worker_t :
     typedef std::map<uint64_t, io_pair_t> stream_map_t;
 
 public:
-    worker_t(const std::string& name,
-             const std::string& uuid,
-             const std::string& endpoint);
+    static
+    std::shared_ptr<worker_t>
+    create(int argc, char *argv[]);
 
+public:
     ~worker_t();
 
     void
@@ -54,6 +55,10 @@ public:
     send(Args&&... args);
 
 private:
+    worker_t(const std::string& name,
+             const std::string& uuid,
+             const std::string& endpoint);
+
     void
     on_message(const cocaine::io::message_t& message);
 
@@ -103,10 +108,6 @@ worker_t::add(const std::string& name,
                                      std::forward<Args>(args)...));
     }
 }
-
-std::shared_ptr<worker_t>
-make_worker(int argc,
-            char *argv[]);
 
 }} // namespace cocaine::framework
 

@@ -4,24 +4,6 @@
 
 using namespace cocaine::framework;
 
-void
-base_handler_t::error(cocaine::error_code code,
-                      const std::string& message)
-{
-    on_error(code, message);
-
-    if (m_state == state_t::closed) {
-        throw handler_error("Handler has been closed.");
-    } else {
-        throw handler_error(
-            cocaine::format("Error with code %d has occurred: %s",
-                            static_cast<int>(code),
-                            message)
-        );
-    }
-}
-
-
 application_t::application_t(const std::string& name,
                              std::shared_ptr<service_manager_t> service_manager) :
     m_name(name),

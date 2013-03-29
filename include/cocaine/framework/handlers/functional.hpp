@@ -10,9 +10,10 @@
 
 namespace cocaine { namespace framework {
 
-struct function_handler_t :
+class function_handler_t :
     public base_handler_t
 {
+public:
     typedef std::function<std::string(const std::string&, const std::vector<std::string>&)>
             function_type;
 
@@ -25,14 +26,19 @@ struct function_handler_t :
     void
     on_close();
 
+    void
+    on_error(int code,
+             const std::string& message);
+
 private:
     function_type m_func;
     std::vector<std::string> m_input;
 };
 
-struct function_factory :
+class function_factory :
     public base_factory_t
 {
+public:
     function_factory(function_handler_t::function_type f) :
         m_func(f)
     {
@@ -50,9 +56,10 @@ private:
 };
 
 template<class Class>
-struct method_factory :
+class method_factory :
     public base_factory_t
 {
+public:
     typedef std::function<std::string(Class*, const std::string&, const std::vector<std::string>&)>
             method_type;
 
