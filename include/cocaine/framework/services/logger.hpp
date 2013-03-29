@@ -13,13 +13,6 @@ class logging_service_t :
     public logger_t
 {
 public:
-    logging_service_t(const cocaine::io::tcp::endpoint& endpoint,
-                      cocaine::io::reactor_t& service) :
-        service_t(endpoint, service)
-    {
-        // pass
-    }
-
     logging_service_t(const std::string& name,
                       cocaine::io::reactor_t& service,
                     const cocaine::io::tcp::endpoint& resolver) :
@@ -33,7 +26,10 @@ public:
          const std::string& source,
          const std::string& message)
     {
-        call<cocaine::io::logging::emit>(static_cast<int>(priority), source, message);
+        call<cocaine::io::logging::emit>(ignore_message,
+                                         static_cast<int>(priority),
+                                         source,
+                                         message);
     }
 
     cocaine::logging::priorities

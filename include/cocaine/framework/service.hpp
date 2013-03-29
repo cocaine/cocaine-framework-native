@@ -9,10 +9,19 @@
 
 #include <memory>
 #include <string>
+#include <functional>
 #include <stdexcept>
 #include <boost/utility.hpp>
 
 namespace cocaine { namespace framework {
+
+struct ignore_message_t {
+    void operator()(const cocaine::io::message_t&) {
+        // pass
+    }
+};
+
+extern const ignore_message_t ignore_message;
 
 class resolver_error_t :
     public std::runtime_error
@@ -72,37 +81,40 @@ class service_t :
 {
     typedef cocaine::io::channel<cocaine::io::socket<cocaine::io::tcp>>
             iochannel_t;
-public:
-    service_t(const cocaine::io::tcp::endpoint& endpoint,
-              cocaine::io::reactor_t& ioservice);
+    typedef std::function<void(const cocaine::io::message_t&)>
+            message_handler_t;
 
+public:
     service_t(const std::string& name,
               cocaine::io::reactor_t& ioservice,
               const cocaine::io::tcp::endpoint& resolver_endpoint);
 
     template<class Event, typename... Args>
     void
-    call(Args&&... args) {
-        m_channel->wr->write<Event>(0ul, args...);
-    }
-
-    template<class MessageHandler, class ErrorHandler>
-    void
-    bind(MessageHandler message_handler,
-         ErrorHandler error_handler)
-    {
-        m_channel->rd->bind(message_handler, error_handler);
+    call(const message_handler_t& handler, Args&&... args) {
+        m_handlers[m_session_counter] = handler;
+        m_channel->wr->write<Event>(m_session_counter, args...);
+        ++m_session_counter;
     }
 
 private:
     void
     connect();
 
+    void
+    on_message(const cocaine::io::message_t& message);
+
+    void
+    on_error(const std::error_code&);
+
 private:
     std::string m_name;
     cocaine::io::reactor_t& m_ioservice;
     std::shared_ptr<resolver_t> m_resolver;
     std::shared_ptr<iochannel_t> m_channel;
+
+    uint64_t m_session_counter;
+    std::map<unsigned int, message_handler_t> m_handlers;
 };
 
 class service_manager_t :
@@ -115,12 +127,6 @@ public:
         m_ioservice(ioservice)
     {
         // pass
-    }
-
-    template<class ServiceT>
-    std::shared_ptr<ServiceT>
-    get_service(const endpoint_t& endpoint) {
-        return std::shared_ptr<ServiceT>(new ServiceT(endpoint, m_ioservice));
     }
 
     template<class ServiceT>

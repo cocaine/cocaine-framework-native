@@ -3,6 +3,7 @@
 #include <cocaine/messages.hpp>
 
 #include <sstream>
+#include <iostream>
 
 using namespace cocaine::framework;
 
@@ -56,19 +57,12 @@ resolver_t::on_error(const std::error_code&) {
     m_ioservice.native().unloop(ev::ALL);
 }
 
-service_t::service_t(const cocaine::io::tcp::endpoint& endpoint,
-          cocaine::io::reactor_t& ioservice) :
-    m_ioservice(ioservice)
-{
-    auto socket = std::make_shared<cocaine::io::socket<cocaine::io::tcp>>(endpoint);
-    m_channel.reset(new iochannel_t(ioservice, socket));
-}
-
 service_t::service_t(const std::string& name,
           cocaine::io::reactor_t& ioservice,
           const cocaine::io::tcp::endpoint& resolver_endpoint) :
     m_name(name),
-    m_ioservice(ioservice)
+    m_ioservice(ioservice),
+    m_session_counter(0)
 {
     m_resolver.reset(new resolver_t(resolver_endpoint));
     connect();
@@ -97,4 +91,26 @@ service_t::connect() {
     );
 
     m_channel.reset(new iochannel_t(m_ioservice, socket));
+    m_channel->rd->bind(std::bind(&service_t::on_message, this, std::placeholders::_1),
+                        std::bind(&service_t::on_error, this, std::placeholders::_1));
+}
+
+void
+service_t::on_error(const std::error_code& code) {
+    std::cerr << "Error with code " << code << " has occurred in service " << m_name << "." << std::endl;
+    exit(-1);
+}
+
+void
+service_t::on_message(const cocaine::io::message_t& message) {
+    auto it = m_handlers.find(message.band());
+
+    if (it == m_handlers.end()) {
+        std::cout << "Message with unknown session id has been received from service " << m_name
+                  << std::endl;
+    } else if (message.id() == io::event_traits<io::rpc::choke>::id) {
+        m_handlers.erase(it);
+    } else {
+        it->second(message);
+    }
 }

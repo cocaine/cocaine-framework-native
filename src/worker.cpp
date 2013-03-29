@@ -84,11 +84,23 @@ private:
     state_t m_state;
 };
 
-struct ignore_t {
-    void
-    operator()(const std::error_code& /* ec */) {
-        // Empty.
+class killer_t {
+public:
+    killer_t(const std::string& app_name) :
+        m_app_name(app_name)
+    {
+        // pass
     }
+
+    void
+    operator()(const std::error_code& code) {
+        std::cerr << "Error with code " << code << " has occurred in application " << m_app_name << "."
+                  << std::endl;
+        exit(-1);
+    }
+
+private:
+    std::string m_app_name;
 };
 
 } // namespace
@@ -105,15 +117,16 @@ worker_t::worker_t(const std::string& name,
 
     m_log.reset(new log_t(
         m_service_manager->get_service<logging_service_t>("logging"),
-        cocaine::format("worker/%s", name)
+        cocaine::format("app/%s", name)
     ));
 
     auto socket = std::make_shared<io::socket<io::local>>(io::local::endpoint(endpoint));
 
     m_channel.reset(new io::channel<io::socket<io::local>>(m_service, socket));
 
-    m_channel->rd->bind(std::bind(&worker_t::on_message, this, std::placeholders::_1), ignore_t());
-    m_channel->wr->bind(ignore_t());
+    m_channel->rd->bind(std::bind(&worker_t::on_message, this, std::placeholders::_1),
+                        killer_t(name));
+    m_channel->wr->bind(killer_t(name));
 
     // Greet the engine!
     send<io::rpc::handshake>(0ul, m_id);
@@ -139,12 +152,6 @@ worker_t::run() {
 void
 worker_t::on_message(const io::message_t& message) {
     COCAINE_LOG_DEBUG(
-        m_log,
-        "worker %s received type %d message",
-        m_id,
-        message.id()
-    );
-    COCAINE_LOG_WARNING(
         m_log,
         "worker %s received type %d message",
         m_id,
