@@ -4,8 +4,6 @@
 #include <cocaine/framework/service.hpp>
 #include <cocaine/framework/logging.hpp>
 
-#include <cocaine/essentials/services/logging.hpp>
-
 namespace cocaine { namespace framework {
 
 class logging_service_t :
