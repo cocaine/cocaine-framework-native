@@ -1,7 +1,6 @@
 #ifndef COCAINE_FRAMEWORK_SERVICE_HPP
 #define COCAINE_FRAMEWORK_SERVICE_HPP
 
-#include <cocaine/detail/locator.hpp>
 #include <cocaine/rpc/channel.hpp>
 #include <cocaine/rpc/message.hpp>
 #include <cocaine/messages.hpp>
@@ -50,7 +49,7 @@ class resolver_t {
 public:
     resolver_t(const cocaine::io::tcp::endpoint& endpoint);
 
-    const cocaine::description_t&
+    const io::locator::description_t&
     resolve(const std::string& service_name);
 
 private:
@@ -72,7 +71,7 @@ private:
         cocaine::io::socket<cocaine::io::tcp>
     > m_channel;
 
-    cocaine::description_t m_last_response;
+    io::locator::description_t m_last_response;
 
     bool m_error_flag;
     error_t m_last_error;

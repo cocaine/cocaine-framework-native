@@ -14,7 +14,7 @@ resolver_t::resolver_t(const cocaine::io::tcp::endpoint& endpoint) :
                        std::bind(&resolver_t::on_error, this, std::placeholders::_1));
 }
 
-const cocaine::description_t&
+const cocaine::io::locator::description_t&
 resolver_t::resolve(const std::string& service_name) {
     m_error_flag = false;
 
