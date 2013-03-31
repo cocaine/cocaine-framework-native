@@ -46,10 +46,14 @@ private:
 };
 
 class resolver_t {
+    typedef tuple::fold<
+        io::locator::resolve::result_type
+    >::type result_type;
+
 public:
     resolver_t(const cocaine::io::tcp::endpoint& endpoint);
 
-    const io::locator::description_t&
+    const result_type&
     resolve(const std::string& service_name);
 
 private:
@@ -71,7 +75,7 @@ private:
         cocaine::io::socket<cocaine::io::tcp>
     > m_channel;
 
-    io::locator::description_t m_last_response;
+    result_type m_last_response;
 
     bool m_error_flag;
     error_t m_last_error;

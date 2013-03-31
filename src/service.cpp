@@ -14,7 +14,7 @@ resolver_t::resolver_t(const cocaine::io::tcp::endpoint& endpoint) :
                        std::bind(&resolver_t::on_error, this, std::placeholders::_1));
 }
 
-const cocaine::io::locator::description_t&
+const resolver_t::result_type&
 resolver_t::resolve(const std::string& service_name) {
     m_error_flag = false;
 
@@ -32,10 +32,11 @@ resolver_t::resolve(const std::string& service_name) {
 void
 resolver_t::on_response(const cocaine::io::message_t& message) {
     if (message.id() == io::event_traits<io::rpc::chunk>::id) {
-        std::string data = message.args().as<std::vector<std::string>>()[0];
+        std::string data;
+        message.as<io::rpc::chunk>(data);
         msgpack::unpacked msg;
         msgpack::unpack(&msg, data.data(), data.size());
-        msg.get().convert(&m_last_response);
+        cocaine::io::type_traits<result_type>::unpack(msg.get(), m_last_response);
     } else if (message.id() == io::event_traits<io::rpc::choke>::id) {
         m_ioservice.native().unloop(ev::ALL);
     } else if (message.id() == io::event_traits<io::rpc::error>::id) {
@@ -70,7 +71,7 @@ service_t::service_t(const std::string& name,
 
 void
 service_t::connect() {
-    std::string endpoint = m_resolver->resolve(m_name).endpoint;
+    std::string endpoint = std::get<0>(m_resolver->resolve(m_name));
 
     // parse endpoint in kostyl way
     size_t delim_pos = endpoint.find(':');
