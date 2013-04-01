@@ -7,7 +7,6 @@ SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 FIND_PACKAGE(Boost 1.40.0 REQUIRED
     COMPONENTS
-        system
         program_options)
 
 INCLUDE(cmake/locate_library.cmake)
@@ -38,7 +37,6 @@ ADD_LIBRARY(cocaine-framework SHARED
     src/worker)
 
 TARGET_LINK_LIBRARIES(cocaine-framework
-    boost_system-mt
     boost_program_options-mt
     ev
     msgpack)
