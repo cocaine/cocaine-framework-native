@@ -55,7 +55,7 @@ public:
             throw std::runtime_error("The stream has been closed.");
         } else {
             m_state = state_t::closed;
-            send<io::rpc::error>(static_cast<int>(code), message);
+            send<io::rpc::error>(code, message);
             send<io::rpc::choke>();
         }
     }
@@ -230,9 +230,9 @@ worker_t::on_message(const io::message_t& message) {
             break;
         }
         case io::event_traits<io::rpc::error>::id: {
-            int error_code;
+            error_code ec;
             std::string error_message;
-            message.as<io::rpc::error>(error_code, error_message);
+            message.as<io::rpc::error>(ec, error_message);
 
             stream_map_t::iterator it(m_streams.find(message.band()));
 
@@ -240,7 +240,7 @@ worker_t::on_message(const io::message_t& message) {
             // will be no active stream, so drop the message.
             if(it != m_streams.end()) {
                 try {
-                    it->second.downstream->error(error_code, error_message);
+                    it->second.downstream->error(ec, error_message);
                 } catch(const std::exception& e) {
                     it->second.upstream->error(invocation_error, e.what());
                     m_streams.erase(it);
@@ -289,10 +289,10 @@ worker_t::on_disown(ev::timer&,
 }
 
 void
-worker_t::terminate(int reason,
-                    const std::string& message)
+worker_t::terminate(int code,
+                    const std::string& reason)
 {
-    send<io::rpc::terminate>(0ul, reason, message);
+    send<io::rpc::terminate>(0ul, static_cast<io::rpc::terminate::code>(code), reason);
     m_ioservice.native().unloop(ev::ALL);
 }
 
