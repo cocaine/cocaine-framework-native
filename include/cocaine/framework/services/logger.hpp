@@ -4,6 +4,8 @@
 #include <cocaine/framework/service.hpp>
 #include <cocaine/framework/logging.hpp>
 
+#include <cocaine/detail/traits/logging.hpp>
+
 namespace cocaine { namespace framework {
 
 class logging_service_t :
@@ -25,14 +27,14 @@ public:
          const std::string& message)
     {
         call<cocaine::io::logging::emit>(ignore_message,
-                                         static_cast<int>(priority),
+                                         priority,
                                          source,
                                          message);
     }
 
     cocaine::logging::priorities
     verbosity() const {
-        return cocaine::logging::priorities::debug;
+        return cocaine::logging::priorities::info;
     }
 };
 
