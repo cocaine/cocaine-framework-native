@@ -71,21 +71,25 @@ service_t::service_t(const std::string& name,
 
 void
 service_t::connect() {
-    std::string endpoint = std::get<0>(m_resolver->resolve(m_name));
+    std::string address;
+    uint16_t port;
 
+    std::tie(address, port) = std::get<0>(m_resolver->resolve(m_name));
+
+    /*
     // parse endpoint in kostyl way
     size_t delim_pos = endpoint.find(':');
 
     if (delim_pos == std::string::npos) {
         throw resolver_error_t("Resolver returned endpoint in unknown format.");
     }
+    */
 
-    std::string address = endpoint.substr(0, delim_pos);
-    uint16_t port;
-
+    /*
     if (!(std::istringstream(endpoint.substr(delim_pos + 1)) >> port)) {
         throw resolver_error_t("Resolver returned endpoint in unknown format.");
     }
+    */
 
     auto socket = std::make_shared<cocaine::io::socket<cocaine::io::tcp>>(
         cocaine::io::tcp::endpoint(address, port)
