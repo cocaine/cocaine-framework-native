@@ -26,8 +26,7 @@ public:
          const std::string& source,
          const std::string& message)
     {
-        call<cocaine::io::logging::emit>(ignore_message,
-                                         priority,
+        call<cocaine::io::logging::emit>(priority,
                                          source,
                                          message);
     }
@@ -41,7 +40,6 @@ public:
     initialize();
 
 protected:
-
     void
     on_verbosity_response(cocaine::io::reactor_t *ioservice,
                           const cocaine::io::message_t& message);

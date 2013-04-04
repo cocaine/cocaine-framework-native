@@ -7,6 +7,7 @@
 #include <cocaine/asio/socket.hpp>
 #include <cocaine/asio/tcp.hpp>
 #include <cocaine/asio/reactor.hpp>
+#include <cocaine/slot.hpp>
 
 #include <memory>
 #include <string>
@@ -65,7 +66,7 @@ private:
 
 private:
     struct error_t {
-        error_code code;
+        cocaine::error_code code;
         std::string message;
     };
 
@@ -81,13 +82,115 @@ private:
     error_t m_last_error;
 };
 
+struct basic_service_handler {
+    virtual
+    void
+    handle_message(const cocaine::io::message_t&) = 0;
+};
+
+template<class Event>
+class service_result_handler :
+    private boost::noncopyable,
+    public basic_service_handler
+{
+    template<class It, class End, class... Args>
+    struct construct_functor {
+        typedef typename construct_functor<typename boost::mpl::next<It>::type,
+                                          End,
+                                          Args...,
+                                          typename boost::mpl::deref<It>::type
+                                          >::type
+                type;
+    };
+
+    template<class End, class... Args>
+    struct construct_functor<End, End, Args...> {
+        struct functor {
+            void
+            operator()(Args&&... args) {
+                // pass
+            }
+        };
+
+        typedef functor type;
+    };
+
+    template<class List>
+    struct empty_functor {
+        typedef typename construct_functor<typename boost::mpl::begin<List>::type,
+                                           typename boost::mpl::end<List>::type
+                                           >::type
+                type;
+    };
+
+    struct ignore_error_t {
+        void
+        operator()(cocaine::error_code,
+                   const std::string&)
+        {
+            // pass
+        }
+    };
+
+public:
+    typedef typename cocaine::basic_slot<void, typename Event::result_type>::callable_type
+            message_handler_t;
+
+    typedef std::function<void(cocaine::error_code, const std::string&)>
+            error_handler_t;
+
+public:
+    service_result_handler() :
+        m_message_handler(typename empty_functor<typename Event::result_type>::type()),
+        m_error_handler(ignore_error_t())
+    {
+        // pass
+    }
+
+    void
+    handle_message(const cocaine::io::message_t&);
+
+    void
+    on_message(message_handler_t handler) {
+        m_message_handler = handler;
+    }
+
+    void
+    on_error(error_handler_t handler) {
+        m_error_handler = handler;
+    }
+
+private:
+    message_handler_t m_message_handler;
+    error_handler_t m_error_handler;
+};
+
+template<class Event>
+void
+service_result_handler<Event>::handle_message(const cocaine::io::message_t& message) {
+    if (message.id() == io::event_traits<io::rpc::chunk>::id) {
+        std::string data;
+        message.as<cocaine::io::rpc::chunk>(data);
+        msgpack::unpacked msg;
+        msgpack::unpack(&msg, data.data(), data.size());
+
+        cocaine::blocking_slot<void, typename Event::result_type> slot("", m_message_handler);
+        slot(std::shared_ptr<cocaine::api::stream_t>(), msg.get());
+    } else if (message.id() == io::event_traits<io::rpc::error>::id) {
+        std::string data;
+        message.as<cocaine::io::rpc::chunk>(data);
+        msgpack::unpacked msg;
+        msgpack::unpack(&msg, data.data(), data.size());
+
+        cocaine::blocking_slot<void, cocaine::io::rpc::error::tuple_type> slot("", m_error_handler);
+        slot(std::shared_ptr<cocaine::api::stream_t>(), msg.get());
+    }
+}
+
 class service_t :
     private boost::noncopyable
 {
 public:
-    typedef std::function<void(const cocaine::io::message_t&)>
-            message_handler_t;
-
     typedef uint64_t session_id_t;
 
 public:
@@ -96,12 +199,8 @@ public:
               const cocaine::io::tcp::endpoint& resolver_endpoint);
 
     template<class Event, typename... Args>
-    session_id_t
-    call(const message_handler_t& handler, Args&&... args) {
-        m_handlers[m_session_counter] = handler;
-        m_channel->wr->write<Event>(m_session_counter, args...);
-        return m_session_counter++;
-    }
+    std::shared_ptr<service_result_handler<Event>>
+    call(Args&&... args);
 
     virtual
     void
@@ -141,8 +240,19 @@ private:
     std::shared_ptr<iochannel_t> m_channel;
 
     session_id_t m_session_counter;
-    std::map<session_id_t, message_handler_t> m_handlers;
+    std::map<session_id_t, std::shared_ptr<basic_service_handler>> m_handlers;
 };
+
+
+template<class Event, typename... Args>
+std::shared_ptr<service_result_handler<Event>>
+service_t::call(Args&&... args) {
+    auto handler = std::make_shared<service_result_handler<Event>>();
+    m_handlers[m_session_counter] = handler;
+    m_channel->wr->write<Event>(m_session_counter, args...);
+    ++m_session_counter;
+    return handler;
+}
 
 class service_manager_t :
     private boost::noncopyable
@@ -161,7 +271,7 @@ public:
     get_service(const std::string& name,
                 const endpoint_t& resolver = endpoint_t("127.0.0.1", 10053))
     {
-        auto new_service = std::shared_ptr<Service>(new Service(name, m_ioservice, resolver));
+        auto new_service = std::make_shared<Service>(name, m_ioservice, resolver);
         new_service->initialize();
         return new_service;
     }

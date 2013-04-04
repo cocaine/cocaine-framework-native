@@ -116,6 +116,6 @@ service_t::on_message(const cocaine::io::message_t& message) {
     } else if (message.id() == io::event_traits<io::rpc::choke>::id) {
         m_handlers.erase(it);
     } else {
-        it->second(message);
+        it->second->handle_message(message);
     }
 }
