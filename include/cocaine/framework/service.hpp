@@ -65,7 +65,7 @@ private:
 
 private:
     struct error_t {
-        int code;
+        error_code code;
         std::string message;
     };
 

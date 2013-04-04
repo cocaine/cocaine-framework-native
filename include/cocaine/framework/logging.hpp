@@ -27,21 +27,20 @@
 
 #include <string>
 
-
 #define COCAINE_LOG(log, level, ...) \
     if(log->verbosity() >= level) log->emit(level, __VA_ARGS__);
 
 #define COCAINE_LOG_DEBUG(log, ...) \
-    COCAINE_LOG(log, logging::debug, __VA_ARGS__)
+    COCAINE_LOG(log, ::cocaine::logging::debug, __VA_ARGS__)
 
 #define COCAINE_LOG_INFO(log, ...) \
-    COCAINE_LOG(log, logging::info, __VA_ARGS__)
+    COCAINE_LOG(log, ::cocaine::logging::info, __VA_ARGS__)
 
 #define COCAINE_LOG_WARNING(log, ...) \
-    COCAINE_LOG(log, logging::warning, __VA_ARGS__)
+    COCAINE_LOG(log, ::cocaine::logging::warning, __VA_ARGS__)
 
 #define COCAINE_LOG_ERROR(log, ...) \
-    COCAINE_LOG(log, logging::error, __VA_ARGS__)
+    COCAINE_LOG(log, ::cocaine::logging::error, __VA_ARGS__)
 
 namespace cocaine { namespace framework {
 

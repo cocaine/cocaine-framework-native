@@ -1,3 +1,25 @@
+cocaine-framework-native (0.10.0-rc10) lucid; urgency=low
+
+  * Release candidate 10.
+  * Enum serialization fixes.
+
+ -- Andrey Sibiryov <kobolog@yandex-team.ru>  Wed, 03 Apr 2013 21:55:39 +0400
+
+cocaine-framework-native (0.10.0-rc9) lucid; urgency=low
+
+  * Release candidate 9.
+  * Logging fixes.
+
+ -- Andrey Sibiryov <kobolog@yandex-team.ru>  Wed, 03 Apr 2013 19:32:05 +0400
+
+cocaine-framework-native (0.10.0-rc8) lucid; urgency=low
+
+  * Release candidate 8.
+  * Now using native logging interfaces.
+  * Added a stupid storage service stub.
+
+ -- Andrey Sibiryov <kobolog@yandex-team.ru>  Wed, 03 Apr 2013 15:58:38 +0400
+
 cocaine-framework-native (0.10.0-rc7) lucid; urgency=low
 
   * Release candidate 7.
