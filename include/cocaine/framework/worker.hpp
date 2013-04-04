@@ -107,6 +107,7 @@ worker_t::add(const std::string& name,
         m_application.reset(new AppT(name,
                                      m_service_manager,
                                      std::forward<Args>(args)...));
+        m_application->initialize();
     }
 }
 

@@ -141,14 +141,20 @@ class user_handler_t :
 public:
     typedef AppT application_type;
 
-    user_handler_t(application_type& a) :
+    user_handler_t(std::shared_ptr<application_type> a) :
         m_app(a)
     {
         // pass
     }
 
 protected:
-    application_type& m_app;
+    std::shared_ptr<application_type>
+    app() const {
+        return m_app;
+    }
+
+private:
+    std::shared_ptr<application_type> m_app;
 };
 
 template<class UserHandlerT>
@@ -160,8 +166,7 @@ class user_handler_factory :
     typedef typename UserHandlerT::application_type application_type;
 
 public:
-    user_handler_factory() :
-        m_app(nullptr)
+    user_handler_factory()
     {
         // pass
     }
@@ -172,25 +177,27 @@ public:
 private:
     virtual
     void
-    set_application(application_type *a) {
+    set_application(std::shared_ptr<application_type> a) {
         m_app = a;
     }
 
-protected:
-    application_type *m_app;
+private:
+    std::shared_ptr<application_type> m_app;
 };
 
 template<class UserHandlerT>
 std::shared_ptr<base_handler_t>
 user_handler_factory<UserHandlerT>::make_handler() {
     if (m_app) {
-        return std::shared_ptr<base_handler_t>(new UserHandlerT(*m_app));
+        return std::shared_ptr<UserHandlerT>(new UserHandlerT(m_app));
     } else {
         throw bad_factory_exception("Application has not been set.");
     }
 }
 
-class application_t {
+class application_t :
+    public std::enable_shared_from_this<application_t>
+{
     typedef std::map<std::string, std::shared_ptr<base_factory_t>>
             handlers_map;
 public:
@@ -201,6 +208,10 @@ public:
     ~application_t() {
         // pass
     }
+
+    virtual
+    void
+    initialize() = 0;
 
     virtual
     std::shared_ptr<base_handler_t>
@@ -255,15 +266,17 @@ void
 application_t::on(const std::string& event,
                   const FactoryT& factory)
 {
-    this->on(event, std::shared_ptr<base_factory_t>(new FactoryT(factory)));
+    this->on(event, std::shared_ptr<FactoryT>(new FactoryT(factory)));
 }
 
 template<class UserHandlerT>
 void
 application_t::on(const std::string& event) {
     user_handler_factory<UserHandlerT> *new_factory = new user_handler_factory<UserHandlerT>;
-    new_factory->set_application(dynamic_cast<typename UserHandlerT::application_type*>(this));
-    this->on(event, std::shared_ptr<base_factory_t>(new_factory));
+    new_factory->set_application(std::dynamic_pointer_cast<
+        std::shared_ptr<typename UserHandlerT::application_type>
+    >(shared_from_this()));
+    this->on(event, std::shared_ptr<user_handler_factory<UserHandlerT>>(new_factory));
 }
 
 template<class FactoryT>
@@ -276,8 +289,10 @@ template<class UserHandlerT>
 void
 application_t::on_unregistered() {
     user_handler_factory<UserHandlerT> *new_factory = new user_handler_factory<UserHandlerT>;
-    new_factory->set_application(dynamic_cast<typename UserHandlerT::application_type*>(this));
-    this->on_unregistered(std::shared_ptr<base_factory_t>(new_factory));
+    new_factory->set_application(std::dynamic_pointer_cast<
+        std::shared_ptr<typename UserHandlerT::application_type>
+    >(shared_from_this()));
+    this->on_unregistered(std::shared_ptr<user_handler_factory<UserHandlerT>>(new_factory));
 }
 
 }} // namespace cocaine::framework

@@ -63,8 +63,8 @@ public:
     typedef std::function<std::string(Class*, const std::string&, const std::vector<std::string>&)>
             method_type;
 
-    method_factory(Class *object, method_type method) :
-        m_object(object),
+    method_factory(std::shared_ptr<application_t> object, method_type method) :
+        m_object(std::dynamic_pointer_cast<Class>(object)),
         m_method(method)
     {
         // pass
@@ -74,7 +74,7 @@ public:
     make_handler();
 
 private:
-    Class *m_object;
+    std::shared_ptr<Class> m_object;
     method_type m_method;
 };
 

@@ -103,6 +103,13 @@ public:
         return m_session_counter++;
     }
 
+protected:
+    virtual
+    void
+    initialize() {
+        // pass
+    }
+
 private:
     typedef cocaine::io::channel<cocaine::io::socket<cocaine::io::tcp>>
             iochannel_t;
@@ -144,7 +151,8 @@ public:
     get_service(const std::string& name,
                 const endpoint_t& resolver = endpoint_t("127.0.0.1", 10053))
     {
-        return std::shared_ptr<ServiceT>(new ServiceT(name, m_ioservice, resolver));
+        auto new_service = std::shared_ptr<ServiceT>(new ServiceT(name, m_ioservice, resolver));
+        new_service->initialize();
     }
 
 private:

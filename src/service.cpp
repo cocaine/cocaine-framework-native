@@ -59,8 +59,8 @@ resolver_t::on_error(const std::error_code&) {
 }
 
 service_t::service_t(const std::string& name,
-          cocaine::io::reactor_t& ioservice,
-          const cocaine::io::tcp::endpoint& resolver_endpoint) :
+                     cocaine::io::reactor_t& ioservice,
+                     const cocaine::io::tcp::endpoint& resolver_endpoint) :
     m_name(name),
     m_ioservice(ioservice),
     m_session_counter(0)
