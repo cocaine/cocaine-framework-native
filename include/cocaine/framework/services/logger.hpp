@@ -7,6 +7,7 @@
 namespace cocaine { namespace framework {
 
 class logging_service_t :
+    public std::enable_shared_from_this<logging_service_t>,
     public service_t,
     public logger_t
 {
@@ -36,25 +37,14 @@ public:
         return m_priority;
     }
 
+    void
+    initialize();
+
 protected:
-    void initialize() {
-        call<cocaine::io::logging::verbosity>(
-            std::bind(&logging_service_t::on_verbosity_response,
-                      shared_from_this(),
-                      std::placeholders::_1)
-        );
-    }
 
     void
-    on_verbosity_response(const cocaine::io::message_t& message) {
-        if (message.id() == io::event_traits<io::rpc::chunk>::id) {
-            std::string chunk;
-            message.as<io::rpc::chunk>(chunk);
-            msgpack::unpacked msg;
-            msgpack::unpack(&msg, chunk.data(), chunk.size());
-            cocaine::io::type_traits<cocaine::logging::priorities>::unpack(msg.get(), m_priority);
-        }
-    }
+    on_verbosity_response(cocaine::io::reactor_t *ioservice,
+                          const cocaine::io::message_t& message);
 
 private:
     cocaine::logging::priorities m_priority;

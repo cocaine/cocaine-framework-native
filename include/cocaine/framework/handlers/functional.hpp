@@ -60,7 +60,10 @@ class method_factory :
     public base_factory_t
 {
 public:
-    typedef std::function<std::string(Class*, const std::string&, const std::vector<std::string>&)>
+    typedef std::function<
+                std::string
+                (std::shared_ptr<Class>, const std::string&, const std::vector<std::string>&)
+            >
             method_type;
 
     method_factory(std::shared_ptr<application_t> object, method_type method) :
@@ -78,9 +81,9 @@ private:
     method_type m_method;
 };
 
-template<class AppT>
+template<class App>
 std::shared_ptr<base_handler_t>
-method_factory<AppT>::make_handler() {
+method_factory<App>::make_handler() {
     if (m_object) {
         return std::shared_ptr<base_handler_t>(
             new function_handler_t(std::bind(m_method,

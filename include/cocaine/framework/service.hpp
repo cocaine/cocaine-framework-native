@@ -103,12 +103,25 @@ public:
         return m_session_counter++;
     }
 
-protected:
     virtual
     void
     initialize() {
         // pass
     }
+
+    const std::string&
+    name() const {
+        return m_name;
+    }
+
+    std::shared_ptr<resolver_t>
+    resolver() const {
+        return m_resolver;
+    }
+
+protected:
+    void
+    on_error(const std::error_code&);
 
 private:
     typedef cocaine::io::channel<cocaine::io::socket<cocaine::io::tcp>>
@@ -120,9 +133,6 @@ private:
 
     void
     on_message(const cocaine::io::message_t& message);
-
-    void
-    on_error(const std::error_code&);
 
 private:
     std::string m_name;
@@ -146,13 +156,14 @@ public:
         // pass
     }
 
-    template<class ServiceT>
-    std::shared_ptr<ServiceT>
+    template<class Service>
+    std::shared_ptr<Service>
     get_service(const std::string& name,
                 const endpoint_t& resolver = endpoint_t("127.0.0.1", 10053))
     {
-        auto new_service = std::shared_ptr<ServiceT>(new ServiceT(name, m_ioservice, resolver));
+        auto new_service = std::shared_ptr<Service>(new Service(name, m_ioservice, resolver));
         new_service->initialize();
+        return new_service;
     }
 
 private:

@@ -32,9 +32,10 @@ INCLUDE_DIRECTORIES(BEFORE
 
 ADD_LIBRARY(cocaine-framework SHARED
     src/application
-    src/function_handler
     src/service
-    src/worker)
+    src/worker
+    src/handlers/functional
+    src/services/logger)
 
 TARGET_LINK_LIBRARIES(cocaine-framework
     boost_program_options-mt
