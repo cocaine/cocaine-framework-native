@@ -6,7 +6,6 @@
 #include <cocaine/api/stream.hpp>
 
 #include <stdexcept>
-#include <typeinfo>
 #include <memory>
 #include <string>
 #include <map>

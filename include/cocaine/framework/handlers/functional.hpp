@@ -66,8 +66,8 @@ public:
             >
             method_type;
 
-    method_factory(std::shared_ptr<application_t> object, method_type method) :
-        m_object(std::dynamic_pointer_cast<Class>(object)),
+    method_factory(std::shared_ptr<Class> object, method_type method) :
+        m_object(object),
         m_method(method)
     {
         // pass

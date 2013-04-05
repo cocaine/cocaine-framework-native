@@ -17,40 +17,32 @@ public:
         // pass
     }
 
-    template<class F>
-    void
-    read(F callback,
-         const std::string& collection,
+    service_handler<io::storage::read>::future
+    read(const std::string& collection,
          const std::string& key)
     {
-        call<io::storage::read>(callback, collection, key);
+        return call<io::storage::read>(collection, key);
     }
 
-    template<class F>
-    void
-    write(F callback,
-          const std::string& collection,
+    service_handler<io::storage::write>::future
+    write(const std::string& collection,
           const std::string& key,
           const std::string& value)
     {
-        call<io::storage::write>(callback, collection, key, value);
+        return call<io::storage::write>(collection, key, value);
     }
 
-    template<class F>
-    void
-    remove(F callback,
-           const std::string& collection,
+    service_handler<io::storage::remove>::future
+    remove(const std::string& collection,
            const std::string& key)
     {
-        call<io::storage::remove>(callback, collection, key);
+        return call<io::storage::remove>(collection, key);
     }
 
-    template<class F>
-    void
-    list(F callback,
-         const std::string& collection)
+    service_handler<io::storage::list>::future
+    list(const std::string& collection)
     {
-        call<io::storage::list>(callback, collection);
+        return call<io::storage::list>(collection);
     }
 };
 

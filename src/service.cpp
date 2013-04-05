@@ -63,7 +63,7 @@ service_t::service_t(const std::string& name,
                      const cocaine::io::tcp::endpoint& resolver_endpoint) :
     m_name(name),
     m_ioservice(ioservice),
-    m_session_counter(0)
+    m_session_counter(1)
 {
     m_resolver.reset(new resolver_t(resolver_endpoint));
     connect();
