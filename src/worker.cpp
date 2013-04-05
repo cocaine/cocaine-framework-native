@@ -322,6 +322,14 @@ worker_t::create(int argc,
         exit(-1);
     }
 
+    if (vm.count("app") == 0 ||
+        vm.count("uuid") == 0 ||
+        vm.count("endpoint") == 0)
+    {
+        std::cerr << "This is an application for Cocaine Engine. You can not run it like an ordinary application. Upload it in Cocaine." << std::endl;
+        exit(-1);
+    }
+
     try {
         return std::shared_ptr<worker_t>(new worker_t(vm["app"].as<std::string>(),
                                                       vm["uuid"].as<std::string>(),
