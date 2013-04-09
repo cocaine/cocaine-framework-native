@@ -164,7 +164,7 @@ worker_t::run() {
 
 void
 worker_t::on_message(const io::message_t& message) {
-    m_log->debug("worker %s received type %d message", m_id, message.id());
+    COCAINE_LOG_DEBUG(m_log, "worker %s received type %d message", m_id, message.id())
 
     switch(message.id()) {
         case io::event_traits<io::rpc::heartbeat>::id: {
@@ -175,7 +175,11 @@ worker_t::on_message(const io::message_t& message) {
             std::string event;
             message.as<io::rpc::invoke>(event);
 
-            m_log->debug("worker %s invoking session %s with event '%s'", m_id, message.band(), event);
+            COCAINE_LOG_DEBUG(m_log,
+                              "worker %s invoking session %s with event '%s'",
+                              m_id,
+                              message.band(),
+                              event)
 
             std::shared_ptr<api::stream_t> upstream(
                 std::make_shared<upstream_t>(message.band(), this)
@@ -265,7 +269,10 @@ worker_t::on_message(const io::message_t& message) {
             break;
         }
         default: {
-            m_log->warning("worker %s dropping unknown type %d message", m_id, message.id());
+            COCAINE_LOG_WARNING(m_log,
+                                "worker %s dropping unknown type %d message",
+                                m_id,
+                                message.id())
         }
     }
 }
@@ -282,7 +289,7 @@ void
 worker_t::on_disown(ev::timer&,
                     int)
 {
-    m_log->error("worker %s has lost the controlling engine", m_id);
+    COCAINE_LOG_ERROR(m_log, "worker %s has lost the controlling engine", m_id)
     m_ioservice.native().unloop(ev::ALL);
 }
 

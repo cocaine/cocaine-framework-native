@@ -39,7 +39,7 @@ public:
     on(const std::string& event);
 
     void
-    on_unregistered(std::function<std::string(App*, const std::string&, const std::vector<std::string>&)>);
+    on_unregistered(std::string(App::*)(const std::string&, const std::vector<std::string>&));
 
     void
     on_unregistered(std::function<std::string(const std::string&, const std::vector<std::string>&)>);

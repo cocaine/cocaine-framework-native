@@ -6,6 +6,21 @@
 #include <cocaine/forwards.hpp>
 #include <cocaine/format.hpp>
 
+#define COCAINE_LOG(_log_, _level_, ...) \
+    if(_log_->verbosity() >= _level_) _log_->emit(_level_, __VA_ARGS__);
+
+#define COCAINE_LOG_DEBUG(_log_, ...) \
+    COCAINE_LOG(_log_, ::cocaine::logging::debug, __VA_ARGS__)
+
+#define COCAINE_LOG_INFO(_log_, ...) \
+    COCAINE_LOG(_log_, ::cocaine::logging::info, __VA_ARGS__)
+
+#define COCAINE_LOG_WARNING(_log_, ...) \
+    COCAINE_LOG(_log_, ::cocaine::logging::warning, __VA_ARGS__)
+
+#define COCAINE_LOG_ERROR(_log_, ...) \
+    COCAINE_LOG(_log_, ::cocaine::logging::error, __VA_ARGS__)
+
 namespace cocaine { namespace framework {
 
 class logging_service_t :
@@ -28,9 +43,7 @@ public:
     emit(cocaine::logging::priorities priority,
          const std::string& message)
     {
-        if (priority <= verbosity()) {
-            call<cocaine::io::logging::emit>(priority, m_source, message);
-        }
+        call<cocaine::io::logging::emit>(priority, m_source, message);
     }
 
     template<typename... Args>
@@ -40,34 +53,6 @@ public:
          const Args&... args)
     {
         emit(priority, cocaine::format(format, args...));
-    }
-
-    template<typename... Args>
-    void
-    error(const Args&... args)
-    {
-        emit(cocaine::logging::error, args...);
-    }
-
-    template<typename... Args>
-    void
-    warning(const Args&... args)
-    {
-        emit(cocaine::logging::warning, args...);
-    }
-
-    template<typename... Args>
-    void
-    info(const Args&... args)
-    {
-        emit(cocaine::logging::info, args...);
-    }
-
-    template<typename... Args>
-    void
-    debug(const Args&... args)
-    {
-        emit(cocaine::logging::debug, args...);
     }
 
     cocaine::logging::priorities
