@@ -98,6 +98,6 @@ main(int argc,
 {
     auto worker = cocaine::framework::worker_t::create(argc, argv);
     worker->create_application<App1>();
-    worker->run();
-    return 0;
+
+    return worker->run();
 }

@@ -93,9 +93,7 @@ public:
 
     void
     operator()(const std::error_code& code) {
-        std::cerr << "Error with code " << code << " has occurred in application " << m_app_name << "."
-                  << std::endl;
-        exit(-1);
+        throw std::runtime_error(cocaine::format("socket error with code %d", code));
     }
 
 private:
@@ -139,22 +137,28 @@ worker_t::~worker_t() {
     // pass
 }
 
-void
+int
 worker_t::run() {
     try {
         if (m_application) {
             m_ioservice.run();
+            return 0;
         }
         else {
             terminate(cocaine::io::rpc::terminate::abnormal,
                       "Application object has not been created.");
+            return 1;
         }
     } catch (const std::exception& e) {
-        std::cerr << "Following error has occurred: " << e.what() << std::endl;
-        exit(-1);
+        std::cerr << "Following error has occurred in application "
+                  << m_app_name
+                  << ": "
+                  << e.what()
+                  << std::endl;
+        return 1;
     } catch (...) {
-        std::cerr << "Unknown error has occurred!" << std::endl;
-        exit(-1);
+        std::cerr << "Unknown error has occurred in application " << m_app_name << std::endl;
+        return 1;
     }
 }
 
@@ -313,7 +317,7 @@ worker_t::create(int argc,
         notify(vm);
     } catch(const std::exception& e) {
         std::cerr << "ERROR: " << e.what() << std::endl;
-        exit(-1);
+        exit(1);
     }
 
     if (vm.count("app") == 0 ||
@@ -321,7 +325,7 @@ worker_t::create(int argc,
         vm.count("endpoint") == 0)
     {
         std::cerr << "This is an application for Cocaine Engine. You can not run it like an ordinary application. Upload it in Cocaine." << std::endl;
-        exit(-1);
+        exit(1);
     }
 
     try {
@@ -330,6 +334,6 @@ worker_t::create(int argc,
                                                       vm["endpoint"].as<std::string>()));
     } catch(const std::exception& e) {
         std::cerr << cocaine::format("ERROR: unable to start the worker - %s", e.what()) << std::endl;
-        exit(-1);
+        exit(1);
     }
 }

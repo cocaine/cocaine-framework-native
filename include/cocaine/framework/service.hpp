@@ -117,25 +117,20 @@ private:
 template<class Event, class Result, class T>
 void
 service_handler<Event, Result, T>::handle_message(const cocaine::io::message_t& message) {
-    try {
-        if (message.id() == io::event_traits<io::rpc::chunk>::id) {
-            std::string data;
-            message.as<cocaine::io::rpc::chunk>(data);
-            msgpack::unpacked msg;
-            msgpack::unpack(&msg, data.data(), data.size());
+    if (message.id() == io::event_traits<io::rpc::chunk>::id) {
+        std::string data;
+        message.as<cocaine::io::rpc::chunk>(data);
+        msgpack::unpacked msg;
+        msgpack::unpack(&msg, data.data(), data.size());
 
-            m_message_handler(msg.get().as<Result>());
-        } else if (message.id() == io::event_traits<io::rpc::error>::id) {
-            std::string data;
-            message.as<cocaine::io::rpc::chunk>(data);
-            msgpack::unpacked msg;
-            msgpack::unpack(&msg, data.data(), data.size());
+        m_message_handler(msg.get().as<Result>());
+    } else if (message.id() == io::event_traits<io::rpc::error>::id) {
+        std::string data;
+        message.as<cocaine::io::rpc::chunk>(data);
+        msgpack::unpacked msg;
+        msgpack::unpack(&msg, data.data(), data.size());
 
-            cocaine::invoke<io::event_traits<io::rpc::error>::tuple_type>::apply(m_error_handler, msg.get());
-        }
-    } catch (const std::exception& e) {
-        std::cerr << "ERROR: " << e.what() << std::endl;
-        exit(-1);
+        cocaine::invoke<io::event_traits<io::rpc::error>::tuple_type>::apply(m_error_handler, msg.get());
     }
 }
 
@@ -259,27 +254,22 @@ service_handler<
     >::type
 >
 ::handle_message(const cocaine::io::message_t& message) {
-    try {
-        if (message.id() == io::event_traits<io::rpc::chunk>::id) {
-            std::string data;
-            message.as<cocaine::io::rpc::chunk>(data);
-            msgpack::unpacked msg;
-            msgpack::unpack(&msg, data.data(), data.size());
+    if (message.id() == io::event_traits<io::rpc::chunk>::id) {
+        std::string data;
+        message.as<cocaine::io::rpc::chunk>(data);
+        msgpack::unpacked msg;
+        msgpack::unpack(&msg, data.data(), data.size());
 
-            cocaine::invoke<Result>::apply(m_message_handler, msg.get());
-        } else if (message.id() == io::event_traits<io::rpc::error>::id) {
-            std::string data;
-            message.as<cocaine::io::rpc::chunk>(data);
-            msgpack::unpacked msg;
-            msgpack::unpack(&msg, data.data(), data.size());
+        cocaine::invoke<Result>::apply(m_message_handler, msg.get());
+    } else if (message.id() == io::event_traits<io::rpc::error>::id) {
+        std::string data;
+        message.as<cocaine::io::rpc::chunk>(data);
+        msgpack::unpacked msg;
+        msgpack::unpack(&msg, data.data(), data.size());
 
-            cocaine::invoke<
-                io::event_traits<io::rpc::error>::tuple_type
-            >::apply(m_error_handler, msg.get());
-        }
-    } catch (const std::exception& e) {
-        std::cerr << "ERROR: " << e.what() << std::endl;
-        exit(-1);
+        cocaine::invoke<
+            io::event_traits<io::rpc::error>::tuple_type
+        >::apply(m_error_handler, msg.get());
     }
 }
 
@@ -344,20 +334,15 @@ private:
 template<class Event>
 void
 service_handler<Event, void, void>::handle_message(const cocaine::io::message_t& message) {
-    try {
-        if (message.id() == io::event_traits<io::rpc::error>::id) {
-            std::string data;
-            message.as<cocaine::io::rpc::chunk>(data);
-            msgpack::unpacked msg;
-            msgpack::unpack(&msg, data.data(), data.size());
+    if (message.id() == io::event_traits<io::rpc::error>::id) {
+        std::string data;
+        message.as<cocaine::io::rpc::chunk>(data);
+        msgpack::unpacked msg;
+        msgpack::unpack(&msg, data.data(), data.size());
 
-            cocaine::invoke<
-                io::event_traits<io::rpc::error>::tuple_type
-            >::apply(m_error_handler, msg.get());
-        }
-    } catch (const std::exception& e) {
-        std::cerr << "ERROR: " << e.what() << std::endl;
-        exit(-1);
+        cocaine::invoke<
+            io::event_traits<io::rpc::error>::tuple_type
+        >::apply(m_error_handler, msg.get());
     }
 }
 

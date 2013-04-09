@@ -29,7 +29,7 @@ public:
 public:
     ~worker_t();
 
-    void
+    int
     run();
 
     template<class App, typename... Args>
@@ -108,11 +108,11 @@ worker_t::create_application(Args&&... args) {
     } catch (const std::exception& e) {
         terminate(cocaine::io::rpc::terminate::abnormal,
                   cocaine::format("Error has occurred while initializing the application: %s", e.what()));
-        exit(-1);
+        exit(1);
     } catch (...) {
         terminate(cocaine::io::rpc::terminate::abnormal,
                   "Unknown error has occurred while initializing the application.");
-        exit(-1);
+        exit(1);
     }
 }
 
