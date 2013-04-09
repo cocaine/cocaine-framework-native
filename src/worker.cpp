@@ -111,15 +111,11 @@ worker_t::worker_t(const std::string& name,
     m_disown_timer(m_ioservice.native()),
     m_app_name(name)
 {
-    m_service_manager.reset(new service_manager_t(m_ioservice));
-
-    m_log = m_service_manager->get_service<logging_service_t>("logging",
-                                                              cocaine::format("app/%s", name));
+    m_service_manager.reset(new service_manager_t(m_ioservice, cocaine::format("app/%s", name)));
+    m_log = m_service_manager->get_system_logger();
 
     auto socket = std::make_shared<io::socket<io::local>>(io::local::endpoint(endpoint));
-
     m_channel.reset(new io::channel<io::socket<io::local>>(m_ioservice, socket));
-
     m_channel->rd->bind(std::bind(&worker_t::on_message, this, std::placeholders::_1),
                         killer_t(name));
     m_channel->wr->bind(killer_t(name));

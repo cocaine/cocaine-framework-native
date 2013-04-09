@@ -2,68 +2,16 @@
 
 #include <cocaine/messages.hpp>
 
-#include <sstream>
-#include <iostream>
-
 using namespace cocaine::framework;
-
-resolver_t::resolver_t(const cocaine::io::tcp::endpoint& endpoint) :
-    m_channel(m_ioservice, std::make_shared<cocaine::io::socket<cocaine::io::tcp>>(endpoint))
-{
-    m_channel.rd->bind(std::bind(&resolver_t::on_response, this, std::placeholders::_1),
-                       std::bind(&resolver_t::on_error, this, std::placeholders::_1));
-}
-
-const resolver_t::result_type&
-resolver_t::resolve(const std::string& service_name) {
-    m_error_flag = false;
-
-    m_channel.wr->write<cocaine::io::locator::resolve>(0ul, service_name);
-
-    m_ioservice.run();
-
-    if (m_error_flag) {
-        throw resolver_error_t(m_last_error.message, m_last_error.code);
-    }
-
-    return m_last_response;
-}
-
-void
-resolver_t::on_response(const cocaine::io::message_t& message) {
-    if (message.id() == io::event_traits<io::rpc::chunk>::id) {
-        std::string data;
-        message.as<io::rpc::chunk>(data);
-        msgpack::unpacked msg;
-        msgpack::unpack(&msg, data.data(), data.size());
-        cocaine::io::type_traits<result_type>::unpack(msg.get(), m_last_response);
-    } else if (message.id() == io::event_traits<io::rpc::choke>::id) {
-        m_ioservice.native().unloop(ev::ALL);
-    } else if (message.id() == io::event_traits<io::rpc::error>::id) {
-        m_error_flag = true;
-        message.as<io::rpc::error>(m_last_error.code, m_last_error.message);
-    } else {
-        m_error_flag = true;
-        m_last_error.code = cocaine::error_code::invocation_error;
-        m_last_error.message = "Message with unknown id was received.";
-        m_ioservice.native().unloop(ev::ALL);
-    }
-}
-
-void
-resolver_t::on_error(const std::error_code&) {
-    m_error_flag = true;
-    m_last_error.code = cocaine::error_code::invocation_error;
-    m_last_error.message = "Socket error has occurred in resolver.";
-    m_ioservice.native().unloop(ev::ALL);
-}
 
 service_t::service_t(const std::string& name,
                      cocaine::io::reactor_t& ioservice,
-                     const cocaine::io::tcp::endpoint& resolver_endpoint) :
+                     const cocaine::io::tcp::endpoint& resolver_endpoint,
+                     std::shared_ptr<logging_service_t> logger) :
     m_name(name),
     m_ioservice(ioservice),
-    m_session_counter(1)
+    m_session_counter(1),
+    m_logger(logger)
 {
     m_resolver.reset(new resolver_t(resolver_endpoint));
     connect();
@@ -87,7 +35,9 @@ service_t::connect() {
 
 void
 service_t::on_error(const std::error_code& code) {
-    throw std::runtime_error(cocaine::format("socket error with code %d in service %s", code, m_name));
+    throw std::runtime_error(
+        cocaine::format("socket error with code %d in service %s", code, m_name)
+    );
 }
 
 void
@@ -95,21 +45,23 @@ service_t::on_message(const cocaine::io::message_t& message) {
     auto it = m_handlers.find(message.band());
 
     if (it == m_handlers.end()) {
-        // TODO: write warning to log
-        std::cout << "Message with unknown session id has been received from service "
-                  << m_name << "."
-                  << std::endl;
+        COCAINE_LOG_WARNING(
+            m_logger,
+            "Message with unknown session id has been received from service %s",
+            m_name
+        );
     } else if (message.id() == io::event_traits<io::rpc::choke>::id) {
         m_handlers.erase(it);
     } else {
         try {
             it->second->handle_message(message);
         } catch (const std::exception& e) {
-            std::cerr << "Following error has occurred while handling message from service "
-                      << name()
-                      << ": "
-                      << e.what()
-                      << std::endl;
+            COCAINE_LOG_ERROR(
+                m_logger,
+                "Following error has occurred while handling message from service %s: %s",
+                name(),
+                e.what()
+            );
         }
     }
 }

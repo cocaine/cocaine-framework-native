@@ -75,7 +75,7 @@ public:
 
     void
     initialize() {
-        create_service(m_log, "logging", cocaine::format("app/%s", name()));
+        m_log = service_manager()->get_system_logger();
         create_service(m_storage, "storage");
 
         on<on_event1>("event1");

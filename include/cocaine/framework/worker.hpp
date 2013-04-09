@@ -3,7 +3,7 @@
 
 #include <cocaine/framework/basic_application.hpp>
 #include <cocaine/framework/upstream.hpp>
-#include <cocaine/framework/services/logger.hpp>
+#include <cocaine/framework/service.hpp>
 
 #include <cocaine/asio/local.hpp>
 #include <cocaine/asio/reactor.hpp>

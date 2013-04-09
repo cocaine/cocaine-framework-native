@@ -11,8 +11,9 @@ class storage_service_t :
 public:
     storage_service_t(const std::string& name,
                       cocaine::io::reactor_t& service,
-                      const cocaine::io::tcp::endpoint& resolver) :
-        service_t(name, service, resolver)
+                      const cocaine::io::tcp::endpoint& resolver,
+                      std::shared_ptr<logging_service_t> logger) :
+        service_t(name, service, resolver, logger)
     {
         // pass
     }
