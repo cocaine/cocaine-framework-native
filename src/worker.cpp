@@ -141,8 +141,20 @@ worker_t::~worker_t() {
 
 void
 worker_t::run() {
-    if (m_application) {
-        m_ioservice.run();
+    try {
+        if (m_application) {
+            m_ioservice.run();
+        }
+        else {
+            terminate(cocaine::io::rpc::terminate::abnormal,
+                      "Application object has not been created.");
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "Following error has occurred: " << e.what() << std::endl;
+        exit(-1);
+    } catch (...) {
+        std::cerr << "Unknown error has occurred!" << std::endl;
+        exit(-1);
     }
 }
 

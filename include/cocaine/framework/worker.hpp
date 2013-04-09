@@ -9,6 +9,7 @@
 #include <cocaine/asio/reactor.hpp>
 #include <cocaine/asio/socket.hpp>
 #include <cocaine/rpc/channel.hpp>
+#include <cocaine/format.hpp>
 
 #include <string>
 #include <map>
@@ -98,9 +99,21 @@ worker_t::send(Args&&... args) {
 template<class App, typename... Args>
 void
 worker_t::create_application(Args&&... args) {
-    auto app = std::make_shared<App>(m_app_name, m_service_manager, std::forward<Args>(args)...);
-    app->initialize();
-    m_application = app;
+    try {
+        auto app = std::make_shared<App>(m_app_name,
+                                         m_service_manager,
+                                         std::forward<Args>(args)...);
+        app->initialize();
+        m_application = app;
+    } catch (const std::exception& e) {
+        terminate(cocaine::io::rpc::terminate::abnormal,
+                  cocaine::format("Error has occurred while initializing the application: %s", e.what()));
+        exit(-1);
+    } catch (...) {
+        terminate(cocaine::io::rpc::terminate::abnormal,
+                  "Unknown error has occurred while initializing the application.");
+        exit(-1);
+    }
 }
 
 }} // namespace cocaine::framework
