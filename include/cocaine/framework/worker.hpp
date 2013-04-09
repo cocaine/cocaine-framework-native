@@ -19,9 +19,9 @@
 
 namespace cocaine { namespace framework {
 
-class worker_t :
-    private boost::noncopyable
-{
+class worker_t {
+    COCAINE_DECLARE_NONCOPYABLE(worker_t)
+
 public:
     static
     std::shared_ptr<worker_t>

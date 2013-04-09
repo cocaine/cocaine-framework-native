@@ -35,9 +35,10 @@ template<class Event,
          class Result = typename cocaine::io::event_traits<Event>::result_type,
          class = void>
 class service_handler :
-    private boost::noncopyable,
     public basic_service_handler
 {
+    COCAINE_DECLARE_NONCOPYABLE(service_handler)
+
     struct empty_functor_t {
         void
         operator()(const Result&)
@@ -147,9 +148,10 @@ class service_handler<
             boost::mpl::is_sequence<Result>::value
         >::type
     > :
-    private boost::noncopyable,
     public basic_service_handler
 {
+    COCAINE_DECLARE_NONCOPYABLE(service_handler)
+
     template<class It, class End, class... Args>
     struct construct_functor {
         typedef typename construct_functor<
@@ -284,9 +286,10 @@ service_handler<
 
 template<class Event>
 class service_handler<Event, void, void> :
-    private boost::noncopyable,
     public basic_service_handler
 {
+    COCAINE_DECLARE_NONCOPYABLE(service_handler)
+
     struct ignore_error_t {
         void
         operator()(cocaine::error_code,
@@ -359,9 +362,9 @@ service_handler<Event, void, void>::handle_message(const cocaine::io::message_t&
     }
 }
 
-class service_t :
-    private boost::noncopyable
-{
+class service_t {
+    COCAINE_DECLARE_NONCOPYABLE(service_t)
+
 public:
     typedef uint64_t session_id_t;
 
@@ -426,9 +429,9 @@ service_t::call(Args&&... args) {
     return typename service_handler<Event>::future(handler);
 }
 
-class service_manager_t :
-    private boost::noncopyable
-{
+class service_manager_t {
+    COCAINE_DECLARE_NONCOPYABLE(service_manager_t)
+
     typedef cocaine::io::tcp::endpoint endpoint_t;
 
 public:

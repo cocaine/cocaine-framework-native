@@ -35,9 +35,9 @@ public:
     }
 };
 
-class base_handler_t :
-    private boost::noncopyable
-{
+class base_handler_t {
+    COCAINE_DECLARE_NONCOPYABLE(base_handler_t)
+
     friend class application_t;
     friend class worker_t;
 
