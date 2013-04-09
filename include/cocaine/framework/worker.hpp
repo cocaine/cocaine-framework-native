@@ -2,8 +2,7 @@
 #define COCAINE_FRAMEWORK_WORKER_HPP
 
 #include <cocaine/framework/application.hpp>
-#include <cocaine/framework/logging.hpp>
-#include <cocaine/framework/service.hpp>
+#include <cocaine/framework/services/logger.hpp>
 
 #include <cocaine/api/stream.hpp>
 #include <cocaine/asio/local.hpp>
@@ -14,7 +13,6 @@
 #include <string>
 #include <map>
 #include <memory>
-#include <boost/utility.hpp>
 #include <ev++.h>
 
 namespace cocaine { namespace framework {
@@ -86,7 +84,7 @@ private:
     std::string m_app_name;
     std::shared_ptr<application_t> m_application;
 
-    std::shared_ptr<log_t> m_log;
+    std::shared_ptr<logging_service_t> m_log;
 
     stream_map_t m_streams;
 };
@@ -100,7 +98,7 @@ worker_t::send(Args&&... args) {
 template<class App, typename... Args>
 void
 worker_t::create_application(Args&&... args) {
-    auto app = std::make_shared<App>(name, m_service_manager, std::forward<Args>(args)...);
+    auto app = std::make_shared<App>(m_app_name, m_service_manager, std::forward<Args>(args)...);
     app->initialize();
     m_application = app;
 }

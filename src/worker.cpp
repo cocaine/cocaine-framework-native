@@ -1,5 +1,4 @@
 #include <cocaine/framework/worker.hpp>
-#include <cocaine/framework/services/logger.hpp>
 
 #include <cocaine/messages.hpp>
 
@@ -115,10 +114,8 @@ worker_t::worker_t(const std::string& name,
 {
     m_service_manager.reset(new service_manager_t(m_ioservice));
 
-    m_log.reset(new log_t(
-        m_service_manager->get_service<logging_service_t>("logging"),
-        cocaine::format("app/%s", name)
-    ));
+    m_log = m_service_manager->get_service<logging_service_t>("logging",
+                                                              cocaine::format("app/%s", name));
 
     auto socket = std::make_shared<io::socket<io::local>>(io::local::endpoint(endpoint));
 
@@ -151,12 +148,7 @@ worker_t::run() {
 
 void
 worker_t::on_message(const io::message_t& message) {
-    COCAINE_LOG_DEBUG(
-        m_log,
-        "worker %s received type %d message",
-        m_id,
-        message.id()
-    );
+    m_log->debug("worker %s received type %d message", m_id, message.id());
 
     switch(message.id()) {
         case io::event_traits<io::rpc::heartbeat>::id: {
@@ -167,7 +159,7 @@ worker_t::on_message(const io::message_t& message) {
             std::string event;
             message.as<io::rpc::invoke>(event);
 
-            COCAINE_LOG_DEBUG(m_log, "worker %s invoking session %s with event '%s'", m_id, message.band(), event);
+            m_log->debug("worker %s invoking session %s with event '%s'", m_id, message.band(), event);
 
             std::shared_ptr<api::stream_t> upstream(
                 std::make_shared<upstream_t>(message.band(), this)
@@ -257,12 +249,7 @@ worker_t::on_message(const io::message_t& message) {
             break;
         }
         default: {
-            COCAINE_LOG_WARNING(
-                m_log,
-                "worker %s dropping unknown type %d message",
-                m_id,
-                message.id()
-            );
+            m_log->warning("worker %s dropping unknown type %d message", m_id, message.id());
         }
     }
 }
@@ -279,12 +266,7 @@ void
 worker_t::on_disown(ev::timer&,
                     int)
 {
-    COCAINE_LOG_ERROR(
-        m_log,
-        "worker %s has lost the controlling engine",
-        m_id
-    );
-
+    m_log->error("worker %s has lost the controlling engine", m_id);
     m_ioservice.native().unloop(ev::ALL);
 }
 

@@ -16,7 +16,6 @@
 #include <string>
 #include <iostream>
 #include <functional>
-#include <boost/utility.hpp>
 
 namespace cocaine { namespace framework {
 
@@ -441,14 +440,30 @@ public:
         // pass
     }
 
-    template<class Service>
+    template<class Service, typename... Args>
     std::shared_ptr<Service>
     get_service(const std::string& name,
-                const endpoint_t& resolver = endpoint_t("127.0.0.1", 10053))
+                const endpoint_t& resolver,
+                Args&&... args)
     {
-        auto new_service = std::make_shared<Service>(name, m_ioservice, resolver);
+        auto new_service = std::make_shared<Service>(name,
+                                                     m_ioservice,
+                                                     resolver,
+                                                     std::forward<Args>(args)...);
         new_service->initialize();
         return new_service;
+    }
+
+    template<class Service, typename... Args>
+    std::shared_ptr<Service>
+    get_service(const std::string& name,
+                Args&&... args)
+    {
+        return this->get_service<Service>(
+            name,
+            static_cast<const endpoint_t&>(endpoint_t("127.0.0.1", 10053)),
+            std::forward<Args>(args)...
+        );
     }
 
 private:
