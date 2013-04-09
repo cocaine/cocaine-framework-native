@@ -1,5 +1,4 @@
 #include <cocaine/framework/worker.hpp>
-#include <cocaine/framework/services/logger.hpp>
 
 #include <cocaine/messages.hpp>
 
@@ -94,9 +93,7 @@ public:
 
     void
     operator()(const std::error_code& code) {
-        std::cerr << "Error with code " << code << " has occurred in application " << m_app_name << "."
-                  << std::endl;
-        exit(-1);
+        throw std::runtime_error(cocaine::format("socket error with code %d", code));
     }
 
 private:
@@ -115,10 +112,8 @@ worker_t::worker_t(const std::string& name,
 {
     m_service_manager.reset(new service_manager_t(m_ioservice));
 
-    m_log.reset(new log_t(
-        m_service_manager->get_service<logging_service_t>("logging"),
-        cocaine::format("app/%s", name)
-    ));
+    m_log = m_service_manager->get_service<logging_service_t>("logging",
+                                                              cocaine::format("app/%s", name));
 
     auto socket = std::make_shared<io::socket<io::local>>(io::local::endpoint(endpoint));
 
@@ -142,21 +137,34 @@ worker_t::~worker_t() {
     // pass
 }
 
-void
+int
 worker_t::run() {
-    if (m_application) {
-        m_ioservice.run();
+    try {
+        if (m_application) {
+            m_ioservice.run();
+            return 0;
+        }
+        else {
+            terminate(cocaine::io::rpc::terminate::abnormal,
+                      "Application object has not been created.");
+            return 1;
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "Following error has occurred in application "
+                  << m_app_name
+                  << ": "
+                  << e.what()
+                  << std::endl;
+        return 1;
+    } catch (...) {
+        std::cerr << "Unknown error has occurred in application " << m_app_name << std::endl;
+        return 1;
     }
 }
 
 void
 worker_t::on_message(const io::message_t& message) {
-    COCAINE_LOG_DEBUG(
-        m_log,
-        "worker %s received type %d message",
-        m_id,
-        message.id()
-    );
+    COCAINE_LOG_DEBUG(m_log, "worker %s received type %d message", m_id, message.id())
 
     switch(message.id()) {
         case io::event_traits<io::rpc::heartbeat>::id: {
@@ -167,7 +175,11 @@ worker_t::on_message(const io::message_t& message) {
             std::string event;
             message.as<io::rpc::invoke>(event);
 
-            COCAINE_LOG_DEBUG(m_log, "worker %s invoking session %s with event '%s'", m_id, message.band(), event);
+            COCAINE_LOG_DEBUG(m_log,
+                              "worker %s invoking session %s with event '%s'",
+                              m_id,
+                              message.band(),
+                              event)
 
             std::shared_ptr<api::stream_t> upstream(
                 std::make_shared<upstream_t>(message.band(), this)
@@ -257,12 +269,10 @@ worker_t::on_message(const io::message_t& message) {
             break;
         }
         default: {
-            COCAINE_LOG_WARNING(
-                m_log,
-                "worker %s dropping unknown type %d message",
-                m_id,
-                message.id()
-            );
+            COCAINE_LOG_WARNING(m_log,
+                                "worker %s dropping unknown type %d message",
+                                m_id,
+                                message.id())
         }
     }
 }
@@ -279,12 +289,7 @@ void
 worker_t::on_disown(ev::timer&,
                     int)
 {
-    COCAINE_LOG_ERROR(
-        m_log,
-        "worker %s has lost the controlling engine",
-        m_id
-    );
-
+    COCAINE_LOG_ERROR(m_log, "worker %s has lost the controlling engine", m_id)
     m_ioservice.native().unloop(ev::ALL);
 }
 
@@ -319,7 +324,7 @@ worker_t::create(int argc,
         notify(vm);
     } catch(const std::exception& e) {
         std::cerr << "ERROR: " << e.what() << std::endl;
-        exit(-1);
+        exit(1);
     }
 
     if (vm.count("app") == 0 ||
@@ -327,7 +332,7 @@ worker_t::create(int argc,
         vm.count("endpoint") == 0)
     {
         std::cerr << "This is an application for Cocaine Engine. You can not run it like an ordinary application. Upload it in Cocaine." << std::endl;
-        exit(-1);
+        exit(1);
     }
 
     try {
@@ -336,6 +341,6 @@ worker_t::create(int argc,
                                                       vm["endpoint"].as<std::string>()));
     } catch(const std::exception& e) {
         std::cerr << cocaine::format("ERROR: unable to start the worker - %s", e.what()) << std::endl;
-        exit(-1);
+        exit(1);
     }
 }

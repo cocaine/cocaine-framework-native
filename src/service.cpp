@@ -76,21 +76,6 @@ service_t::connect() {
 
     std::tie(address, port) = std::get<0>(m_resolver->resolve(m_name));
 
-    /*
-    // parse endpoint in kostyl way
-    size_t delim_pos = endpoint.find(':');
-
-    if (delim_pos == std::string::npos) {
-        throw resolver_error_t("Resolver returned endpoint in unknown format.");
-    }
-    */
-
-    /*
-    if (!(std::istringstream(endpoint.substr(delim_pos + 1)) >> port)) {
-        throw resolver_error_t("Resolver returned endpoint in unknown format.");
-    }
-    */
-
     auto socket = std::make_shared<cocaine::io::socket<cocaine::io::tcp>>(
         cocaine::io::tcp::endpoint(address, port)
     );
@@ -102,8 +87,7 @@ service_t::connect() {
 
 void
 service_t::on_error(const std::error_code& code) {
-    std::cerr << "Error with code " << code << " has occurred in service " << m_name << "." << std::endl;
-    exit(-1);
+    throw std::runtime_error(cocaine::format("socket error with code %d in service %s", code, m_name));
 }
 
 void

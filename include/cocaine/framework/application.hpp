@@ -9,7 +9,6 @@
 #include <memory>
 #include <string>
 #include <map>
-#include <boost/utility.hpp>
 
 namespace cocaine { namespace framework {
 

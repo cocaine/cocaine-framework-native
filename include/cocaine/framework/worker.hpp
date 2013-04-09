@@ -2,19 +2,18 @@
 #define COCAINE_FRAMEWORK_WORKER_HPP
 
 #include <cocaine/framework/application.hpp>
-#include <cocaine/framework/logging.hpp>
-#include <cocaine/framework/service.hpp>
+#include <cocaine/framework/services/logger.hpp>
 
 #include <cocaine/api/stream.hpp>
 #include <cocaine/asio/local.hpp>
 #include <cocaine/asio/reactor.hpp>
 #include <cocaine/asio/socket.hpp>
 #include <cocaine/rpc/channel.hpp>
+#include <cocaine/format.hpp>
 
 #include <string>
 #include <map>
 #include <memory>
-#include <boost/utility.hpp>
 #include <ev++.h>
 
 namespace cocaine { namespace framework {
@@ -30,13 +29,12 @@ public:
 public:
     ~worker_t();
 
-    void
+    int
     run();
 
     template<class App, typename... Args>
     void
-    add(const std::string& name,
-        Args&&... args);
+    create_application(Args&&... args);
 
     std::shared_ptr<application_t>
     get_application() const {
@@ -87,7 +85,7 @@ private:
     std::string m_app_name;
     std::shared_ptr<application_t> m_application;
 
-    std::shared_ptr<log_t> m_log;
+    std::shared_ptr<logging_service_t> m_log;
 
     stream_map_t m_streams;
 };
@@ -100,13 +98,21 @@ worker_t::send(Args&&... args) {
 
 template<class App, typename... Args>
 void
-worker_t::add(const std::string& name,
-              Args&&... args)
-{
-    if (name == m_app_name) {
-        auto app = std::make_shared<App>(name, m_service_manager, std::forward<Args>(args)...);
+worker_t::create_application(Args&&... args) {
+    try {
+        auto app = std::make_shared<App>(m_app_name,
+                                         m_service_manager,
+                                         std::forward<Args>(args)...);
         app->initialize();
         m_application = app;
+    } catch (const std::exception& e) {
+        terminate(cocaine::io::rpc::terminate::abnormal,
+                  cocaine::format("Error has occurred while initializing the application: %s", e.what()));
+        exit(1);
+    } catch (...) {
+        terminate(cocaine::io::rpc::terminate::abnormal,
+                  "Unknown error has occurred while initializing the application.");
+        exit(1);
     }
 }
 

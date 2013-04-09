@@ -14,8 +14,8 @@
 
 #include <memory>
 #include <string>
+#include <iostream>
 #include <functional>
-#include <boost/utility.hpp>
 
 namespace cocaine { namespace framework {
 
@@ -30,39 +30,149 @@ struct basic_service_handler {
     handle_message(const cocaine::io::message_t&) = 0;
 };
 
-template<class Event, class Result = typename cocaine::io::event_traits<Event>::result_type>
+template<class Event,
+         class Result = typename cocaine::io::event_traits<Event>::result_type,
+         class = void>
 class service_handler :
+    public basic_service_handler
+{
+    COCAINE_DECLARE_NONCOPYABLE(service_handler)
+
+    struct empty_functor_t {
+        void
+        operator()(const Result&)
+        {
+            // pass
+        }
+    };
+
+    struct ignore_error_t {
+        void
+        operator()(cocaine::error_code,
+                   const std::string&)
+        {
+            // pass
+        }
+    };
+
+public:
+    typedef std::function<void(const Result&)>
+            message_handler_t;
+
+    typedef std::function<void(cocaine::error_code, const std::string&)>
+            error_handler_t;
+
+    struct future {
+        future(std::shared_ptr<service_handler> promise) :
+            m_promise(promise)
+        {
+            // pass
+        }
+
+        future&
+        on_message(message_handler_t handler) {
+            m_promise->on_message(handler);
+            return *this;
+        }
+
+        future&
+        on_error(error_handler_t handler) {
+            m_promise->on_error(handler);
+            return *this;
+        }
+
+    private:
+        std::shared_ptr<service_handler> m_promise;
+    };
+
+    friend class future;
+
+public:
+    service_handler() :
+        m_message_handler(empty_functor_t()),
+        m_error_handler(ignore_error_t())
+    {
+        // pass
+    }
+
+    void
+    handle_message(const cocaine::io::message_t&);
+
+private:
+    void
+    on_message(message_handler_t handler) {
+        m_message_handler = handler;
+    }
+
+    void
+    on_error(error_handler_t handler) {
+        m_error_handler = handler;
+    }
+
+private:
+    message_handler_t m_message_handler;
+    error_handler_t m_error_handler;
+};
+
+template<class Event, class Result, class T>
+void
+service_handler<Event, Result, T>::handle_message(const cocaine::io::message_t& message) {
+    if (message.id() == io::event_traits<io::rpc::chunk>::id) {
+        std::string data;
+        message.as<cocaine::io::rpc::chunk>(data);
+        msgpack::unpacked msg;
+        msgpack::unpack(&msg, data.data(), data.size());
+
+        m_message_handler(msg.get().as<Result>());
+    } else if (message.id() == io::event_traits<io::rpc::error>::id) {
+        std::string data;
+        message.as<cocaine::io::rpc::chunk>(data);
+        msgpack::unpacked msg;
+        msgpack::unpack(&msg, data.data(), data.size());
+
+        cocaine::invoke<io::event_traits<io::rpc::error>::tuple_type>::apply(m_error_handler, msg.get());
+    }
+}
+
+template<class Event, class Result>
+class service_handler<
+        Event,
+        Result,
+        typename std::enable_if<
+            boost::mpl::is_sequence<Result>::value
+        >::type
+    > :
     public basic_service_handler
 {
     COCAINE_DECLARE_NONCOPYABLE(service_handler)
 
     template<class It, class End, class... Args>
     struct construct_functor {
-        typedef typename construct_functor<typename boost::mpl::next<It>::type,
-                                          End,
-                                          Args...,
-                                          typename boost::mpl::deref<It>::type
-                                          >::type
+        typedef typename construct_functor<
+                    typename boost::mpl::next<It>::type,
+                    End,
+                    Args...,
+                    typename boost::mpl::deref<It>::type
+                >::type
                 type;
     };
 
     template<class End, class... Args>
     struct construct_functor<End, End, Args...> {
-        struct functor {
+        struct type {
             void
             operator()(Args&&... args) {
                 // pass
             }
         };
-
-        typedef functor type;
     };
 
     template<class List>
     struct empty_functor {
-        typedef typename construct_functor<typename boost::mpl::begin<List>::type,
-                                           typename boost::mpl::end<List>::type
-                                           >::type
+        typedef typename construct_functor<
+                    typename boost::mpl::begin<List>::type,
+                    typename boost::mpl::end<List>::type
+                >::type
                 type;
     };
 
@@ -83,7 +193,7 @@ public:
             error_handler_t;
 
     struct future {
-        future(std::shared_ptr<service_handler<Event, Result>> promise) :
+        future(std::shared_ptr<service_handler> promise) :
             m_promise(promise)
         {
             // pass
@@ -102,7 +212,7 @@ public:
         }
 
     private:
-        std::shared_ptr<service_handler<Event, Result>> m_promise;
+        std::shared_ptr<service_handler> m_promise;
     };
 
     friend class future;
@@ -136,7 +246,14 @@ private:
 
 template<class Event, class Result>
 void
-service_handler<Event, Result>::handle_message(const cocaine::io::message_t& message) {
+service_handler<
+    Event,
+    Result,
+    typename std::enable_if<
+        boost::mpl::is_sequence<Result>::value
+    >::type
+>
+::handle_message(const cocaine::io::message_t& message) {
     if (message.id() == io::event_traits<io::rpc::chunk>::id) {
         std::string data;
         message.as<cocaine::io::rpc::chunk>(data);
@@ -150,14 +267,18 @@ service_handler<Event, Result>::handle_message(const cocaine::io::message_t& mes
         msgpack::unpacked msg;
         msgpack::unpack(&msg, data.data(), data.size());
 
-        cocaine::invoke<io::event_traits<io::rpc::error>::tuple_type>::apply(m_error_handler, msg.get());
+        cocaine::invoke<
+            io::event_traits<io::rpc::error>::tuple_type
+        >::apply(m_error_handler, msg.get());
     }
 }
 
 template<class Event>
-class service_handler<Event, void> :
+class service_handler<Event, void, void> :
     public basic_service_handler
 {
+    COCAINE_DECLARE_NONCOPYABLE(service_handler)
+
     struct ignore_error_t {
         void
         operator()(cocaine::error_code,
@@ -172,7 +293,7 @@ public:
             error_handler_t;
 
     struct future {
-        future(std::shared_ptr<service_handler<Event, void>> promise) :
+        future(std::shared_ptr<service_handler> promise) :
             m_promise(promise)
         {
             // pass
@@ -185,7 +306,7 @@ public:
         }
 
     private:
-        std::shared_ptr<service_handler<Event, void>> m_promise;
+        std::shared_ptr<service_handler> m_promise;
     };
 
     friend class future;
@@ -212,14 +333,16 @@ private:
 
 template<class Event>
 void
-service_handler<Event, void>::handle_message(const cocaine::io::message_t& message) {
+service_handler<Event, void, void>::handle_message(const cocaine::io::message_t& message) {
     if (message.id() == io::event_traits<io::rpc::error>::id) {
         std::string data;
         message.as<cocaine::io::rpc::chunk>(data);
         msgpack::unpacked msg;
         msgpack::unpack(&msg, data.data(), data.size());
 
-        cocaine::invoke<io::event_traits<io::rpc::error>::tuple_type>::apply(m_error_handler, msg.get());
+        cocaine::invoke<
+            io::event_traits<io::rpc::error>::tuple_type
+        >::apply(m_error_handler, msg.get());
     }
 }
 
@@ -302,14 +425,30 @@ public:
         // pass
     }
 
-    template<class Service>
+    template<class Service, typename... Args>
     std::shared_ptr<Service>
     get_service(const std::string& name,
-                const endpoint_t& resolver = endpoint_t("127.0.0.1", 10053))
+                const endpoint_t& resolver,
+                Args&&... args)
     {
-        auto new_service = std::make_shared<Service>(name, m_ioservice, resolver);
+        auto new_service = std::make_shared<Service>(name,
+                                                     m_ioservice,
+                                                     resolver,
+                                                     std::forward<Args>(args)...);
         new_service->initialize();
         return new_service;
+    }
+
+    template<class Service, typename... Args>
+    std::shared_ptr<Service>
+    get_service(const std::string& name,
+                Args&&... args)
+    {
+        return this->get_service<Service>(
+            name,
+            static_cast<const endpoint_t&>(endpoint_t("127.0.0.1", 10053)),
+            std::forward<Args>(args)...
+        );
     }
 
 private:
