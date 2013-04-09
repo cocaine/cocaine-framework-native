@@ -1,6 +1,5 @@
 #include <cocaine/framework/worker.hpp>
 #include <cocaine/framework/application.hpp>
-#include <cocaine/framework/services/logger.hpp>
 #include <cocaine/framework/services/storage.hpp>
 
 #include <iostream>
