@@ -35,8 +35,7 @@ public:
 
     template<class App, typename... Args>
     void
-    add(const std::string& name,
-        Args&&... args);
+    create_application(Args&&... args);
 
     std::shared_ptr<application_t>
     get_application() const {
@@ -100,14 +99,10 @@ worker_t::send(Args&&... args) {
 
 template<class App, typename... Args>
 void
-worker_t::add(const std::string& name,
-              Args&&... args)
-{
-    if (name == m_app_name) {
-        auto app = std::make_shared<App>(name, m_service_manager, std::forward<Args>(args)...);
-        app->initialize();
-        m_application = app;
-    }
+worker_t::create_application(Args&&... args) {
+    auto app = std::make_shared<App>(name, m_service_manager, std::forward<Args>(args)...);
+    app->initialize();
+    m_application = app;
 }
 
 }} // namespace cocaine::framework
