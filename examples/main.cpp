@@ -1,5 +1,5 @@
 #include <cocaine/framework/worker.hpp>
-#include <cocaine/framework/user_application.hpp>
+#include <cocaine/framework/application.hpp>
 #include <cocaine/framework/services/logger.hpp>
 #include <cocaine/framework/services/storage.hpp>
 
@@ -13,19 +13,19 @@ std::string
 on_event3(const std::string& event,
           const std::vector<std::string>& input)
 {
-    std::cout << event << std::endl;
+    std::cout << "on_event3:" + event << std::endl;
     return "on_event3:" + event;
 }
 
 class App1 :
-    public cocaine::framework::user_application<App1>
+    public cocaine::framework::application<App1>
 {
     struct on_event1 :
-        public cocaine::framework::user_handler<App1>,
+        public cocaine::framework::handler<App1>,
         public std::enable_shared_from_this<on_event1>
     {
         on_event1(std::shared_ptr<App1> a) :
-            cocaine::framework::user_handler<App1>(a)
+            cocaine::framework::handler<App1>(a)
         {
             // pass
         }
@@ -46,8 +46,8 @@ class App1 :
                 .on_error(error_handler);
 
             std::string buffer("answertestets");
-            m_response->write(buffer.data(), buffer.size());
-            m_response->close();
+            response()->write(buffer.data(), buffer.size());
+            response()->close();
         }
 
         void
@@ -68,7 +68,7 @@ class App1 :
 public:
     App1(const std::string& name,
          std::shared_ptr<cocaine::framework::service_manager_t> service_manager) :
-        cocaine::framework::user_application<App1>(name, service_manager)
+        cocaine::framework::application<App1>(name, service_manager)
     {
         // pass
     }
@@ -89,7 +89,7 @@ public:
     on_event2(const std::string& event,
               const std::vector<std::string>& input)
     {
-        std::cout << event << std::endl;
+        std::cout << "on_event2:" + event << std::endl;
         return "on_event2:" + event;
     }
 
@@ -102,8 +102,5 @@ int
 main(int argc,
      char *argv[])
 {
-    auto worker = cocaine::framework::worker_t::create(argc, argv);
-    worker->create_application<App1>();
-
-    return worker->run();
+    return cocaine::framework::worker_t::run<App1>(argc, argv);
 }
