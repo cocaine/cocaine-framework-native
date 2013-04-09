@@ -1,6 +1,5 @@
 #include <cocaine/framework/worker.hpp>
 #include <cocaine/framework/user_application.hpp>
-#include <cocaine/framework/handlers/functional.hpp>
 #include <cocaine/framework/services/logger.hpp>
 #include <cocaine/framework/services/storage.hpp>
 
@@ -9,6 +8,14 @@
 #include <string>
 #include <vector>
 #include <cstdlib>
+
+std::string
+on_event3(const std::string& event,
+          const std::vector<std::string>& input)
+{
+    std::cout << event << std::endl;
+    return "on_event3:" + event;
+}
 
 class App1 :
     public cocaine::framework::user_application<App1>
@@ -75,7 +82,8 @@ public:
         m_storage = service_manager()->get_service<cocaine::framework::storage_service_t>("storage");
 
         on<on_event1>("event1");
-        on("event2", cocaine::framework::method_factory<App1>(shared_from_this(), &App1::on_event2));
+        on("event2", &App1::on_event2);
+        on("event3", &on_event3);
 
         m_log->warning("test log");
     }
@@ -84,6 +92,7 @@ public:
     on_event2(const std::string& event,
               const std::vector<std::string>& input)
     {
+        std::cout << event << std::endl;
         return "on_event2:" + event;
     }
 

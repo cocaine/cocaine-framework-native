@@ -2,6 +2,7 @@
 #define COCAINE_FRAMEWORK_USER_APPLICATION_HPP
 
 #include <cocaine/framework/application.hpp>
+#include <cocaine/framework/handlers/functional.hpp>
 
 namespace cocaine { namespace framework {
 
@@ -25,18 +26,23 @@ public:
     using application_t::on;
     using application_t::on_unregistered;
 
-    template<class Factory>
     void
     on(const std::string& event,
-       const Factory& factory);
+       std::string(App::*)(const std::string&, const std::vector<std::string>&));
+
+    void
+    on(const std::string& event,
+       std::function<std::string(const std::string&, const std::vector<std::string>&)>);
 
     template<class UserHandler>
     void
     on(const std::string& event);
 
-    template<class Factory>
     void
-    on_unregistered(const Factory& factory);
+    on_unregistered(std::function<std::string(App*, const std::string&, const std::vector<std::string>&)>);
+
+    void
+    on_unregistered(std::function<std::string(const std::string&, const std::vector<std::string>&)>);
 
     template<class UserHandler>
     void
@@ -105,12 +111,29 @@ user_handler_factory<UserHandler>::make_handler() {
 }
 
 template<class App>
-template<class Factory>
 void
-user_application<App>::on(const std::string& event,
-                     const Factory& factory)
+user_application<App>::on(
+    const std::string& event,
+    std::string(App::*method)(const std::string&, const std::vector<std::string>&)
+)
 {
-    on(event, std::shared_ptr<base_factory_t>(new Factory(factory)));
+    on(event,
+       std::static_pointer_cast<base_factory_t>(
+           std::make_shared<method_factory<App>>(this->shared_from_this(), method)
+       ));
+}
+
+template<class App>
+void
+user_application<App>::on(
+    const std::string& event,
+    std::function<std::string(const std::string&, const std::vector<std::string>&)> functor
+)
+{
+    on(event,
+       std::static_pointer_cast<base_factory_t>(
+           std::make_shared<function_factory>(functor)
+       ));
 }
 
 template<class App>
@@ -123,10 +146,25 @@ user_application<App>::on(const std::string& event) {
 }
 
 template<class App>
-template<class Factory>
 void
-user_application<App>::on_unregistered(const Factory& factory) {
-    on_unregistered(std::shared_ptr<base_factory_t>(new Factory(factory)));
+user_application<App>::on_unregistered(
+    std::string(App::*method)(const std::string&, const std::vector<std::string>&)
+)
+{
+    on_unregistered(std::static_pointer_cast<base_factory_t>(
+        std::make_shared<method_factory<App>>(this->shared_from_this(), method)
+    ));
+}
+
+template<class App>
+void
+user_application<App>::on_unregistered(
+    std::function<std::string(const std::string&, const std::vector<std::string>&)> functor
+)
+{
+    on_unregistered(std::static_pointer_cast<base_factory_t>(
+        std::make_shared<function_factory>(functor)
+    ));
 }
 
 template<class App>
