@@ -31,7 +31,7 @@ INCLUDE_DIRECTORIES(BEFORE
     ${PROJECT_SOURCE_DIR}/include)
 
 ADD_LIBRARY(cocaine-framework SHARED
-    src/application
+    src/basic_application
     src/service
     src/worker
     src/handlers/functional

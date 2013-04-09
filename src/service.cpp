@@ -95,11 +95,21 @@ service_t::on_message(const cocaine::io::message_t& message) {
     auto it = m_handlers.find(message.band());
 
     if (it == m_handlers.end()) {
-        std::cout << "Message with unknown session id has been received from service " << m_name << "."
+        // TODO: write warning to log
+        std::cout << "Message with unknown session id has been received from service "
+                  << m_name << "."
                   << std::endl;
     } else if (message.id() == io::event_traits<io::rpc::choke>::id) {
         m_handlers.erase(it);
     } else {
-        it->second->handle_message(message);
+        try {
+            it->second->handle_message(message);
+        } catch (const std::exception& e) {
+            std::cerr << "Following error has occurred while handling message from service "
+                      << name()
+                      << ": "
+                      << e.what()
+                      << std::endl;
+        }
     }
 }

@@ -19,9 +19,9 @@
 
 namespace cocaine { namespace framework {
 
-struct basic_service_handler {
+struct service_handler_concept_t {
     virtual
-    ~basic_service_handler() {
+    ~service_handler_concept_t() {
         // pass
     }
 
@@ -34,7 +34,7 @@ template<class Event,
          class Result = typename cocaine::io::event_traits<Event>::result_type,
          class = void>
 class service_handler :
-    public basic_service_handler
+    public service_handler_concept_t
 {
     COCAINE_DECLARE_NONCOPYABLE(service_handler)
 
@@ -142,7 +142,7 @@ class service_handler<
             boost::mpl::is_sequence<Result>::value
         >::type
     > :
-    public basic_service_handler
+    public service_handler_concept_t
 {
     COCAINE_DECLARE_NONCOPYABLE(service_handler)
 
@@ -275,7 +275,7 @@ service_handler<
 
 template<class Event>
 class service_handler<Event, void, void> :
-    public basic_service_handler
+    public service_handler_concept_t
 {
     COCAINE_DECLARE_NONCOPYABLE(service_handler)
 
@@ -399,7 +399,7 @@ private:
     std::shared_ptr<iochannel_t> m_channel;
 
     session_id_t m_session_counter;
-    std::map<session_id_t, std::shared_ptr<basic_service_handler>> m_handlers;
+    std::map<session_id_t, std::shared_ptr<service_handler_concept_t>> m_handlers;
 };
 
 

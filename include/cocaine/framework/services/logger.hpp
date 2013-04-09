@@ -7,7 +7,7 @@
 #include <cocaine/format.hpp>
 
 #define COCAINE_LOG(_log_, _level_, ...) \
-    if(_log_->verbosity() >= _level_) _log_->emit(_level_, __VA_ARGS__);
+    do { if ((_log_)->verbosity() >= (_level_)) (_log_)->emit((_level_), __VA_ARGS__); } while (false)
 
 #define COCAINE_LOG_DEBUG(_log_, ...) \
     COCAINE_LOG(_log_, ::cocaine::logging::debug, __VA_ARGS__)
