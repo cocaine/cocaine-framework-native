@@ -34,12 +34,12 @@ class App1 :
         on_chunk(const char *chunk,
                  size_t size)
         {
-            std::cerr << "request: " << std::string(chunk, size) << std::endl;
+            std::cout << "request: " << std::string(chunk, size) << std::endl;
 
             auto error_handler = std::bind(&on_event1::on_error,
-                                             shared_from_this(),
-                                             std::placeholders::_1,
-                                             std::placeholders::_2);
+                                           shared_from_this(),
+                                           std::placeholders::_1,
+                                           std::placeholders::_2);
 
             app()->m_storage->read("testtest", "testkey")
                 .on_message(std::bind(&on_event1::on_read, shared_from_this(), std::placeholders::_1))
@@ -55,7 +55,7 @@ class App1 :
                  const std::string& message)
         {
             std::cerr << "ERROR: " << code << ", " << message << std::endl;
-            app()->m_log->error("ERROR: %d: %s", code, message);
+            COCAINE_LOG_ERROR(app()->m_log, "ERROR: %d: %s", code, message);
         }
 
         void
@@ -75,17 +75,14 @@ public:
 
     void
     initialize() {
-        m_log = service_manager()->get_service<cocaine::framework::logging_service_t>(
-            "logging",
-            cocaine::format("app/%s", name())
-        );
-        m_storage = service_manager()->get_service<cocaine::framework::storage_service_t>("storage");
+        create_service(m_log, "logging", cocaine::format("app/%s", name()));
+        create_service(m_storage, "storage");
 
         on<on_event1>("event1");
         on("event2", &App1::on_event2);
         on("event3", &on_event3);
 
-        m_log->warning("test log");
+        COCAINE_LOG_WARNING(m_log, "test log");
     }
 
     std::string
