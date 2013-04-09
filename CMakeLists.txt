@@ -32,6 +32,7 @@ INCLUDE_DIRECTORIES(BEFORE
 
 ADD_LIBRARY(cocaine-framework SHARED
     src/basic_application
+    src/resolver
     src/service
     src/worker
     src/handlers/functional
