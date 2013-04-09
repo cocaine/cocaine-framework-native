@@ -92,7 +92,7 @@ method_factory<App>::make_handler() {
                                              std::placeholders::_2))
         );
     } else {
-        throw bad_factory_exception("Object has not been set.");
+        throw bad_factory_exception_t("Object has not been set.");
     }
 }
 

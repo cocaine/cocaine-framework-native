@@ -124,7 +124,7 @@ handler_factory<UserHandler>::make_handler() {
     if (m_app) {
         return std::make_shared<UserHandler>(m_app);
     } else {
-        throw bad_factory_exception("Application has not been set.");
+        throw bad_factory_exception_t("Application has not been set.");
     }
 }
 

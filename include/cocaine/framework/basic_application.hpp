@@ -12,22 +12,22 @@
 
 namespace cocaine { namespace framework {
 
-class bad_factory_exception :
+class bad_factory_exception_t :
     public std::runtime_error
 {
 public:
-    explicit bad_factory_exception(const std::string& what) :
+    explicit bad_factory_exception_t(const std::string& what) :
         runtime_error(what)
     {
         // pass
     }
 };
 
-class handler_error :
+class handler_error_t :
     public std::runtime_error
 {
 public:
-    explicit handler_error(const std::string& what) :
+    explicit handler_error_t(const std::string& what) :
         runtime_error(what)
     {
         // pass
