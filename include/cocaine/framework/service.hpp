@@ -16,11 +16,23 @@
 #include <cocaine/slot.hpp>
 
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <iostream>
 #include <functional>
 
 namespace cocaine { namespace framework {
+
+class service_error_t :
+    public std::runtime_error
+{
+public:
+    explicit service_error_t(const std::string& what) :
+        runtime_error(what)
+    {
+        // pass
+    }
+};
 
 class logging_service_t;
 
@@ -361,7 +373,8 @@ public:
     service_t(const std::string& name,
               cocaine::io::reactor_t& ioservice,
               const cocaine::io::tcp::endpoint& resolver_endpoint,
-              std::shared_ptr<logging_service_t> logger);
+              std::shared_ptr<logging_service_t> logger,
+              int version);
 
     template<class Event, typename... Args>
     typename service_handler<Event>::future
@@ -378,9 +391,14 @@ public:
         return m_name;
     }
 
-    std::shared_ptr<resolver_t>
-    resolver() const {
-        return m_resolver;
+    int
+    version() const {
+        return m_version;
+    }
+
+    const std::pair<std::string, uint16_t>&
+    endpoint() const {
+        return m_endpoint;
     }
 
 protected:
@@ -400,6 +418,9 @@ private:
 
 private:
     std::string m_name;
+    int m_version;
+    std::pair<std::string, uint16_t> m_endpoint;
+
     cocaine::io::reactor_t& m_ioservice;
     std::shared_ptr<resolver_t> m_resolver;
     std::shared_ptr<logging_service_t> m_logger;
@@ -430,7 +451,11 @@ public:
                       const cocaine::io::tcp::endpoint& resolver,
                       std::shared_ptr<logging_service_t> logger, // OMG
                       const std::string& source) :
-        service_t(name, service, resolver, logger),
+        service_t(name,
+                  service,
+                  resolver,
+                  logger,
+                  cocaine::io::protocol<cocaine::io::logging_tag>::version::value),
         m_priority(cocaine::logging::priorities::warning),
         m_source(source)
     {
@@ -493,28 +518,15 @@ public:
     template<class Service, typename... Args>
     std::shared_ptr<Service>
     get_service(const std::string& name,
-                const endpoint_t& resolver,
                 Args&&... args)
     {
         auto new_service = std::make_shared<Service>(name,
                                                      m_ioservice,
-                                                     resolver,
+                                                     endpoint_t("127.0.0.1", 10053),
                                                      m_logger,
                                                      std::forward<Args>(args)...);
         new_service->initialize();
         return new_service;
-    }
-
-    template<class Service, typename... Args>
-    std::shared_ptr<Service>
-    get_service(const std::string& name,
-                Args&&... args)
-    {
-        return this->get_service<Service>(
-            name,
-            static_cast<const endpoint_t&>(endpoint_t("127.0.0.1", 10053)),
-            std::forward<Args>(args)...
-        );
     }
 
     std::shared_ptr<logging_service_t>

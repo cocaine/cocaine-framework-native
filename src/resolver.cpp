@@ -2,6 +2,8 @@
 
 #include <cocaine/messages.hpp>
 
+#include <iostream>
+
 using namespace cocaine::framework;
 
 resolver_t::resolver_t(const cocaine::io::tcp::endpoint& endpoint) :

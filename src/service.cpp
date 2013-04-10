@@ -7,8 +7,10 @@ using namespace cocaine::framework;
 service_t::service_t(const std::string& name,
                      cocaine::io::reactor_t& ioservice,
                      const cocaine::io::tcp::endpoint& resolver_endpoint,
-                     std::shared_ptr<logging_service_t> logger) :
+                     std::shared_ptr<logging_service_t> logger,
+                     int version) :
     m_name(name),
+    m_version(version),
     m_ioservice(ioservice),
     m_session_counter(1),
     m_logger(logger)
@@ -19,13 +21,16 @@ service_t::service_t(const std::string& name,
 
 void
 service_t::connect() {
-    std::string address;
-    uint16_t port;
+    auto service_info = m_resolver->resolve(m_name);
 
-    std::tie(address, port) = std::get<0>(m_resolver->resolve(m_name));
+    std::tie(m_endpoint.first, m_endpoint.second) = std::get<0>(service_info);
+
+    if (m_version != std::get<1>(service_info)) {
+        throw service_error_t("bad version of service " + m_name);
+    }
 
     auto socket = std::make_shared<cocaine::io::socket<cocaine::io::tcp>>(
-        cocaine::io::tcp::endpoint(address, port)
+        cocaine::io::tcp::endpoint(m_endpoint.first, m_endpoint.second)
     );
 
     m_channel.reset(new iochannel_t(m_ioservice, socket));

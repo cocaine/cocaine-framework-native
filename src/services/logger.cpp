@@ -6,13 +6,8 @@ void
 logging_service_t::initialize() {
     cocaine::io::reactor_t ioservice;
 
-    std::string address;
-    uint16_t port;
-
-    std::tie(address, port) = std::get<0>(resolver()->resolve(name()));
-
     auto socket = std::make_shared<cocaine::io::socket<cocaine::io::tcp>>(
-        cocaine::io::tcp::endpoint(address, port)
+        cocaine::io::tcp::endpoint(endpoint().first, endpoint().second)
     );
 
     cocaine::io::channel<
