@@ -20,6 +20,7 @@
 #include <string>
 #include <iostream>
 #include <functional>
+#include <mutex>
 
 namespace cocaine { namespace framework {
 
@@ -428,12 +429,15 @@ private:
 
     session_id_t m_session_counter;
     std::map<session_id_t, std::shared_ptr<service_handler_concept_t>> m_handlers;
+    std::mutex m_handlers_lock;
 };
 
 
 template<class Event, typename... Args>
 typename service_handler<Event>::future
 service_t::call(Args&&... args) {
+    std::lock_guard<std::mutex> lock(m_handlers_lock);
+
     auto handler = std::make_shared<service_handler<Event>>();
     m_handlers[m_session_counter] = handler;
     m_channel->wr->write<Event>(m_session_counter, args...);

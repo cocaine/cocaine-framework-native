@@ -47,6 +47,8 @@ service_t::on_error(const std::error_code& code) {
 
 void
 service_t::on_message(const cocaine::io::message_t& message) {
+    std::lock_guard<std::mutex> lock(m_handlers_lock);
+
     auto it = m_handlers.find(message.band());
 
     if (it == m_handlers.end()) {
