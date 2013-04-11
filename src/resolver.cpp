@@ -40,9 +40,7 @@ resolver_t::on_response(const cocaine::io::message_t& message) {
         m_ioservice.native().unloop(ev::ALL);
     } else if (message.id() == io::event_traits<io::rpc::error>::id) {
         m_error_flag = true;
-        cocaine::error_code ec;
-        message.as<io::rpc::error>(ec, m_last_error.message);
-        m_last_error.code = ec;
+        message.as<io::rpc::error>(m_last_error.code, m_last_error.message);
     } else {
         m_error_flag = true;
         m_last_error.code = cocaine::error_code::invocation_error;
@@ -54,7 +52,7 @@ resolver_t::on_response(const cocaine::io::message_t& message) {
 void
 resolver_t::on_error(const std::error_code& ec) {
     m_error_flag = true;
-    m_last_error.code = ec.value();
-    m_last_error.message = "Socket error has occurred in resolver.";
+    m_last_error.code = cocaine::invocation_error;
+    m_last_error.message = "Socket error has occurred in resolver: " + ec.message();
     m_ioservice.native().unloop(ev::ALL);
 }

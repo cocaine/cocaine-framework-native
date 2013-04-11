@@ -41,7 +41,7 @@ class resolver_t {
     >::type result_type;
 
     struct error_t {
-        int code;
+        cocaine::error_code code;
         std::string message;
     };
 
