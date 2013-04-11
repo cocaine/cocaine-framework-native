@@ -113,8 +113,7 @@ class basic_application_t
     typedef std::map<std::string, std::shared_ptr<basic_factory_t>>
             handlers_map;
 public:
-    basic_application_t(const std::string& name,
-                        std::shared_ptr<service_manager_t> service_manager);
+    basic_application_t(std::shared_ptr<service_manager_t> service_manager);
 
     virtual
     ~basic_application_t() {
@@ -125,11 +124,6 @@ public:
     std::shared_ptr<basic_handler_t>
     invoke(const std::string& event,
            std::shared_ptr<upstream_t> response);
-
-    const std::string&
-    name() const {
-        return m_name;
-    }
 
     std::shared_ptr<service_manager_t>
     service_manager() const {
@@ -144,7 +138,6 @@ public:
     on_unregistered(std::shared_ptr<basic_factory_t> factory);
 
 private:
-    std::string m_name;
     std::shared_ptr<service_manager_t> m_service_manager;
     handlers_map m_handlers;
     std::shared_ptr<basic_factory_t> m_default_handler;

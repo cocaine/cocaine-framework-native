@@ -65,9 +65,8 @@ class App1 :
     friend class on_event1;
 
 public:
-    App1(const std::string& name,
-         std::shared_ptr<cocaine::framework::service_manager_t> service_manager) :
-        cocaine::framework::application<App1>(name, service_manager)
+    App1(std::shared_ptr<cocaine::framework::service_manager_t> service_manager) :
+        cocaine::framework::application<App1>(service_manager)
     {
         // pass
     }

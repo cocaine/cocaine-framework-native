@@ -4,9 +4,7 @@
 
 using namespace cocaine::framework;
 
-basic_application_t::basic_application_t(const std::string& name,
-                                         std::shared_ptr<service_manager_t> service_manager) :
-    m_name(name),
+basic_application_t::basic_application_t(std::shared_ptr<service_manager_t> service_manager) :
     m_service_manager(service_manager)
 {
     // pass

@@ -99,8 +99,7 @@ template<class App, typename... Args>
 void
 worker_t::create_application(Args&&... args) {
     try {
-        auto app = std::make_shared<App>(m_app_name,
-                                         m_service_manager,
+        auto app = std::make_shared<App>(m_service_manager,
                                          std::forward<Args>(args)...);
         app->initialize();
         m_application = app;
