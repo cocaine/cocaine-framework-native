@@ -50,6 +50,13 @@ private:
              const std::string& uuid,
              const std::string& endpoint);
 
+    template<class App, typename... Args>
+    void
+    create_application(Args&&... args);
+
+    int
+    run();
+
     void
     on_message(const cocaine::io::message_t& message);
 
@@ -62,13 +69,6 @@ private:
     void
     terminate(int code,
               const std::string& reason);
-
-    int
-    run();
-
-    template<class App, typename... Args>
-    void
-    create_application(Args&&... args);
 
 private:
     const std::string m_id;

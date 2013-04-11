@@ -1,4 +1,5 @@
 #include <cocaine/framework/worker.hpp>
+#include <cocaine/framework/common.hpp>
 
 #include <cocaine/messages.hpp>
 
@@ -94,7 +95,7 @@ public:
 
     void
     operator()(const std::error_code& code) {
-        throw std::runtime_error(cocaine::format("socket error with code %d", code));
+        throw socket_error_t(cocaine::format("socket error with code %d in worker", code));
     }
 
 private:
@@ -290,7 +291,6 @@ std::shared_ptr<worker_t>
 worker_t::create(int argc,
                  char *argv[])
 {
-    // parse program options and create worker
     using namespace boost::program_options;
 
     variables_map vm;
@@ -328,6 +328,4 @@ worker_t::create(int argc,
         std::cerr << cocaine::format("ERROR: unable to start the worker - %s", e.what()) << std::endl;
         throw 1;
     }
-
-    //
 }

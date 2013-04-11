@@ -368,7 +368,11 @@ class service_t {
     COCAINE_DECLARE_NONCOPYABLE(service_t)
 
 public:
-    typedef uint64_t session_id_t;
+    template<class Event>
+    struct handler {
+        typedef service_handler<Event> type;
+        typedef typename service_handler<Event>::future future;
+    };
 
 public:
     service_t(const std::string& name,
@@ -378,7 +382,7 @@ public:
               int version);
 
     template<class Event, typename... Args>
-    typename service_handler<Event>::future
+    typename handler<Event>::future
     call(Args&&... args);
 
     virtual
@@ -418,6 +422,8 @@ private:
     on_message(const cocaine::io::message_t& message);
 
 private:
+    typedef uint64_t session_id_t;
+
     std::string m_name;
     int m_version;
     std::pair<std::string, uint16_t> m_endpoint;
@@ -434,15 +440,15 @@ private:
 
 
 template<class Event, typename... Args>
-typename service_handler<Event>::future
+typename service_t::handler<Event>::future
 service_t::call(Args&&... args) {
     std::lock_guard<std::mutex> lock(m_handlers_lock);
 
-    auto handler = std::make_shared<service_handler<Event>>();
-    m_handlers[m_session_counter] = handler;
+    auto h = std::make_shared<typename handler<Event>::type>();
+    m_handlers[m_session_counter] = h;
     m_channel->wr->write<Event>(m_session_counter, args...);
     ++m_session_counter;
-    return typename service_handler<Event>::future(handler);
+    return typename handler<Event>::future(h);
 }
 
 class logging_service_t :

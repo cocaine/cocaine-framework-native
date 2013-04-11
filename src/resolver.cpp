@@ -50,9 +50,9 @@ resolver_t::on_response(const cocaine::io::message_t& message) {
 }
 
 void
-resolver_t::on_error(const std::error_code&) {
+resolver_t::on_error(const std::error_code& ec) {
     m_error_flag = true;
-    m_last_error.code = cocaine::error_code::invocation_error;
+    m_last_error.code = ec;
     m_last_error.message = "Socket error has occurred in resolver.";
     m_ioservice.native().unloop(ev::ALL);
 }

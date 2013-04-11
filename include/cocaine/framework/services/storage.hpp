@@ -22,14 +22,14 @@ public:
         // pass
     }
 
-    service_handler<io::storage::read>::future
+    service_t::handler<io::storage::read>::future
     read(const std::string& collection,
          const std::string& key)
     {
         return call<io::storage::read>(collection, key);
     }
 
-    service_handler<io::storage::write>::future
+    service_t::handler<io::storage::write>::future
     write(const std::string& collection,
           const std::string& key,
           const std::string& value)
@@ -37,14 +37,14 @@ public:
         return call<io::storage::write>(collection, key, value);
     }
 
-    service_handler<io::storage::remove>::future
+    service_t::handler<io::storage::remove>::future
     remove(const std::string& collection,
            const std::string& key)
     {
         return call<io::storage::remove>(collection, key);
     }
 
-    service_handler<io::storage::list>::future
+    service_t::handler<io::storage::list>::future
     list(const std::string& collection)
     {
         return call<io::storage::list>(collection);

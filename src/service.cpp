@@ -1,4 +1,5 @@
 #include <cocaine/framework/service.hpp>
+#include <cocaine/framework/common.hpp>
 
 #include <cocaine/messages.hpp>
 
@@ -40,7 +41,7 @@ service_t::connect() {
 
 void
 service_t::on_error(const std::error_code& code) {
-    throw std::runtime_error(
+    throw socket_error_t(
         cocaine::format("socket error with code %d in service %s", code, m_name)
     );
 }
