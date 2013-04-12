@@ -379,7 +379,7 @@ public:
               cocaine::io::reactor_t& ioservice,
               const cocaine::io::tcp::endpoint& resolver_endpoint,
               std::shared_ptr<logging_service_t> logger,
-              int version);
+              unsigned int version);
 
     template<class Event, typename... Args>
     typename handler<Event>::future
@@ -425,7 +425,7 @@ private:
     typedef uint64_t session_id_t;
 
     std::string m_name;
-    int m_version;
+    unsigned int m_version;
     std::pair<std::string, uint16_t> m_endpoint;
 
     cocaine::io::reactor_t& m_ioservice;

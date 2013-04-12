@@ -9,12 +9,12 @@ service_t::service_t(const std::string& name,
                      cocaine::io::reactor_t& ioservice,
                      const cocaine::io::tcp::endpoint& resolver_endpoint,
                      std::shared_ptr<logging_service_t> logger,
-                     int version) :
+                     unsigned int version) :
     m_name(name),
     m_version(version),
     m_ioservice(ioservice),
-    m_session_counter(1),
-    m_logger(logger)
+    m_logger(logger),
+    m_session_counter(1)
 {
     m_resolver.reset(new resolver_t(resolver_endpoint));
     connect();
