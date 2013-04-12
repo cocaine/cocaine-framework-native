@@ -1,3 +1,15 @@
+cocaine-framework-native (0.10.1) lucid; urgency=low
+
+  * Release 10.1.
+  * Complete support of services.
+  * New global logger.
+  * Correct handling of exceptions and errors.
+  * New base class for applications.
+  * A lot of changes related to code style.
+  * Cleaned API. 
+
+ -- Andrey Goryachev <bugsbunny@yandex-team.ru>  Fri, 12 Apr 2013 14:25:43 +0400
+
 cocaine-framework-native (0.10.0-rc10) lucid; urgency=low
 
   * Release candidate 10.
