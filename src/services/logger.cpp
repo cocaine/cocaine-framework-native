@@ -1,4 +1,4 @@
-#include <cocaine/framework/service.hpp>
+#include <cocaine/framework/services/logger.hpp>
 
 using namespace cocaine::framework;
 

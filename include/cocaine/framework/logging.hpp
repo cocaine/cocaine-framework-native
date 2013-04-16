@@ -16,4 +16,36 @@
 #define COCAINE_LOG_ERROR(_log_, ...) \
     COCAINE_LOG(_log_, ::cocaine::logging::error, __VA_ARGS__)
 
+namespace cocaine { namespace framework {
+
+class logger_t
+{
+public:
+    virtual
+    ~logger_t() {
+        // pass
+    }
+
+
+    virtual
+    void
+    emit(cocaine::logging::priorities priority,
+         const std::string& message) = 0;
+
+    template<typename... Args>
+    void
+    emit(cocaine::logging::priorities priority,
+         const std::string& format,
+         const Args&... args)
+    {
+        emit(priority, cocaine::format(format, args...));
+    }
+
+    virtual
+    cocaine::logging::priorities
+    verbosity() const = 0;
+};
+
+}} // namespace cocaine::framework
+
 #endif // COCAINE_FRAMEWORK_LOGGING_HPP

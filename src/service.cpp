@@ -8,7 +8,7 @@ using namespace cocaine::framework;
 service_t::service_t(const std::string& name,
                      cocaine::io::reactor_t& ioservice,
                      const cocaine::io::tcp::endpoint& resolver_endpoint,
-                     std::shared_ptr<logging_service_t> logger,
+                     std::shared_ptr<logger_t> logger,
                      unsigned int version) :
     m_name(name),
     m_version(version),

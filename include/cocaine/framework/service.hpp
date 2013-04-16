@@ -378,7 +378,7 @@ public:
     service_t(const std::string& name,
               cocaine::io::reactor_t& ioservice,
               const cocaine::io::tcp::endpoint& resolver_endpoint,
-              std::shared_ptr<logging_service_t> logger,
+              std::shared_ptr<logger_t> logger,
               unsigned int version);
 
     template<class Event, typename... Args>
@@ -430,7 +430,7 @@ private:
 
     cocaine::io::reactor_t& m_ioservice;
     std::shared_ptr<resolver_t> m_resolver;
-    std::shared_ptr<logging_service_t> m_logger;
+    std::shared_ptr<logger_t> m_logger;
     std::shared_ptr<iochannel_t> m_channel;
 
     session_id_t m_session_counter;
@@ -450,105 +450,6 @@ service_t::call(Args&&... args) {
     ++m_session_counter;
     return typename handler<Event>::future(h);
 }
-
-class logging_service_t :
-    public std::enable_shared_from_this<logging_service_t>,
-    public service_t
-{
-public:
-    logging_service_t(const std::string& name,
-                      cocaine::io::reactor_t& service,
-                      const cocaine::io::tcp::endpoint& resolver,
-                      std::shared_ptr<logging_service_t> logger, // OMG
-                      const std::string& source) :
-        service_t(name,
-                  service,
-                  resolver,
-                  logger,
-                  cocaine::io::protocol<cocaine::io::logging_tag>::version::value),
-        m_priority(cocaine::logging::priorities::warning),
-        m_source(source)
-    {
-        // pass
-    }
-
-    void
-    emit(cocaine::logging::priorities priority,
-         const std::string& message)
-    {
-        call<cocaine::io::logging::emit>(priority, m_source, message);
-    }
-
-    template<typename... Args>
-    void
-    emit(cocaine::logging::priorities priority,
-         const std::string& format,
-         const Args&... args)
-    {
-        emit(priority, cocaine::format(format, args...));
-    }
-
-    cocaine::logging::priorities
-    verbosity() const {
-        return m_priority;
-    }
-
-    void
-    initialize();
-
-protected:
-    void
-    on_verbosity_response(cocaine::io::reactor_t *ioservice,
-                          const cocaine::io::message_t& message);
-
-private:
-    cocaine::logging::priorities m_priority;
-    std::string m_source;
-};
-
-class service_manager_t {
-    COCAINE_DECLARE_NONCOPYABLE(service_manager_t)
-
-    typedef cocaine::io::tcp::endpoint endpoint_t;
-
-public:
-    service_manager_t(cocaine::io::reactor_t& ioservice,
-                      const std::string& logging_prefix) :
-        m_ioservice(ioservice)
-    {
-        m_logger = std::make_shared<logging_service_t>(
-                       "logging",
-                       m_ioservice,
-                       endpoint_t("127.0.0.1", 10053),
-                       std::shared_ptr<logging_service_t>(),
-                       logging_prefix
-                   );
-    }
-
-    template<class Service, typename... Args>
-    std::shared_ptr<Service>
-    get_service(const std::string& name,
-                Args&&... args)
-    {
-        auto new_service = std::make_shared<Service>(name,
-                                                     m_ioservice,
-                                                     endpoint_t("127.0.0.1", 10053),
-                                                     m_logger,
-                                                     std::forward<Args>(args)...);
-        new_service->initialize();
-        return new_service;
-    }
-
-    std::shared_ptr<logging_service_t>
-    get_system_logger() {
-        return m_logger;
-    }
-
-private:
-    cocaine::io::reactor_t& m_ioservice;
-
-    std::shared_ptr<logging_service_t> m_logger;
-};
 
 }} // namespace cocaine::framework
 
