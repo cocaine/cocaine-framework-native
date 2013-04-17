@@ -3,7 +3,7 @@
 
 #include <cocaine/framework/basic_application.hpp>
 #include <cocaine/framework/upstream.hpp>
-#include <cocaine/framework/service.hpp>
+#include <cocaine/framework/service_manager.hpp>
 
 #include <cocaine/asio/local.hpp>
 #include <cocaine/asio/reactor.hpp>
@@ -84,7 +84,7 @@ private:
     std::string m_app_name;
     std::shared_ptr<basic_application_t> m_application;
 
-    std::shared_ptr<logging_service_t> m_log;
+    std::shared_ptr<logger_t> m_log;
 
     stream_map_t m_streams;
 };
