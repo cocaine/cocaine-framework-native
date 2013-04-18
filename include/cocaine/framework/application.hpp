@@ -133,7 +133,10 @@ application<App>::on(const std::string& event,
                      std::string(App::*method)(const std::string&, const std::vector<std::string>&))
 {
     on(event,
-       std::make_shared<method_factory<App>>(this->shared_from_this(), method));
+       std::make_shared<function_factory_t>(std::bind(method,
+                                                      this->shared_from_this(),
+                                                      std::placeholders::_1,
+                                                      std::placeholders::_2)));
 }
 
 template<class App>
@@ -172,7 +175,10 @@ application<App>::on_unregistered(
     std::string(App::*method)(const std::string&, const std::vector<std::string>&)
 )
 {
-    on_unregistered(std::make_shared<method_factory<App>>(this->shared_from_this(), method));
+    on_unregistered(std::make_shared<function_factory_t>(std::bind(method,
+                                                                   this->shared_from_this(),
+                                                                   std::placeholders::_1,
+                                                                   std::placeholders::_2)));
 }
 
 template<class App>
