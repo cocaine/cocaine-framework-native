@@ -23,6 +23,8 @@ public:
                        std::shared_ptr<logging_service_t>(),
                        logging_prefix
                    );
+
+        m_logger->initialize();
     }
 
     template<class Service, typename... Args>
