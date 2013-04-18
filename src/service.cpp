@@ -37,6 +37,7 @@ service_t::connect() {
     m_channel.reset(new iochannel_t(m_ioservice, socket));
     m_channel->rd->bind(std::bind(&service_t::on_message, this, std::placeholders::_1),
                         std::bind(&service_t::on_error, this, std::placeholders::_1));
+    m_channel->wr->bind(std::bind(&service_t::on_error, this, std::placeholders::_1));
 }
 
 void
