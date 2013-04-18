@@ -4,6 +4,7 @@
 #include <cocaine/messages.hpp>
 
 #include <stdexcept>
+#include <iostream>
 #include <boost/program_options.hpp>
 
 using namespace cocaine;

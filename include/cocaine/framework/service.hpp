@@ -4,8 +4,6 @@
 #include <cocaine/framework/resolver.hpp>
 #include <cocaine/framework/logging.hpp>
 
-#include <cocaine/forwards.hpp>
-#include <cocaine/format.hpp>
 #include <cocaine/rpc/channel.hpp>
 #include <cocaine/rpc/message.hpp>
 #include <cocaine/rpc/protocol.hpp>
@@ -18,7 +16,6 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
-#include <iostream>
 #include <functional>
 #include <mutex>
 
@@ -34,8 +31,6 @@ public:
         // pass
     }
 };
-
-class logging_service_t;
 
 struct service_handler_concept_t {
     virtual

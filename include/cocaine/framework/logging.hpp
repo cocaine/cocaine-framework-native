@@ -1,6 +1,9 @@
 #ifndef COCAINE_FRAMEWORK_LOGGING_HPP
 #define COCAINE_FRAMEWORK_LOGGING_HPP
 
+#include <cocaine/forwards.hpp>
+#include <cocaine/format.hpp>
+
 #define COCAINE_LOG(_log_, _level_, ...) \
     do { if ((_log_)->verbosity() >= (_level_)) (_log_)->emit((_level_), __VA_ARGS__); } while (false)
 
