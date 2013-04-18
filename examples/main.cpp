@@ -92,7 +92,7 @@ public:
     }
 
 private:
-    std::shared_ptr<cocaine::framework::logging_service_t> m_log;
+    std::shared_ptr<cocaine::framework::logger_t> m_log;
     std::shared_ptr<cocaine::framework::storage_service_t> m_storage;
 };
 
