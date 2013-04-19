@@ -49,9 +49,12 @@ service_t::on_error(const std::error_code& code) {
 
 void
 service_t::on_message(const cocaine::io::message_t& message) {
-    std::lock_guard<std::mutex> lock(m_handlers_lock);
+    std::map<session_id_t, std::shared_ptr<service_handler_concept_t>>::iterator it;
 
-    auto it = m_handlers.find(message.band());
+    {
+        std::lock_guard<std::mutex> lock(m_handlers_lock);
+        it = m_handlers.find(message.band());
+    }
 
     if (it == m_handlers.end()) {
         COCAINE_LOG_WARNING(
@@ -60,6 +63,7 @@ service_t::on_message(const cocaine::io::message_t& message) {
             m_name
         );
     } else if (message.id() == io::event_traits<io::rpc::choke>::id) {
+        std::lock_guard<std::mutex> lock(m_handlers_lock);
         m_handlers.erase(it);
     } else {
         try {

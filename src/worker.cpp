@@ -38,6 +38,7 @@ public:
     write(const char * chunk,
          size_t size)
     {
+        std::lock_guard<std::mutex> lock(m_closed_lock);
         if (m_state == state_t::closed) {
             throw std::runtime_error("The stream has been closed.");
         } else {
@@ -49,6 +50,7 @@ public:
     error(error_code code,
           const std::string& message)
     {
+        std::lock_guard<std::mutex> lock(m_closed_lock);
         if (m_state == state_t::closed) {
             throw std::runtime_error("The stream has been closed.");
         } else {
@@ -60,6 +62,7 @@ public:
 
     void
     close() {
+        std::lock_guard<std::mutex> lock(m_closed_lock);
         if (m_state == state_t::closed) {
             throw std::runtime_error("The stream has been closed.");
         } else {
@@ -84,6 +87,8 @@ private:
     const uint64_t m_id;
     worker_t * const m_worker;
     state_t m_state;
+
+    std::mutex m_closed_lock;
 };
 
 class killer_t {

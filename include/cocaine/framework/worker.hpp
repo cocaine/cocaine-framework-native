@@ -14,6 +14,7 @@
 #include <string>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <ev++.h>
 
 namespace cocaine { namespace framework {
@@ -81,6 +82,8 @@ private:
     >> m_channel;
     std::shared_ptr<service_manager_t> m_service_manager;
 
+    std::mutex m_send_lock;
+
     std::string m_app_name;
     std::shared_ptr<basic_application_t> m_application;
 
@@ -92,6 +95,7 @@ private:
 template<class Event, typename... Args>
 void
 worker_t::send(Args&&... args) {
+    std::lock_guard<std::mutex> lock(m_send_lock);
     m_channel->wr->write<Event>(std::forward<Args>(args)...);
 }
 
