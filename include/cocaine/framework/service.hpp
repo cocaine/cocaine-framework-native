@@ -138,12 +138,10 @@ service_handler<Event, Result, T>::handle_message(const cocaine::io::message_t& 
 
         m_message_handler(msg.get().as<Result>());
     } else if (message.id() == io::event_traits<io::rpc::error>::id) {
-        std::string data;
-        message.as<cocaine::io::rpc::chunk>(data);
-        msgpack::unpacked msg;
-        msgpack::unpack(&msg, data.data(), data.size());
-
-        cocaine::invoke<io::event_traits<io::rpc::error>::tuple_type>::apply(m_error_handler, msg.get());
+        cocaine::error_code code;
+        std::string msg;
+        message.as<cocaine::io::rpc::error>(code, msg);
+        m_error_handler(code, msg);
     }
 }
 
@@ -275,14 +273,10 @@ service_handler<
 
         cocaine::invoke<Result>::apply(m_message_handler, msg.get());
     } else if (message.id() == io::event_traits<io::rpc::error>::id) {
-        std::string data;
-        message.as<cocaine::io::rpc::chunk>(data);
-        msgpack::unpacked msg;
-        msgpack::unpack(&msg, data.data(), data.size());
-
-        cocaine::invoke<
-            io::event_traits<io::rpc::error>::tuple_type
-        >::apply(m_error_handler, msg.get());
+        cocaine::error_code code;
+        std::string msg;
+        message.as<cocaine::io::rpc::error>(code, msg);
+        m_error_handler(code, msg);
     }
 }
 
@@ -348,14 +342,10 @@ template<class Event>
 void
 service_handler<Event, void, void>::handle_message(const cocaine::io::message_t& message) {
     if (message.id() == io::event_traits<io::rpc::error>::id) {
-        std::string data;
-        message.as<cocaine::io::rpc::chunk>(data);
-        msgpack::unpacked msg;
-        msgpack::unpack(&msg, data.data(), data.size());
-
-        cocaine::invoke<
-            io::event_traits<io::rpc::error>::tuple_type
-        >::apply(m_error_handler, msg.get());
+        cocaine::error_code code;
+        std::string msg;
+        message.as<cocaine::io::rpc::error>(code, msg);
+        m_error_handler(code, msg);
     }
 }
 
