@@ -12,7 +12,7 @@ public:
     storage_service_t(const std::string& name,
                       cocaine::io::reactor_t& service,
                       const cocaine::io::tcp::endpoint& resolver,
-                      std::shared_ptr<logging_service_t> logger) :
+                      std::shared_ptr<logger_t> logger) :
         service_t(name,
                   service,
                   resolver,
