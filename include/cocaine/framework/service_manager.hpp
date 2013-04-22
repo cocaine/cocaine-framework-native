@@ -24,7 +24,7 @@ public:
                        logging_prefix
                    );
 
-        m_logger->initialize();
+        std::static_pointer_cast<logging_service_t>(m_logger)->initialize();
     }
 
     template<class Service, typename... Args>
@@ -49,7 +49,7 @@ public:
 private:
     cocaine::io::reactor_t& m_ioservice;
 
-    std::shared_ptr<logging_service_t> m_logger;
+    std::shared_ptr<logger_t> m_logger;
 };
 
 }} // cocaine::framework
