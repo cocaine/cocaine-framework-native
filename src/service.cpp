@@ -49,7 +49,7 @@ service_t::on_error(const std::error_code& code) {
 
 void
 service_t::on_message(const cocaine::io::message_t& message) {
-    std::map<session_id_t, std::shared_ptr<service_handler_concept_t>>::iterator it;
+    handlers_map_t::iterator it;
 
     {
         std::lock_guard<std::mutex> lock(m_handlers_lock);
