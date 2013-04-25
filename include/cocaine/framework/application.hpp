@@ -29,10 +29,6 @@ public:
     on(const std::string& event,
        void(App::*)(const std::string&, const std::vector<std::string>&, response_ptr));
 
-    void
-    on(const std::string& event,
-       std::function<void(const std::string&, const std::vector<std::string>&, response_ptr)>);
-
     template<class UserHandler>
     void
     on(const std::string& event);
@@ -45,9 +41,6 @@ public:
     void
     on_unregistered(void(App::*)(const std::string&, const std::vector<std::string>&, response_ptr));
 
-    void
-    on_unregistered(std::function<void(const std::string&, const std::vector<std::string>&, response_ptr)>);
-
     template<class UserHandler>
     void
     on_unregistered();
@@ -55,6 +48,22 @@ public:
     template<class Factory>
     void
     on_unregistered(std::shared_ptr<Factory> factory);
+
+    // WARNING: these 4 methods are for backward compatibility and will be deleted in 0.10.3.
+    // Use methods above in new code!
+    void
+    on(const std::string& event,
+       std::string(App::*)(const std::string&, const std::vector<std::string>&));
+
+    void
+    on(const std::string& event,
+       std::function<std::string(const std::string&, const std::vector<std::string>&)>);
+
+    void
+    on_unregistered(std::string(App::*)(const std::string&, const std::vector<std::string>&));
+
+    void
+    on_unregistered(std::function<std::string(const std::string&, const std::vector<std::string>&)>);
 
     template<class Service, typename... Args>
     void
@@ -141,17 +150,6 @@ application<App>::on(const std::string& event,
 }
 
 template<class App>
-void
-application<App>::on(
-    const std::string& event,
-    std::function<void(const std::string&, const std::vector<std::string>&, response_ptr)> functor
-)
-{
-    on(event,
-       std::make_shared<function_factory_t>(functor));
-}
-
-template<class App>
 template<class UserHandler>
 void
 application<App>::on(const std::string& event) {
@@ -184,15 +182,6 @@ application<App>::on_unregistered(
 }
 
 template<class App>
-void
-application<App>::on_unregistered(
-    std::function<void(const std::string&, const std::vector<std::string>&, response_ptr)> functor
-)
-{
-    on_unregistered(std::make_shared<function_factory_t>(functor));
-}
-
-template<class App>
 template<class UserHandler>
 void
 application<App>::on_unregistered() {
@@ -207,6 +196,55 @@ void
 application<App>::on_unregistered(std::shared_ptr<Factory> factory)
 {
     on_unregistered(std::static_pointer_cast<basic_factory_t>(factory));
+}
+
+// deprecated
+template<class App>
+void
+application<App>::on(const std::string& event,
+                     std::string(App::*method)(const std::string&, const std::vector<std::string>&))
+{
+    on(event, std::make_shared<function_factory_t>(deprecated::old_handler_adapter(
+        std::bind(method,
+                  this->shared_from_this(),
+                  std::placeholders::_1,
+                  std::placeholders::_2,
+                  std::placeholders::_3)
+    )));
+}
+
+template<class App>
+void
+application<App>::on(
+    const std::string& event,
+    std::function<std::string(const std::string&, const std::vector<std::string>&)> functor
+)
+{
+    on(event, std::make_shared<function_factory_t>(deprecated::old_handler_adapter(functor)));
+}
+
+template<class App>
+void
+application<App>::on_unregistered(
+    std::string(App::*method)(const std::string&, const std::vector<std::string>&)
+)
+{
+    on_unregistered(std::make_shared<function_factory_t>(deprecated::old_handler_adapter(
+        std::bind(method,
+                  this->shared_from_this(),
+                  std::placeholders::_1,
+                  std::placeholders::_2,
+                  std::placeholders::_3)
+    )));
+}
+
+template<class App>
+void
+application<App>::on_unregistered(
+    std::function<std::string(const std::string&, const std::vector<std::string>&)> functor
+)
+{
+    on_unregistered(std::make_shared<function_factory_t>(deprecated::old_handler_adapter(functor)));
 }
 
 }} // namespace cocaine::framework

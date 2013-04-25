@@ -55,6 +55,32 @@ private:
     function_handler_t::function_type_t m_function;
 };
 
+namespace deprecated {
+
+// backward compatibility. will be deleted in 0.10.3.
+struct old_handler_adapter {
+    typedef std::function<std::string(const std::string&,
+                                      const std::vector<std::string>&)>
+            function_type_t;
+
+    old_handler_adapter(function_type_t f) :
+        m_function(f)
+    {
+        // pass
+    }
+
+    void operator()(const std::string& event,
+                    const std::vector<std::string>& request,
+                    cocaine::framework::response_ptr response)
+    {
+        response->write(m_function(event, request));
+    }
+
+    function_type_t m_function;
+};
+
+} // deprecated
+
 }} // namespace cocaine::framework
 
 #endif // COCAINE_FRAMEWORK_HANDLERS_FUNCTIONAL_HPP
