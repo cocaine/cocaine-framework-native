@@ -22,6 +22,13 @@ public:
     virtual
     bool
     closed() const = 0;
+
+    using cocaine::api::stream_t::write;
+
+    void
+    write(const std::string& chunk) {
+        write(chunk.data(), chunk.size());
+    }
 };
 
 }} // namespace cocaine::framework
