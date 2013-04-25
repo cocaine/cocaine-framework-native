@@ -17,6 +17,7 @@
 #include <stdexcept>
 #include <string>
 #include <functional>
+#include <utility>
 #include <mutex>
 
 namespace cocaine { namespace framework {
@@ -344,7 +345,7 @@ service_t::call(Args&&... args) {
 
     auto h = std::make_shared<typename handler<Event>::type>();
     m_handlers[m_session_counter] = h;
-    m_channel->wr->write<Event>(m_session_counter, args...);
+    m_channel->wr->write<Event>(m_session_counter, std::forward<Args>(args)...);
     ++m_session_counter;
     return typename handler<Event>::future(h);
 }

@@ -10,34 +10,15 @@
 
 namespace cocaine { namespace framework {
 
-class event_t {
-public:
-    event_t(const std::string& name, std::shared_ptr<upstream_t> upstream) :
-        m_name(name),
-        m_response(upstream)
-    {
-        // pass
-    }
-
-    const std::string&
-    name() const {
-        return m_name;
-    }
-
-    std::shared_ptr<upstream_t>
-    response() const {
-        return m_response;
-    }
-private:
-    std::string m_name;
-    std::shared_ptr<upstream_t> m_response;
-};
+typedef std::shared_ptr<upstream_t> response_ptr;
 
 class function_handler_t :
     public basic_handler_t
 {
 public:
-    typedef std::function<void(const event_t&, const std::vector<std::string>&)>
+    typedef std::function<void(const std::string&,
+                               const std::vector<std::string>&,
+                               response_ptr)>
             function_type_t;
 
     function_handler_t(function_type_t f);
@@ -50,8 +31,8 @@ public:
     on_close();
 
 private:
-    function_type_t m_func;
-    std::vector<std::string> m_input;
+    function_type_t m_function;
+    std::vector<std::string> m_request;
 };
 
 class function_factory_t :
@@ -59,7 +40,7 @@ class function_factory_t :
 {
 public:
     function_factory_t(function_handler_t::function_type_t f) :
-        m_func(f)
+        m_function(f)
     {
         // pass
     }
@@ -67,11 +48,11 @@ public:
     std::shared_ptr<basic_handler_t>
     make_handler()
     {
-        return std::shared_ptr<basic_handler_t>(new function_handler_t(m_func));
+        return std::shared_ptr<basic_handler_t>(new function_handler_t(m_function));
     }
 
 private:
-    function_handler_t::function_type_t m_func;
+    function_handler_t::function_type_t m_function;
 };
 
 }} // namespace cocaine::framework
