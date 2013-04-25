@@ -10,11 +10,34 @@
 
 namespace cocaine { namespace framework {
 
+class event_t {
+public:
+    event_t(const std::string& name, std::shared_ptr<upstream_t> upstream) :
+        m_name(name),
+        m_response(upstream)
+    {
+        // pass
+    }
+
+    const std::string&
+    name() const {
+        return m_name;
+    }
+
+    std::shared_ptr<upstream_t>
+    response() const {
+        return m_response;
+    }
+private:
+    std::string m_name;
+    std::shared_ptr<upstream_t> m_response;
+};
+
 class function_handler_t :
     public basic_handler_t
 {
 public:
-    typedef std::function<std::string(const std::string&, const std::vector<std::string>&)>
+    typedef std::function<void(const event_t&, const std::vector<std::string>&)>
             function_type_t;
 
     function_handler_t(function_type_t f);
@@ -25,10 +48,6 @@ public:
 
     void
     on_close();
-
-    void
-    on_error(int code,
-             const std::string& message);
 
 private:
     function_type_t m_func;

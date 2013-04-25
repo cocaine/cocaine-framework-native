@@ -27,11 +27,11 @@ public:
 
     void
     on(const std::string& event,
-       std::string(App::*)(const std::string&, const std::vector<std::string>&));
+       void(App::*)(const event_t&, const std::vector<std::string>&));
 
     void
     on(const std::string& event,
-       std::function<std::string(const std::string&, const std::vector<std::string>&)>);
+       std::function<void(const event_t&, const std::vector<std::string>&)>);
 
     template<class UserHandler>
     void
@@ -43,10 +43,10 @@ public:
        std::shared_ptr<Factory> factory);
 
     void
-    on_unregistered(std::string(App::*)(const std::string&, const std::vector<std::string>&));
+    on_unregistered(void(App::*)(const event_t&, const std::vector<std::string>&));
 
     void
-    on_unregistered(std::function<std::string(const std::string&, const std::vector<std::string>&)>);
+    on_unregistered(std::function<void(const event_t&, const std::vector<std::string>&)>);
 
     template<class UserHandler>
     void
@@ -130,7 +130,7 @@ handler_factory<UserHandler>::make_handler() {
 template<class App>
 void
 application<App>::on(const std::string& event,
-                     std::string(App::*method)(const std::string&, const std::vector<std::string>&))
+                     void(App::*method)(const event_t&, const std::vector<std::string>&))
 {
     on(event,
        std::make_shared<function_factory_t>(std::bind(method,
@@ -143,7 +143,7 @@ template<class App>
 void
 application<App>::on(
     const std::string& event,
-    std::function<std::string(const std::string&, const std::vector<std::string>&)> functor
+    std::function<void(const event_t&, const std::vector<std::string>&)> functor
 )
 {
     on(event,
@@ -172,7 +172,7 @@ application<App>::on(const std::string& event,
 template<class App>
 void
 application<App>::on_unregistered(
-    std::string(App::*method)(const std::string&, const std::vector<std::string>&)
+    void(App::*method)(const event_t&, const std::vector<std::string>&)
 )
 {
     on_unregistered(std::make_shared<function_factory_t>(std::bind(method,
@@ -184,7 +184,7 @@ application<App>::on_unregistered(
 template<class App>
 void
 application<App>::on_unregistered(
-    std::function<std::string(const std::string&, const std::vector<std::string>&)> functor
+    std::function<void(const event_t&, const std::vector<std::string>&)> functor
 )
 {
     on_unregistered(std::make_shared<function_factory_t>(functor));

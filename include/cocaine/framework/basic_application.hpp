@@ -67,7 +67,9 @@ public:
     virtual
     void
     on_error(int code,
-             const std::string& message) = 0;
+             const std::string& message) {
+        // pass
+    }
 
     virtual
     void

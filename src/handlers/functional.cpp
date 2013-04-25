@@ -17,14 +17,6 @@ function_handler_t::on_chunk(const char *chunk,
 
 void
 function_handler_t::on_close() {
-    std::string result = m_func(event(), m_input);
-    response()->write(result.data(), result.size());
+    m_func(event_t(event(), response()), m_input);
     response()->close();
-}
-
-void
-function_handler_t::on_error(int code,
-                             const std::string& message)
-{
-    // pass
 }
