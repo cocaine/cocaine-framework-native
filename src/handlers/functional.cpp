@@ -18,5 +18,4 @@ function_handler_t::on_chunk(const char *chunk,
 void
 function_handler_t::on_close() {
     m_func(event_t(event(), response()), m_input);
-    response()->close();
 }
