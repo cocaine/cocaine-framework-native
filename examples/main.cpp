@@ -8,14 +8,6 @@
 #include <vector>
 #include <cstdlib>
 
-std::string
-on_event3(const std::string& event,
-          const std::vector<std::string>& input)
-{
-    std::cout << "on_event3:" + event << std::endl;
-    return "on_event3:" + event;
-}
-
 class App1 :
     public cocaine::framework::application<App1>
 {
@@ -43,10 +35,6 @@ class App1 :
             app()->m_storage->read("testtest", "testkey")
                 .on_message(std::bind(&on_event1::on_read, shared_from_this(), std::placeholders::_1))
                 .on_error(error_handler);
-
-            std::string buffer("answertestets");
-            response()->write(buffer.data(), buffer.size());
-            response()->close();
         }
 
         void
@@ -60,6 +48,8 @@ class App1 :
         void
         on_read(const std::string& value) {
             std::cout << "on_read: " << value << std::endl;
+            response()->write(value);
+            response()->close();
         }
     };
     friend class on_event1;
@@ -78,17 +68,17 @@ public:
 
         on<on_event1>("event1");
         on("event2", &App1::on_event2);
-        on("event3", &on_event3);
 
         COCAINE_LOG_WARNING(m_log, "test log");
     }
 
-    std::string
+    void
     on_event2(const std::string& event,
-              const std::vector<std::string>& input)
+              const std::vector<std::string>& request,
+              cocaine::framework::response_ptr response)
     {
         std::cout << "on_event2:" + event << std::endl;
-        return "on_event2:" + event;
+        response->write("on_event2:" + event);
     }
 
 private:
