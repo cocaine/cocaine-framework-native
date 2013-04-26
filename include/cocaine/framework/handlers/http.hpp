@@ -69,7 +69,7 @@ public:
     }
 
     const std::string&
-    headers(const std::string& key) const {
+    header(const std::string& key) const {
         return m_headers.at(key);
     }
 
@@ -79,7 +79,7 @@ public:
     }
 
     const std::string&
-    cookies(const std::string& key) const {
+    cookie(const std::string& key) const {
         return m_cookies.at(key);
     }
 
@@ -107,8 +107,10 @@ public:
     typedef std::vector<std::pair<std::string, std::string>> headers_t;
 
 public:
-    http_response() :
-        m_code(200) // i'm optimistic
+    explicit http_response(int code = 200, // i'm optimistic
+                           const headers_t& headers = headers_t()) :
+        m_code(code),
+        m_headers(headers)
     {
         // pass
     }
@@ -119,14 +121,6 @@ public:
         m_code(code),
         m_headers(headers),
         m_body(body)
-    {
-        // pass
-    }
-
-    http_response(int code,
-                  const headers_t& headers) :
-        m_code(code),
-        m_headers(headers)
     {
         // pass
     }
@@ -189,7 +183,9 @@ struct http_handler :
 
     void
     error(const std::string& message) {
-        response()->error(cocaine::invocation_error, message);
+        if (!response()->closed()) {
+            response()->error(cocaine::invocation_error, message);
+        }
     }
 
     void
@@ -244,6 +240,7 @@ struct http_handler :
     not_found(Args&&... args) {
         send_response(404, std::forward<Args>(args)...);
     }
+
 private:
     using cocaine::framework::handler<App>::response;
 };
