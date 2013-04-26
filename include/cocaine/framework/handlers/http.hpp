@@ -27,7 +27,16 @@ public:
             if(key.compare("body") == 0) {
                 req_it->val.convert(&m_body);
             } else if (key.compare("request") == 0) {
-                req_it->val.convert(&m_request);
+                msgpack::object_kv* it = req_it->val.via.map.ptr;
+                msgpack::object_kv* const pend = it + req_it->val.via.map.size;
+
+                for (; it < pend; ++it) {
+                    if (it->val.type == msgpack::type::RAW) {
+                        m_request[it->key.as<std::string>()].push_back(it->val.as<std::string>());
+                    } else if (it->val.type == msgpack::type::ARRAY) {
+                        m_request[it->key.as<std::string>()] = it->val.as<std::vector<std::string>>();
+                    }
+                }
             } else if (key.compare("meta") == 0) {
                 msgpack::object_kv* meta_it = req_it->val.via.map.ptr;
                 msgpack::object_kv* const pend = meta_it + req_it->val.via.map.size;
@@ -53,12 +62,12 @@ public:
         return m_body;
     }
 
-    const std::map<std::string, std::string>&
+    const std::map<std::string, std::vector<std::string>>&
     request() const {
         return m_request;
     }
 
-    const std::string&
+    const std::vector<std::string>&
     request(const std::string& key) const {
         return m_request.at(key);
     }
@@ -95,7 +104,7 @@ public:
 
 private:
     std::string m_body;
-    std::map<std::string, std::string> m_request;
+    std::map<std::string, std::vector<std::string>> m_request;
     std::map<std::string, std::string> m_meta;
     std::map<std::string, std::string> m_headers;
     std::map<std::string, std::string> m_cookies;
