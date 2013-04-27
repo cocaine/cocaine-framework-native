@@ -36,6 +36,7 @@ ADD_LIBRARY(cocaine-framework SHARED
     src/service
     src/worker
     src/handlers/functional
+    src/handlers/http
     src/services/logger)
 
 TARGET_LINK_LIBRARIES(cocaine-framework

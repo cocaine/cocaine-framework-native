@@ -3,6 +3,8 @@
 
 #include <cocaine/framework/application.hpp>
 
+#include <msgpack.hpp>
+
 #include <string>
 #include <vector>
 #include <memory>
@@ -13,49 +15,8 @@ namespace cocaine { namespace framework {
 
 class http_request {
 public:
-    explicit http_request(const char *chunk, size_t size) {
-        msgpack::unpacked msg;
-        msgpack::unpack(&msg, chunk, size);
-
-        msgpack::object_kv* req_it = msg.get().via.map.ptr;
-        msgpack::object_kv* const pend = req_it + msg.get().via.map.size;
-
-        for (; req_it < pend; ++req_it) {
-            std::string key;
-            req_it->key.convert(&key);
-
-            if(key.compare("body") == 0) {
-                req_it->val.convert(&m_body);
-            } else if (key.compare("request") == 0) {
-                msgpack::object_kv* it = req_it->val.via.map.ptr;
-                msgpack::object_kv* const pend = it + req_it->val.via.map.size;
-
-                for (; it < pend; ++it) {
-                    if (it->val.type == msgpack::type::RAW) {
-                        m_request[it->key.as<std::string>()].push_back(it->val.as<std::string>());
-                    } else if (it->val.type == msgpack::type::ARRAY) {
-                        m_request[it->key.as<std::string>()] = it->val.as<std::vector<std::string>>();
-                    }
-                }
-            } else if (key.compare("meta") == 0) {
-                msgpack::object_kv* meta_it = req_it->val.via.map.ptr;
-                msgpack::object_kv* const pend = meta_it + req_it->val.via.map.size;
-
-                for (; meta_it < pend; ++meta_it) {
-                    std::string key;
-                    meta_it->key.convert(&key);
-
-                    if(key.compare("headers") == 0) {
-                        meta_it->val.convert(&m_headers);
-                    } else if (key.compare("cookies") == 0) {
-                        meta_it->val.convert(&m_cookies);
-                    } else if (meta_it->val.type == msgpack::type::RAW) {
-                        m_meta[key] = meta_it->val.as<std::string>();
-                    }
-                }
-            }
-        }
-    }
+    explicit http_request(const char *chunk,
+                          size_t size);
 
     const std::string&
     body() const {
@@ -108,7 +69,6 @@ private:
     std::map<std::string, std::string> m_meta;
     std::map<std::string, std::string> m_headers;
     std::map<std::string, std::string> m_cookies;
-
 };
 
 class http_response {
@@ -165,6 +125,7 @@ public:
     body() const {
         return m_body;
     }
+
 private:
     int m_code;
     headers_t m_headers;
@@ -198,24 +159,7 @@ struct http_handler :
     }
 
     void
-    send_response(const http_response& r) {
-        if (!response()->closed()) {
-            msgpack::sbuffer buffer;
-            msgpack::packer<msgpack::sbuffer> pk(&buffer);
-            pk.pack_map(2);
-            pk.pack(std::string("code"));
-            pk.pack(r.code());
-            pk.pack(std::string("headers"));
-            pk.pack(r.headers());
-            response()->write(buffer.data(), buffer.size());
-
-            if (r.body()) {
-                response()->write(r.body()->data(), r.body()->size());
-            }
-
-            response()->close();
-        }
-    }
+    send_response(const http_response& r);
 
     void
     send_response(int code,
@@ -253,6 +197,27 @@ struct http_handler :
 private:
     using cocaine::framework::handler<App>::response;
 };
+
+template<class App>
+void
+http_handler<App>::send_response(const http_response& r) {
+    if (!response()->closed()) {
+        msgpack::sbuffer buffer;
+        msgpack::packer<msgpack::sbuffer> pk(&buffer);
+        pk.pack_map(2);
+        pk.pack(std::string("code"));
+        pk.pack(r.code());
+        pk.pack(std::string("headers"));
+        pk.pack(r.headers());
+        response()->write(buffer.data(), buffer.size());
+
+        if (r.body()) {
+            response()->write(r.body()->data(), r.body()->size());
+        }
+
+        response()->close();
+    }
+}
 
 }} // namespace cocaine::framework
 
