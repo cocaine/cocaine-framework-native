@@ -1,3 +1,13 @@
+cocaine-framework-native (0.10.2) lucid; urgency=low
+
+  * Release 10.2.
+  * New basic logger interface. Global logger is represented with this interface.
+  * Several bugfixes.
+  * Improved functional handler and associated minor changes of api.
+  * New http handler. 
+
+ -- Andrey Goryachev <bugsbunny@yandex-team.ru>  Sat, 27 Apr 2013 15:02:32 +0400
+
 cocaine-framework-native (0.10.1) lucid; urgency=low
 
   * Release 10.1.
