@@ -28,9 +28,26 @@ public:
         return m_request;
     }
 
-    const std::vector<std::string>&
-    request(const std::string& key) const {
-        return m_request.at(key);
+    boost::optional<std::string>
+    arg(const std::string& key) const {
+        auto it = m_request.find(key);
+        if (it != m_request.end()) {
+            return boost::make_optional(it->second[0]);
+        } else {
+            return boost::optional<std::string>();
+        }
+    }
+
+    void
+    arg(const std::string& key,
+        boost::optional<std::vector<std::string>>& result) const
+    {
+        auto it = m_request.find(key);
+        if (it != m_request.end()) {
+            result.reset(it->second);
+        } else {
+            result.reset();
+        }
     }
 
     const std::map<std::string, std::string>&
@@ -38,9 +55,14 @@ public:
         return m_headers;
     }
 
-    const std::string&
+    boost::optional<std::string>
     header(const std::string& key) const {
-        return m_headers.at(key);
+        auto it = m_headers.find(key);
+        if (it != m_headers.end()) {
+            return boost::make_optional(it->second);
+        } else {
+            return boost::optional<std::string>();
+        }
     }
 
     const std::map<std::string, std::string>&
@@ -48,9 +70,14 @@ public:
         return m_cookies;
     }
 
-    const std::string&
+    boost::optional<std::string>
     cookie(const std::string& key) const {
-        return m_cookies.at(key);
+        auto it = m_cookies.find(key);
+        if (it != m_cookies.end()) {
+            return boost::make_optional(it->second);
+        } else {
+            return boost::optional<std::string>();
+        }
     }
 
     const std::map<std::string, std::string>&
@@ -63,12 +90,48 @@ public:
         return m_meta.at(key);
     }
 
+    bool
+    secure() const {
+        return  m_secure;
+    }
+
+    const std::string&
+    method() const {
+        return meta("method");
+    }
+
+    const std::string&
+    url() const {
+        return meta("url");
+    }
+
+    const std::string&
+    host() const {
+        return meta("host");
+    }
+
+    const std::string&
+    path() const {
+        return meta("script_name");
+    }
+
+    const std::string&
+    remote_address() const {
+        return meta("remote_addr");
+    }
+
+    const std::string&
+    server_address() const {
+        return meta("server_addr");
+    }
+
 private:
     std::string m_body;
     std::map<std::string, std::vector<std::string>> m_request;
     std::map<std::string, std::string> m_meta;
     std::map<std::string, std::string> m_headers;
     std::map<std::string, std::string> m_cookies;
+    bool m_secure;
 };
 
 class http_response {
@@ -100,6 +163,9 @@ public:
     {
         m_headers.push_back(std::make_pair(header, value));
     }
+
+    void
+    set_content_type(const std::string& type);
 
     void
     set_code(int code) {
