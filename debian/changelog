@@ -1,3 +1,9 @@
+cocaine-framework-native (0.10.2-1) lucid; urgency=low
+
+  * Backward compatibility now actually works.
+
+ -- Andrey Sibiryov <kobolog@yandex-team.ru>  Thu, 02 May 2013 16:51:00 +0400
+
 cocaine-framework-native (0.10.2) lucid; urgency=low
 
   * Release 10.2.
