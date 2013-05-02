@@ -208,8 +208,7 @@ application<App>::on(const std::string& event,
         std::bind(method,
                   this->shared_from_this(),
                   std::placeholders::_1,
-                  std::placeholders::_2,
-                  std::placeholders::_3)
+                  std::placeholders::_2)
     )));
 }
 
@@ -233,8 +232,7 @@ application<App>::on_unregistered(
         std::bind(method,
                   this->shared_from_this(),
                   std::placeholders::_1,
-                  std::placeholders::_2,
-                  std::placeholders::_3)
+                  std::placeholders::_2)
     )));
 }
 
