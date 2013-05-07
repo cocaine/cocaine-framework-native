@@ -218,13 +218,6 @@ struct http_handler :
     }
 
     void
-    error(const std::string& message) {
-        if (!response()->closed()) {
-            response()->error(cocaine::invocation_error, message);
-        }
-    }
-
-    void
     send_response(const http_response& r);
 
     void
@@ -240,24 +233,6 @@ struct http_handler :
                   const http_response::headers_t& headers = http_response::headers_t())
     {
         send_response(http_response(code, headers));
-    }
-
-    template<class... Args>
-    void
-    ok(Args&&... args) {
-        send_response(200, std::forward<Args>(args)...);
-    }
-
-    template<class... Args>
-    void
-    bad_request(Args&&... args) {
-        send_response(400, std::forward<Args>(args)...);
-    }
-
-    template<class... Args>
-    void
-    not_found(Args&&... args) {
-        send_response(404, std::forward<Args>(args)...);
     }
 
 private:
