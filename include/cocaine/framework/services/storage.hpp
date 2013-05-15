@@ -37,6 +37,15 @@ public:
         return call<cocaine::io::storage::write>(collection, key, value);
     }
 
+    service_t::handler<cocaine::io::storage::write>::future
+    write(const std::string& collection,
+          const std::string& key,
+          const std::string& value,
+          const std::vector<std::string>& tags)
+    {
+        return call<cocaine::io::storage::write>(collection, key, value, tags);
+    }
+
     service_t::handler<cocaine::io::storage::remove>::future
     remove(const std::string& collection,
            const std::string& key)
@@ -44,10 +53,11 @@ public:
         return call<cocaine::io::storage::remove>(collection, key);
     }
 
-    service_t::handler<cocaine::io::storage::list>::future
-    list(const std::string& collection)
+    service_t::handler<cocaine::io::storage::find>::future
+    find(const std::string& collection,
+         const std::vector<std::string>& tags)
     {
-        return call<cocaine::io::storage::list>(collection);
+        return call<cocaine::io::storage::find>(collection, tags);
     }
 };
 
