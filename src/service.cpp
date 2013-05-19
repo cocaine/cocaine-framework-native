@@ -1,3 +1,5 @@
+#include <cocaine/asio/resolver.hpp>
+
 #include <cocaine/framework/service.hpp>
 #include <cocaine/framework/common.hpp>
 
@@ -31,7 +33,7 @@ service_t::connect() {
     }
 
     auto socket = std::make_shared<cocaine::io::socket<cocaine::io::tcp>>(
-        cocaine::io::tcp::endpoint(m_endpoint.first, m_endpoint.second)
+        cocaine::io::resolver<cocaine::io::tcp>::query(m_endpoint.first, m_endpoint.second)
     );
 
     m_channel.reset(new iochannel_t(m_ioservice, socket));
