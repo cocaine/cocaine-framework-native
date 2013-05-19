@@ -12,7 +12,7 @@ class application :
     public basic_application_t
 {
 public:
-    application(std::shared_ptr<service_manager_t> service_manager) :
+    application(const std::string& id, std::shared_ptr<service_manager_t> service_manager) :
         basic_application_t(service_manager)
     {
         // pass

@@ -66,8 +66,7 @@ public:
 
     virtual
     void
-    on_error(int code,
-             const std::string& message) {
+    on_error(int /* code */, const std::string& /* message */) {
         // pass
     }
 

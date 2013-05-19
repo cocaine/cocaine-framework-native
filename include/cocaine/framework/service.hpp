@@ -145,7 +145,7 @@ namespace detail { namespace service {
     struct handler_detail<Event, void>
     {
         void
-        handle_chunk(const msgpack::object& message) {
+        handle_chunk(const msgpack::object& /* message */) {
             // pass
         }
     };
