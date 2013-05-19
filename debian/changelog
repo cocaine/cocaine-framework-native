@@ -1,4 +1,4 @@
-cocaine-framework-native (0.10.3~pre1) lucid; urgency=low
+cocaine-framework-native (0.10.3~pre2) lucid; urgency=low
 
   * Release 10.3.
   * Support for Storage API v2.
