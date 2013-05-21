@@ -2,6 +2,7 @@
 
 #include <cocaine/messages.hpp>
 
+#include <csignal>
 #include <stdexcept>
 #include <iostream>
 #include <boost/program_options.hpp>
@@ -326,6 +327,15 @@ worker_t::create(int argc,
         std::cerr << "This is an application for Cocaine Engine. You can not run it like an ordinary application. Upload it in Cocaine." << std::endl;
         throw 1;
     }
+
+    // Block the deprecated signals.
+
+    sigset_t signals;
+
+    sigemptyset(&signals);
+    sigaddset(&signals, SIGPIPE);
+
+    ::sigprocmask(SIG_BLOCK, &signals, nullptr);
 
     try {
         return std::shared_ptr<worker_t>(new worker_t(vm["app"].as<std::string>(),
