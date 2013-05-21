@@ -1,6 +1,7 @@
 #ifndef COCAINE_FRAMEWORK_WORKER_HPP
 #define COCAINE_FRAMEWORK_WORKER_HPP
 
+#include <cocaine/framework/common.hpp>
 #include <cocaine/framework/basic_application.hpp>
 #include <cocaine/framework/upstream.hpp>
 #include <cocaine/framework/service_manager.hpp>
@@ -11,6 +12,7 @@
 #include <cocaine/rpc/channel.hpp>
 #include <cocaine/format.hpp>
 
+#include <iostream>
 #include <string>
 #include <map>
 #include <memory>
@@ -130,7 +132,12 @@ worker_t::run(int argc,
         return e;
     }
     worker->create_application<App>(std::forward<Args>(args)...);
-    return worker->run();
+    try {
+        return worker->run();
+    } catch (const socket_error_t &e) {
+        std::cerr << "cocaine::framework::socket_error_t: " << e.what() << std::endl;
+        return 1;
+    }
 }
 
 }} // namespace cocaine::framework
