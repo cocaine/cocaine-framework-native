@@ -134,7 +134,9 @@ worker_t::worker_t(const std::string& name,
     m_heartbeat_timer.start(0.0f, 5.0f);
 
     m_disown_timer.set<worker_t, &worker_t::on_disown>(this);
-    m_disown_timer.start(2.0f);
+
+    // Set the lowest priority for the disown timer.
+    m_disown_timer.priority = EV_MINPRI;
 }
 
 worker_t::~worker_t() {
@@ -261,7 +263,7 @@ worker_t::on_heartbeat(ev::timer&,
                        int)
 {
     send<io::rpc::heartbeat>(0ul);
-    m_disown_timer.start(2.0f);
+    m_disown_timer.start(60.0f);
 }
 
 void
