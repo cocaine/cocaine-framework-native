@@ -1,5 +1,4 @@
 #include <cocaine/framework/worker.hpp>
-#include <cocaine/framework/common.hpp>
 
 #include <cocaine/messages.hpp>
 
