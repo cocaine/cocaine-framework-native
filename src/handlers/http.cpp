@@ -1,5 +1,7 @@
 #include <cocaine/framework/handlers/http.hpp>
 
+#include <boost/algorithm/string.hpp>
+
 using namespace cocaine::framework;
 
 http_request::http_request(const char *chunk,
@@ -40,11 +42,25 @@ http_request::http_request(const char *chunk,
                     meta_it->val.convert(&m_headers);
                 } else if (key.compare("cookies") == 0) {
                     meta_it->val.convert(&m_cookies);
+                } else if (key.compare("secure") == 0) {
+                    meta_it->val.convert(&m_secure);
                 } else if (meta_it->val.type == msgpack::type::RAW) {
                     m_meta[key] = meta_it->val.as<std::string>();
                 }
             }
         }
     }
+}
+
+void
+http_response::set_content_type(const std::string& type) {
+    for (auto header = m_headers.begin(); header != m_headers.end(); ++header) {
+        if (boost::iequals(header->first, "Content-Type")) {
+            header->second = type;
+            return;
+        }
+    }
+    // else
+    add_header("Content-Type", type);
 }
 
