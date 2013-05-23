@@ -1,3 +1,9 @@
+cocaine-framework-native (0.10.3-1) lucid; urgency=low
+
+  * Improved http handler is really added.
+
+ -- Andrey Goryachev <bugsbunny@yandex-team.ru>  Wed, 22 May 2013 19:00:45 +0400
+
 cocaine-framework-native (0.10.3) lucid; urgency=low
 
   * Release 10.3.
