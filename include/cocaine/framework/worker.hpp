@@ -51,7 +51,8 @@ private:
 
     worker_t(const std::string& name,
              const std::string& uuid,
-             const std::string& endpoint);
+             const std::string& endpoint,
+             uint16_t resolver_port);
 
     template<class App, typename... Args>
     void
