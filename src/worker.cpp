@@ -36,7 +36,7 @@ public:
 
     void
     write(const char * chunk,
-         size_t size)
+          size_t size)
     {
         std::lock_guard<std::mutex> lock(m_closed_lock);
         if (m_state == state_t::closed) {
@@ -47,7 +47,7 @@ public:
     }
 
     void
-    error(error_code code,
+    error(int code,
           const std::string& message)
     {
         std::lock_guard<std::mutex> lock(m_closed_lock);
@@ -223,7 +223,7 @@ worker_t::on_message(const io::message_t& message) {
             break;
         }
         case io::event_traits<io::rpc::error>::id: {
-            error_code ec;
+            int ec;
             std::string error_message;
             message.as<io::rpc::error>(ec, error_message);
 

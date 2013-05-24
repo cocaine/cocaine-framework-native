@@ -208,12 +208,11 @@ namespace detail { namespace service {
 
         friend class future<Event>;
 
-        typedef std::function<void(cocaine::error_code, const std::string&)>
-                error_handler_t;
+        typedef std::function<void(int, const std::string&)> error_handler_t;
 
         struct ignore_error_t {
             void
-            operator()(cocaine::error_code,
+            operator()(int,
                        const std::string&)
             {
                 // pass
@@ -252,7 +251,7 @@ namespace detail { namespace service {
 
             this->handle_chunk(msg.get());
         } else if (message.id() == io::event_traits<io::rpc::error>::id) {
-            cocaine::error_code code;
+            int code;
             std::string msg;
             message.as<cocaine::io::rpc::error>(code, msg);
             m_error_handler(code, msg);
