@@ -93,8 +93,7 @@ private:
 
 class killer_t {
 public:
-    killer_t(const std::string& app_name) :
-        m_app_name(app_name)
+    killer_t()
     {
         // pass
     }
@@ -103,29 +102,29 @@ public:
     operator()(const std::error_code& code) {
         throw socket_error_t(cocaine::format("socket error with code %d in worker", code));
     }
-
-private:
-    std::string m_app_name;
 };
 
 } // namespace
 
 worker_t::worker_t(const std::string& name,
                    const std::string& uuid,
-                   const std::string& endpoint):
+                   const std::string& endpoint,
+                   uint16_t resolver_port):
     m_id(uuid),
     m_heartbeat_timer(m_ioservice.native()),
     m_disown_timer(m_ioservice.native()),
     m_app_name(name)
 {
-    m_service_manager.reset(new service_manager_t(m_ioservice, cocaine::format("app/%s", name)));
+    m_service_manager.reset(
+        new service_manager_t(m_ioservice, cocaine::format("app/%s", name), resolver_port)
+    );
     m_log = m_service_manager->get_system_logger();
 
     auto socket = std::make_shared<io::socket<io::local>>(io::local::endpoint(endpoint));
     m_channel.reset(new io::channel<io::socket<io::local>>(m_ioservice, socket));
     m_channel->rd->bind(std::bind(&worker_t::on_message, this, std::placeholders::_1),
-                        killer_t(name));
-    m_channel->wr->bind(killer_t(name));
+                        killer_t());
+    m_channel->wr->bind(killer_t());
 
     // Greet the engine!
     send<io::rpc::handshake>(0ul, m_id);
@@ -307,7 +306,8 @@ worker_t::create(int argc,
     options.add_options()
         ("app", value<std::string>())
         ("uuid", value<std::string>())
-        ("endpoint", value<std::string>());
+        ("endpoint", value<std::string>())
+        ("locator", value<uint16_t>());
 
     try {
         command_line_parser parser(argc, argv);
@@ -322,7 +322,8 @@ worker_t::create(int argc,
 
     if (vm.count("app") == 0 ||
         vm.count("uuid") == 0 ||
-        vm.count("endpoint") == 0)
+        vm.count("endpoint") == 0 ||
+        vm.count("locator") == 0)
     {
         std::cerr << "This is an application for Cocaine Engine. You can not run it like an ordinary application. Upload it in Cocaine." << std::endl;
         throw 1;
@@ -340,7 +341,8 @@ worker_t::create(int argc,
     try {
         return std::shared_ptr<worker_t>(new worker_t(vm["app"].as<std::string>(),
                                                       vm["uuid"].as<std::string>(),
-                                                      vm["endpoint"].as<std::string>()));
+                                                      vm["endpoint"].as<std::string>(),
+                                                      vm["locator"].as<uint16_t>()));
     } catch(const std::exception& e) {
         std::cerr << cocaine::format("ERROR: unable to start the worker - %s", e.what()) << std::endl;
         throw 1;
