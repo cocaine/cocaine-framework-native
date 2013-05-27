@@ -46,7 +46,7 @@ namespace detail { namespace service {
         handle_message(const cocaine::io::message_t&) = 0;
     };
 
-    template<class Result, class = void>
+    template<class Result>
     struct message_handler {
         typedef std::function<void(const Result&)> type;
 
@@ -68,43 +68,37 @@ namespace detail { namespace service {
         }
     };
 
-    template<class Result>
-    struct message_handler<
-            Result,
-            typename std::enable_if<
-                boost::mpl::is_sequence<Result>::value
-            >::type
-        >
+    template<class... Args>
+    struct message_handler<std::tuple<Args...>>
     {
-        typedef typename cocaine::basic_slot<void, Result>::callable_type
+        typedef std::function<void(const typename std::decay<Args>::type&...)>
                 type;
 
-        template<class It, class End, class... Args>
-        struct construct_functor {
-            typedef typename construct_functor<
-                        typename boost::mpl::next<It>::type,
-                        End,
-                        Args...,
-                        typename boost::mpl::deref<It>::type
-                    >::type
-                    type;
+        struct empty_handler {
+            void
+            operator()(const typename std::decay<Args>::type&...) {
+                // pass
+            }
         };
 
-        template<class End, class... Args>
-        struct construct_functor<End, End, Args...> {
-            struct type {
-                void
-                operator()(Args&&... args) {
-                    // pass
-                }
-            };
+        template<int Size, int... Positions>
+        struct apply_impl :
+            public apply_impl<Size + 1, Positions..., Size>
+        {
+            // pass
         };
 
-        typedef typename construct_functor<
-                    typename boost::mpl::begin<Result>::type,
-                    typename boost::mpl::end<Result>::type
-                >::type
-                empty_handler;
+        template<int... Positions>
+        struct apply_impl<sizeof...(Args), Positions...> {
+            static
+            inline
+            void
+            invoke(const type& f,
+                   const std::tuple<Args...>& t)
+            {
+                f(std::get<Positions>(t)...);
+            }
+        };
 
         template<class F>
         static inline
@@ -112,7 +106,9 @@ namespace detail { namespace service {
         apply(const F& fun,
               const msgpack::object& message)
         {
-            cocaine::invoke<Result>::apply(fun, message);
+            std::tuple<Args...> args;
+            cocaine::io::type_traits<std::tuple<Args...>>::unpack(message, args);
+            apply_impl<0>::invoke(fun, args);
         }
     };
 
