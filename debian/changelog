@@ -1,3 +1,14 @@
+cocaine-framework-native (0.10.5-0) lucid; urgency=low
+
+  * Release 10.5.
+  * Support for service remoting.
+  * Support for the named queues.
+  * Support for locator port forwarding.
+  * Bugfix: block SIGPIPE.
+  * Bugfix: correct initialization sequence.
+
+ -- Andrey Sibiryov <kobolog@yandex-team.ru>  Sun, 19 May 2013 22:05:50 +0400
+
 cocaine-framework-native (0.10.3) lucid; urgency=low
 
   * Release 10.3.
