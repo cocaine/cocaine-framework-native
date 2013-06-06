@@ -1,3 +1,5 @@
+#include <cocaine/asio/resolver.hpp>
+
 #include <cocaine/framework/service.hpp>
 #include <cocaine/framework/common.hpp>
 
@@ -24,15 +26,20 @@ void
 service_t::connect() {
     auto service_info = m_resolver->resolve(m_name);
 
-    std::tie(m_endpoint.first, m_endpoint.second) = std::get<0>(service_info);
+    std::string hostname;
+    uint16_t port;
+
+    std::tie(hostname, port) = std::get<0>(service_info);
+
+    auto resolved = cocaine::io::resolver<cocaine::io::tcp>::query(hostname, port);
+
+    m_endpoint = { resolved.address(), resolved.port() };
 
     if (m_version != std::get<1>(service_info)) {
         throw service_error_t("bad version of service " + m_name);
     }
 
-    auto socket = std::make_shared<cocaine::io::socket<cocaine::io::tcp>>(
-        cocaine::io::tcp::endpoint(m_endpoint.first, m_endpoint.second)
-    );
+    auto socket = std::make_shared<cocaine::io::socket<cocaine::io::tcp>>(resolved);
 
     m_channel.reset(new iochannel_t(m_ioservice, socket));
     m_channel->rd->bind(std::bind(&service_t::on_message, this, std::placeholders::_1),

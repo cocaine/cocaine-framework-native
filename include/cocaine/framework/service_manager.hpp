@@ -13,13 +13,15 @@ class service_manager_t {
 
 public:
     service_manager_t(cocaine::io::reactor_t& ioservice,
-                      const std::string& logging_prefix) :
-        m_ioservice(ioservice)
+                      const std::string& logging_prefix,
+                      uint16_t resolver_port) :
+        m_ioservice(ioservice),
+        m_resolver_port(resolver_port)
     {
         m_logger = std::make_shared<logging_service_t>(
                        "logging",
                        m_ioservice,
-                       endpoint_t("127.0.0.1", 10053),
+                       endpoint_t("127.0.0.1", m_resolver_port),
                        std::shared_ptr<logging_service_t>(),
                        logging_prefix
                    );
@@ -34,7 +36,7 @@ public:
     {
         auto new_service = std::make_shared<Service>(name,
                                                      m_ioservice,
-                                                     endpoint_t("127.0.0.1", 10053),
+                                                     endpoint_t("127.0.0.1", m_resolver_port),
                                                      m_logger,
                                                      std::forward<Args>(args)...);
         new_service->initialize();
@@ -48,7 +50,7 @@ public:
 
 private:
     cocaine::io::reactor_t& m_ioservice;
-
+    uint16_t m_resolver_port;
     std::shared_ptr<logger_t> m_logger;
 };
 
