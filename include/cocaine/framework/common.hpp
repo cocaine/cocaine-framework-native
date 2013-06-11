@@ -2,6 +2,7 @@
 #define COCAINE_FRAMEWORK_COMMON_HPP
 
 #include <stdexcept>
+#include <exception>
 
 namespace cocaine { namespace framework {
 

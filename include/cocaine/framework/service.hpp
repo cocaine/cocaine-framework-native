@@ -1,8 +1,10 @@
 #ifndef COCAINE_FRAMEWORK_SERVICE_HPP
 #define COCAINE_FRAMEWORK_SERVICE_HPP
 
+#include <cocaine/framework/future.hpp>
 #include <cocaine/framework/resolver.hpp>
 #include <cocaine/framework/logging.hpp>
+#include <cocaine/framework/service_error.hpp>
 
 #include <cocaine/rpc/channel.hpp>
 #include <cocaine/rpc/message.hpp>
@@ -11,27 +13,14 @@
 #include <cocaine/asio/socket.hpp>
 #include <cocaine/asio/tcp.hpp>
 #include <cocaine/asio/reactor.hpp>
-#include <cocaine/slot.hpp>
 
 #include <memory>
-#include <stdexcept>
 #include <string>
 #include <functional>
 #include <utility>
 #include <mutex>
 
 namespace cocaine { namespace framework {
-
-class service_error_t :
-    public std::runtime_error
-{
-public:
-    explicit service_error_t(const std::string& what) :
-        std::runtime_error(what)
-    {
-        // pass
-    }
-};
 
 namespace detail { namespace service {
 
@@ -46,217 +35,99 @@ namespace detail { namespace service {
         handle_message(const cocaine::io::message_t&) = 0;
     };
 
-    template<class Result, class = void>
-    struct message_handler {
-        typedef std::function<void(const Result&)> type;
-
-        struct empty_handler {
-            void
-            operator()(const Result&)
-            {
-                // pass
-            }
-        };
-
-        template<class F>
-        static inline
-        void
-        apply(const F& fun,
-              const msgpack::object& message)
-        {
-            fun(message.as<Result>());
-        }
+    template<class ResultType>
+    struct future_trait {
+        typedef cocaine::framework::future<ResultType> future_type;
+        typedef cocaine::framework::promise<ResultType> promise_type;
     };
 
-    template<class Result>
-    struct message_handler<
-            Result,
-            typename std::enable_if<
-                boost::mpl::is_sequence<Result>::value
-            >::type
-        >
-    {
-        typedef typename cocaine::basic_slot<void, Result>::callable_type
-                type;
-
-        template<class It, class End, class... Args>
-        struct construct_functor {
-            typedef typename construct_functor<
-                        typename boost::mpl::next<It>::type,
-                        End,
-                        Args...,
-                        typename boost::mpl::deref<It>::type
-                    >::type
-                    type;
-        };
-
-        template<class End, class... Args>
-        struct construct_functor<End, End, Args...> {
-            struct type {
-                void
-                operator()(Args&&... args) {
-                    // pass
-                }
-            };
-        };
-
-        typedef typename construct_functor<
-                    typename boost::mpl::begin<Result>::type,
-                    typename boost::mpl::end<Result>::type
-                >::type
-                empty_handler;
-
-        template<class F>
-        static inline
-        void
-        apply(const F& fun,
-              const msgpack::object& message)
-        {
-            cocaine::invoke<Result>::apply(fun, message);
-        }
+    template<class... Args>
+    struct future_trait<std::tuple<Args...>> {
+        typedef cocaine::framework::future<Args...> future_type;
+        typedef cocaine::framework::promise<Args...> promise_type;
     };
 
-    template<class Event,
-             class Result = typename cocaine::io::event_traits<Event>::result_type>
-    struct handler_detail
-    {
-        typedef typename message_handler<Result>::type message_handler_t;
-
-        handler_detail() :
-            m_message_handler(typename message_handler<Result>::empty_handler())
-        {
-            // pass
-        }
-
-        void
-        handle_chunk(const msgpack::object& message) {
-            message_handler<Result>::apply(m_message_handler, message);
-        }
-
-        void
-        on_message(message_handler_t handler) {
-            m_message_handler = handler;
-        }
-
-        message_handler_t m_message_handler;
-    };
-
-    template<class Event>
-    struct handler_detail<Event, void>
-    {
-        void
-        handle_chunk(const msgpack::object& /* message */) {
-            // pass
-        }
-    };
-
-    template<class Event>
-    class service_handler;
-
-    template<class Event, class Result = typename cocaine::io::event_traits<Event>::result_type>
-    struct future {
-        typedef service_handler<Event> handler_t;
-
-        future(std::shared_ptr<handler_t> promise) :
-            m_promise(promise)
-        {
-            // pass
-        }
-
-        future&
-        on_message(typename handler_t::message_handler_t handler) {
-            m_promise->on_message(handler);
-            return *this;
-        }
-
-        future&
-        on_error(typename handler_t::error_handler_t handler) {
-            m_promise->on_error(handler);
-            return *this;
-        }
-
-    private:
-        std::shared_ptr<handler_t> m_promise;
-    };
-
-    template<class Event>
-    struct future<Event, void> {
-        typedef service_handler<Event> handler_t;
-
-        future(std::shared_ptr<handler_t> promise) :
-            m_promise(promise)
-        {
-            // pass
-        }
-
-        future&
-        on_error(typename handler_t::error_handler_t handler) {
-            m_promise->on_error(handler);
-            return *this;
-        }
-
-    private:
-        std::shared_ptr<handler_t> m_promise;
-    };
-
-    template<class Event>
-    class service_handler :
-        public service_handler_concept_t,
-        protected handler_detail<Event>
-    {
-        COCAINE_DECLARE_NONCOPYABLE(service_handler)
-
-        friend class future<Event>;
-
-        typedef std::function<void(int, const std::string&)> error_handler_t;
-
-        struct ignore_error_t {
-            void
-            operator()(int,
-                       const std::string&)
-            {
-                // pass
-            }
-        };
-
-    public:
-        service_handler() :
-            handler_detail<Event>(),
-            m_error_handler(ignore_error_t())
-        {
-            // pass
-        }
-
-        void
-        handle_message(const cocaine::io::message_t&);
-
-    protected:
-        void
-        on_error(error_handler_t handler) {
-            m_error_handler = handler;
-        }
-
-    protected:
-        error_handler_t m_error_handler;
-    };
-
-    template<class Event>
+    template<class ResultType>
+    inline
     void
-    service_handler<Event>::handle_message(const cocaine::io::message_t& message) {
+    set_promise_result(typename future_trait<ResultType>::promise_type& p,
+                       const cocaine::io::message_t& message)
+    {
         if (message.id() == io::event_traits<io::rpc::chunk>::id) {
             std::string data;
             message.as<cocaine::io::rpc::chunk>(data);
             msgpack::unpacked msg;
             msgpack::unpack(&msg, data.data(), data.size());
 
-            this->handle_chunk(msg.get());
+            p.set_value(msg.get().as<ResultType>());
         } else if (message.id() == io::event_traits<io::rpc::error>::id) {
             int code;
             std::string msg;
             message.as<cocaine::io::rpc::error>(code, msg);
-            m_error_handler(code, msg);
+            p.set_exception(
+                service_error_t(std::error_code(code, service_response_category()), msg)
+            );
         }
     }
+
+    template<>
+    inline
+    void
+    set_promise_result<void>(promise<void>& p,
+                             const cocaine::io::message_t& message)
+    {
+        if (message.id() == io::event_traits<io::rpc::choke>::id) {
+            p.set_value();
+        } else if (message.id() == io::event_traits<io::rpc::error>::id) {
+            int code;
+            std::string msg;
+            message.as<cocaine::io::rpc::error>(code, msg);
+            p.set_exception(
+                service_error_t(std::error_code(code, service_response_category()), msg)
+            );
+        }
+    }
+
+    template<class Event>
+    class service_handler :
+        public service_handler_concept_t
+    {
+        COCAINE_DECLARE_NONCOPYABLE(service_handler)
+
+    public:
+        typedef typename cocaine::io::event_traits<Event>::result_type
+                result_type;
+
+        typedef typename detail::service::future_trait<result_type>::future_type
+                future_type;
+        typedef typename detail::service::future_trait<result_type>::promise_type
+                promise_type;
+
+        service_handler()
+        {
+            // pass
+        }
+
+        service_handler(service_handler&& other) :
+            m_promise(std::move(other.m_promise))
+        {
+            // pass
+        }
+
+        template<class... Args>
+        future_type
+        get_future(Args&&... args) {
+            return m_promise.get_future(std::forward<Args>(args)...);
+        }
+
+        void
+        handle_message(const cocaine::io::message_t& message) {
+            set_promise_result<result_type>(m_promise, message);
+        }
+
+    protected:
+        promise_type m_promise;
+    };
 
 }} // detail::service
 
@@ -266,13 +137,20 @@ class service_t {
 public:
     template<class Event>
     struct handler {
-        typedef detail::service::service_handler<Event> type;
-        typedef detail::service::future<Event> future;
+        typedef detail::service::service_handler<Event>
+                type;
+
+        typedef typename detail::service::service_handler<Event>::future_type
+                future;
+
+        typedef typename detail::service::service_handler<Event>::promise_type
+                promise;
     };
 
 public:
     service_t(const std::string& name,
-              cocaine::io::reactor_t& ioservice,
+              cocaine::io::reactor_t& working_ioservice,
+              const executor_t& executor,
               const cocaine::io::tcp::endpoint& resolver_endpoint,
               std::shared_ptr<logger_t> logger,
               unsigned int version);
@@ -327,7 +205,8 @@ private:
     unsigned int m_version;
     std::pair<std::string, uint16_t> m_endpoint;
 
-    cocaine::io::reactor_t& m_ioservice;
+    cocaine::io::reactor_t& m_working_ioservice;
+    executor_t m_default_executor;
     std::shared_ptr<resolver_t> m_resolver;
     std::shared_ptr<logger_t> m_logger;
     std::shared_ptr<iochannel_t> m_channel;
@@ -342,11 +221,12 @@ typename service_t::handler<Event>::future
 service_t::call(Args&&... args) {
     std::lock_guard<std::mutex> lock(m_handlers_lock);
 
-    auto h = std::make_shared<typename handler<Event>::type>();
+    auto h = std::make_shared<typename service_t::handler<Event>::type>();
+    auto f = h->get_future(m_default_executor);
     m_handlers[m_session_counter] = h;
     m_channel->wr->write<Event>(m_session_counter, std::forward<Args>(args)...);
     ++m_session_counter;
-    return typename handler<Event>::future(h);
+    return f;
 }
 
 }} // namespace cocaine::framework

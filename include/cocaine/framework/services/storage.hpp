@@ -10,11 +10,13 @@ class storage_service_t :
 {
 public:
     storage_service_t(const std::string& name,
-                      cocaine::io::reactor_t& service,
+                      cocaine::io::reactor_t& working_service,
+                      const executor_t& executor,
                       const cocaine::io::tcp::endpoint& resolver,
                       std::shared_ptr<logger_t> logger) :
         service_t(name,
-                  service,
+                  working_service,
+                  executor,
                   resolver,
                   logger,
                   cocaine::io::protocol<cocaine::io::storage_tag>::version::value)

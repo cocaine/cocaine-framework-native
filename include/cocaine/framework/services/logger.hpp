@@ -13,12 +13,14 @@ class logging_service_t :
 {
 public:
     logging_service_t(const std::string& name,
-                      cocaine::io::reactor_t& service,
+                      cocaine::io::reactor_t& working_service,
+                      const executor_t& executor,
                       const cocaine::io::tcp::endpoint& resolver,
                       std::shared_ptr<logger_t> logger, // not so much OMG
                       const std::string& source) :
         service_t(name,
-                  service,
+                  working_service,
+                  executor,
                   resolver,
                   logger,
                   cocaine::io::protocol<cocaine::io::logging_tag>::version::value),

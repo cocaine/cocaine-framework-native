@@ -29,7 +29,9 @@ public:
     }
 
     ~worker_upstream_t() {
+       std::cerr << "upstream desctructor" << std::endl;
        if (!closed()) {
+           std::cerr << "up dest close" << std::endl;
            close();
        }
    }
@@ -38,6 +40,7 @@ public:
     write(const char * chunk,
           size_t size)
     {
+        std::cerr << "up write" << std::endl;
         std::lock_guard<std::mutex> lock(m_closed_lock);
         if (m_state == state_t::closed) {
             throw std::runtime_error("The stream has been closed.");
@@ -50,6 +53,7 @@ public:
     error(int code,
           const std::string& message)
     {
+        std::cerr << "up err" << std::endl;
         std::lock_guard<std::mutex> lock(m_closed_lock);
         if (m_state == state_t::closed) {
             throw std::runtime_error("The stream has been closed.");
@@ -62,6 +66,7 @@ public:
 
     void
     close() {
+        std::cerr << "up close" << std::endl;
         std::lock_guard<std::mutex> lock(m_closed_lock);
         if (m_state == state_t::closed) {
             throw std::runtime_error("The stream has been closed.");
@@ -104,6 +109,34 @@ public:
     }
 };
 
+struct ioservice_executor_t {
+    ioservice_executor_t(cocaine::io::reactor_t& ioservice,
+                         ev::async& alarm) :
+        m_ioservice(ioservice),
+        m_alarm(alarm)
+    {
+        // pass
+    }
+
+    ioservice_executor_t(const ioservice_executor_t& other) :
+        m_ioservice(other.m_ioservice),
+        m_alarm(other.m_alarm)
+    {
+        // pass
+    }
+
+    void
+    operator()(const std::function<void()>& f) {
+        m_ioservice.post(f);
+        m_alarm.send();
+        //f();
+    }
+
+private:
+    cocaine::io::reactor_t& m_ioservice;
+    ev::async& m_alarm;
+};
+
 } // namespace
 
 worker_t::worker_t(const std::string& name,
@@ -113,10 +146,13 @@ worker_t::worker_t(const std::string& name,
     m_id(uuid),
     m_heartbeat_timer(m_ioservice.native()),
     m_disown_timer(m_ioservice.native()),
+    m_alarm(m_ioservice.native()),
     m_app_name(name)
 {
     m_service_manager.reset(
-        new service_manager_t(m_ioservice, cocaine::format("app/%s", name), resolver_port)
+        new service_manager_t(cocaine::format("app/%s", name),
+                              resolver_port,
+                              ioservice_executor_t(m_ioservice, m_alarm))
     );
     m_log = m_service_manager->get_system_logger();
 

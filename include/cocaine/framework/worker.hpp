@@ -79,6 +79,7 @@ private:
     cocaine::io::reactor_t m_ioservice;
     ev::timer m_heartbeat_timer,
               m_disown_timer;
+    ev::async m_alarm;
     std::shared_ptr<
         cocaine::io::channel<
             cocaine::io::socket<cocaine::io::local>
