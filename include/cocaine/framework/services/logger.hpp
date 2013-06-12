@@ -6,26 +6,17 @@
 
 namespace cocaine { namespace framework {
 
-class logging_service_t :
-    public std::enable_shared_from_this<logging_service_t>,
-    public service_t,
+struct logging_service_t :
+    public service_stub_t,
     public logger_t
 {
-public:
-    logging_service_t(const std::string& name,
-                      cocaine::io::reactor_t& working_service,
-                      const executor_t& executor,
-                      const cocaine::io::tcp::endpoint& resolver,
-                      std::shared_ptr<logger_t> logger, // not so much OMG
+    static const unsigned int version = cocaine::io::protocol<cocaine::io::logging_tag>::version::value;
+
+    logging_service_t(std::shared_ptr<service_t> service,
                       const std::string& source) :
-        service_t(name,
-                  working_service,
-                  executor,
-                  resolver,
-                  logger,
-                  cocaine::io::protocol<cocaine::io::logging_tag>::version::value),
-        m_priority(cocaine::logging::priorities::warning),
-        m_source(source)
+        service_stub_t(service),
+        m_source(source),
+        m_priority(backend()->call<cocaine::io::logging::verbosity>().get())
     {
         // pass
     }
@@ -34,7 +25,7 @@ public:
     emit(cocaine::logging::priorities priority,
          const std::string& message)
     {
-        call<cocaine::io::logging::emit>(priority, m_source, message);
+        backend()->call<cocaine::io::logging::emit>(priority, m_source, message);
     }
 
     cocaine::logging::priorities
@@ -42,17 +33,9 @@ public:
         return m_priority;
     }
 
-    void
-    initialize();
-
-protected:
-    void
-    on_verbosity_response(cocaine::io::reactor_t *ioservice,
-                          const cocaine::io::message_t& message);
-
 private:
-    cocaine::logging::priorities m_priority;
     std::string m_source;
+    cocaine::logging::priorities m_priority;
 };
 
 }} // cocaine::framework

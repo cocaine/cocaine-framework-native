@@ -433,6 +433,11 @@ namespace detail { namespace future {
             return m_state->ready();
         }
 
+        void
+        set_default_executor(const executor_t& executor) {
+            m_executor = executor;
+        }
+
     protected:
         typedef std::shared_ptr<shared_state<Args...>> state_type;
 
@@ -588,7 +593,7 @@ namespace detail { namespace future {
         }
 
         cocaine::framework::future<Args...>
-        get_future(const executor_t& executor = executor_t()) {
+        get_future() {
             if (!m_state) {
                 throw future_error(future_errc::no_state);
             } else if (m_retrieved) {
@@ -683,6 +688,8 @@ template<class... Args>
 struct promise :
     public detail::future::promise_base<Args...>
 {
+    typedef future<Args...> future_type;
+
     promise()
     {
         // pass
@@ -715,6 +722,8 @@ template<>
 struct promise<void> :
     public detail::future::promise_base<void>
 {
+    typedef future<void> future_type;
+
     promise()
     {
         // pass
@@ -739,6 +748,47 @@ struct promise<void> :
         } else {
             throw future_error(future_errc::no_state);
         }
+    }
+};
+
+template<class... Args>
+struct make_ready_future {
+    template<class... Args2>
+    static
+    typename promise<Args...>::future_type
+    make(Args2&& args) {
+        promise<Args...> p;
+        p.set_value(std::forward<Args2>(args)...);
+        return p.get_future();
+    }
+
+    template<class... Args2>
+    static
+    typename promise<Args...>::future_type
+    error(Args2&& args) {
+        promise<Args...> p;
+        p.set_exception(std::forward<Args2>(args)...);
+        return p.get_future();
+    }
+};
+
+template<>
+struct make_ready_future<void> {
+    static
+    typename promise<void>::future_type
+    make() {
+        promise<void> p;
+        p.set_value();
+        return p.get_future();
+    }
+
+    template<class... Args2>
+    static
+    typename promise<void>::future_type
+    error(Args2&& args) {
+        promise<void> p;
+        p.set_exception(std::forward<Args2>(args)...);
+        return p.get_future();
     }
 };
 

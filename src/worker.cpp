@@ -29,9 +29,7 @@ public:
     }
 
     ~worker_upstream_t() {
-       std::cerr << "upstream desctructor" << std::endl;
        if (!closed()) {
-           std::cerr << "up dest close" << std::endl;
            close();
        }
    }
@@ -40,7 +38,6 @@ public:
     write(const char * chunk,
           size_t size)
     {
-        std::cerr << "up write" << std::endl;
         std::lock_guard<std::mutex> lock(m_closed_lock);
         if (m_state == state_t::closed) {
             throw std::runtime_error("The stream has been closed.");
@@ -53,7 +50,6 @@ public:
     error(int code,
           const std::string& message)
     {
-        std::cerr << "up err" << std::endl;
         std::lock_guard<std::mutex> lock(m_closed_lock);
         if (m_state == state_t::closed) {
             throw std::runtime_error("The stream has been closed.");
@@ -66,7 +62,6 @@ public:
 
     void
     close() {
-        std::cerr << "up close" << std::endl;
         std::lock_guard<std::mutex> lock(m_closed_lock);
         if (m_state == state_t::closed) {
             throw std::runtime_error("The stream has been closed.");
@@ -150,8 +145,8 @@ worker_t::worker_t(const std::string& name,
     m_app_name(name)
 {
     m_service_manager.reset(
-        new service_manager_t(cocaine::format("app/%s", name),
-                              resolver_port,
+        new service_manager_t(cocaine::io::tcp::endpoint("127.0.0.1", resolver_port),
+                              cocaine::format("app/%s", name),
                               ioservice_executor_t(m_ioservice, m_alarm))
     );
     m_log = m_service_manager->get_system_logger();
