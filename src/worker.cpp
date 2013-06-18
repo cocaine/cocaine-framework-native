@@ -144,13 +144,6 @@ worker_t::worker_t(const std::string& name,
     m_alarm(m_ioservice.native()),
     m_app_name(name)
 {
-    m_service_manager.reset(
-        new service_manager_t(cocaine::io::tcp::endpoint("127.0.0.1", resolver_port),
-                              cocaine::format("app/%s", name),
-                              ioservice_executor_t(m_ioservice, m_alarm))
-    );
-    m_log = m_service_manager->get_system_logger();
-
     auto socket = std::make_shared<io::socket<io::local>>(io::local::endpoint(endpoint));
     m_channel.reset(new io::channel<io::socket<io::local>>(m_ioservice, socket));
     m_channel->rd->bind(std::bind(&worker_t::on_message, this, std::placeholders::_1),
@@ -167,6 +160,13 @@ worker_t::worker_t(const std::string& name,
 
     // Set the lowest priority for the disown timer.
     m_disown_timer.priority = EV_MINPRI;
+
+    m_service_manager.reset(
+        new service_manager_t(cocaine::io::tcp::endpoint("127.0.0.1", resolver_port),
+                              cocaine::format("app/%s", name),
+                              ioservice_executor_t(m_ioservice, m_alarm))
+    );
+    m_log = m_service_manager->get_system_logger();
 }
 
 worker_t::~worker_t() {

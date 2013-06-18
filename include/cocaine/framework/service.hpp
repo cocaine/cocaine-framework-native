@@ -66,7 +66,9 @@ namespace detail { namespace service {
             msgpack::unpacked msg;
             msgpack::unpack(&msg, data.data(), data.size());
 
-            p.set_value(msg.get().as<ResultType>());
+            ResultType r;
+            cocaine::io::type_traits<ResultType>::unpack(msg.get(), r);
+            p.set_value(std::move(r));
         } else if (message.id() == io::event_traits<io::rpc::error>::id) {
             int code;
             std::string msg;
@@ -144,7 +146,7 @@ namespace detail { namespace service {
 }} // detail::service
 
 class service_t :
-    public std::enable_shared_from_this()
+    public std::enable_shared_from_this<service_t>
 {
     COCAINE_DECLARE_NONCOPYABLE(service_t)
 
@@ -204,7 +206,7 @@ private:
               service_manager_t& manager,
               unsigned int version);
 
-    service_t(const endpoint_type_t& endpoint,
+    service_t(const endpoint_t& endpoint,
               service_manager_t& manager,
               unsigned int version);
 
@@ -214,7 +216,7 @@ private:
     void
     on_error(const std::error_code&);
 
-    void
+    std::shared_ptr<service_t>
     on_resolved(handler<cocaine::io::locator::resolve>::future&);
 
     void
@@ -233,24 +235,6 @@ private:
     std::mutex m_handlers_lock;
 };
 
-template<class Event, typename... Args>
-typename service_t::handler<Event>::future
-service_t::call(Args&&... args) {
-    if (m_channel) {
-        std::lock_guard<std::mutex> lock(m_handlers_lock);
-
-        auto h = std::make_shared<typename service_t::handler<Event>::type>();
-        auto f = h->get_future(m_manager.m_default_executor);
-        f.set_default_executor(m_manager.m_default_executor);
-        m_channel->wr->write<Event>(m_session_counter, std::forward<Args>(args)...);
-        m_handlers[m_session_counter] = h;
-        ++m_session_counter;
-        return f;
-    } else {
-        throw service_error_t(service_errc::not_connected);
-    }
-}
-
 class service_manager_t {
     COCAINE_DECLARE_NONCOPYABLE(service_manager_t)
 
@@ -266,13 +250,13 @@ public:
     ~service_manager_t();
 
     template<class Service, typename... Args>
-    Service
+    std::shared_ptr<Service>
     get_service(const std::string& name,
                 Args&&... args)
     {
         std::shared_ptr<service_t> service(new service_t(name, *this, Service::version));
         service->reconnect();
-        return Service(service, std::forward<Args>(args)...);
+        return std::make_shared<Service>(service, std::forward<Args>(args)...);
     }
 
     std::shared_ptr<service_t>
@@ -285,7 +269,7 @@ public:
     }
 
     template<class Service, typename... Args>
-    future<Service>
+    future<std::shared_ptr<Service>>
     get_service_async(const std::string& name,
                       Args&&... args)
     {
@@ -324,9 +308,10 @@ public:
 
 private:
     template<class Service, class... Args>
-    Service
-    make_service_stub(future<std::shared_ptr<service_t>>& f, Args&& args) {
-        return Service(f.get(), std::forward<Args>(args)...);
+    static
+    std::shared_ptr<Service>
+    make_service_stub(future<std::shared_ptr<service_t>>& f, Args&&... args) {
+        return std::make_shared<Service>(f.get(), std::forward<Args>(args)...);
     }
 
 private:
@@ -337,6 +322,24 @@ private:
     std::unique_ptr<service_t> m_resolver;
     std::shared_ptr<logger_t> m_logger;
 };
+
+template<class Event, typename... Args>
+typename service_t::handler<Event>::future
+service_t::call(Args&&... args) {
+    if (m_channel) {
+        std::lock_guard<std::mutex> lock(m_handlers_lock);
+
+        auto h = std::make_shared<typename service_t::handler<Event>::type>();
+        auto f = h->get_future();
+        f.set_default_executor(m_manager.m_default_executor);
+        m_channel->wr->write<Event>(m_session_counter, std::forward<Args>(args)...);
+        m_handlers[m_session_counter] = h;
+        ++m_session_counter;
+        return f;
+    } else {
+        throw service_error_t(service_errc::not_connected);
+    }
+}
 
 struct service_stub_t {
     service_stub_t(std::shared_ptr<service_t> service) :
@@ -360,9 +363,16 @@ struct service_stub_t {
         m_service->reconnect();
     }
 
-    future<std::shared_ptr<service_t>>
+    future<void>
     reconnect_async() {
-        return m_service->reconnect_async();
+        return m_service->reconnect_async().then(&service_stub_t::empty);
+    }
+
+private:
+    static
+    void
+    empty(future<std::shared_ptr<service_t>> &f) {
+        // pass
     }
 
 private:

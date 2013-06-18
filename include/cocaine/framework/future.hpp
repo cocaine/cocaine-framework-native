@@ -21,7 +21,6 @@
 #include <condition_variable>
 #include <utility>
 #include <exception>
-#include <iostream>
 
 #if !defined(HAVE_GCC46) && !defined(nullptr)
 #define nullptr ((void*)0)
@@ -61,10 +60,10 @@ namespace detail { namespace future {
 
         void
         set_exception(std::exception_ptr e) {
-            std::lock_guard<std::mutex> lock(m_ready_mutex);
+            std::unique_lock<std::mutex> lock(m_ready_mutex);
             if (!ready()) {
                 m_exception = e;
-                make_ready();
+                make_ready(lock);
             } else {
                 throw future_error(future_errc::promise_already_satisfied);
             }
@@ -72,16 +71,16 @@ namespace detail { namespace future {
 
         void
         try_set_exception(std::exception_ptr e) {
-            std::lock_guard<std::mutex> lock(m_ready_mutex);
+            std::unique_lock<std::mutex> lock(m_ready_mutex);
             if (!ready()) {
                 m_exception = e;
-                make_ready();
+                make_ready(lock);
             }
         }
 
         void
         wait() {
-            std::unique_lock<std::mutex> lock;
+            std::unique_lock<std::mutex> lock(m_ready_mutex);
             while (!ready()) {
                 m_ready.wait(lock);
             }
@@ -90,14 +89,14 @@ namespace detail { namespace future {
         template<class Rep, class Period>
         void
         wait_for(const std::chrono::duration<Rep, Period>& rel_time) {
-            std::unique_lock<std::mutex> lock;
+            std::unique_lock<std::mutex> lock(m_ready_mutex);
             m_ready.wait_for(lock, rel_time, std::bind(&shared_state_base::ready, this));
         }
 
         template<class Clock, class Duration>
         void
         wait_until(const std::chrono::time_point<Clock, Duration>& timeout_time) {
-            std::unique_lock<std::mutex> lock;
+            std::unique_lock<std::mutex> lock(m_ready_mutex);
             m_ready.wait_until(lock, timeout_time, std::bind(&shared_state_base::ready, this));
         }
 
@@ -111,8 +110,9 @@ namespace detail { namespace future {
         set_callback(F&& callback,
                      FArgs&&... args)
         {
-            std::lock_guard<std::mutex> lock(m_ready_mutex);
-            if (ready()) {
+            std::unique_lock<std::mutex> lock(m_ready_mutex);
+            if (this->ready()) {
+                lock.unlock();
                 callback(std::forward<FArgs>(args)...);
             } else {
                 m_callback = std::bind(std::forward<F>(callback), std::forward<FArgs>(args)...);
@@ -122,8 +122,9 @@ namespace detail { namespace future {
         template<class F>
         void
         set_callback(F&& callback) {
-            std::lock_guard<std::mutex> lock(m_ready_mutex);
-            if (ready()) {
+            std::unique_lock<std::mutex> lock(m_ready_mutex);
+            if (this->ready()) {
+                lock.unlock();
                 callback();
             } else {
                 m_callback = callback;
@@ -132,9 +133,10 @@ namespace detail { namespace future {
 
     protected:
         void
-        make_ready() {
+        make_ready(std::unique_lock<std::mutex>& lock) {
             m_is_ready = true;
             m_ready.notify_all();
+            lock.unlock();
             if (m_callback) {
                 m_callback();
             }
@@ -157,10 +159,10 @@ namespace detail { namespace future {
         template<class... Args2>
         void
         set_value(Args2&&... args) {
-            std::lock_guard<std::mutex> lock(this->m_ready_mutex);
+            std::unique_lock<std::mutex> lock(this->m_ready_mutex);
             if (!this->ready()) {
                 this->m_result.reset(new value_type(std::forward<Args2>(args)...));
-                this->make_ready();
+                this->make_ready(lock);
             } else {
                 throw future_error(future_errc::promise_already_satisfied);
             }
@@ -169,10 +171,10 @@ namespace detail { namespace future {
         template<class... Args2>
         void
         try_set_value(Args2&&... args) {
-            std::lock_guard<std::mutex> lock(this->m_ready_mutex);
+            std::unique_lock<std::mutex> lock(this->m_ready_mutex);
             if (!this->ready()) {
                 this->m_result.reset(new value_type(std::forward<Args2>(args)...));
-                this->make_ready();
+                this->make_ready(lock);
             }
         }
 
@@ -196,9 +198,9 @@ namespace detail { namespace future {
     {
         void
         set_value() {
-            std::lock_guard<std::mutex> lock(this->m_ready_mutex);
+            std::unique_lock<std::mutex> lock(this->m_ready_mutex);
             if (!this->ready()) {
-                this->make_ready();
+                this->make_ready(lock);
             } else {
                 throw future_error(future_errc::promise_already_satisfied);
             }
@@ -206,9 +208,9 @@ namespace detail { namespace future {
 
         void
         try_set_value() {
-            std::lock_guard<std::mutex> lock(this->m_ready_mutex);
+            std::unique_lock<std::mutex> lock(this->m_ready_mutex);
             if (!this->ready()) {
-                this->make_ready();
+                this->make_ready(lock);
             }
         }
 
@@ -600,7 +602,7 @@ namespace detail { namespace future {
                 throw future_error(future_errc::future_already_retrieved);
             } else {
                 m_retrieved = true;
-                return cocaine::framework::future<Args...>(m_state, executor);
+                return cocaine::framework::future<Args...>(m_state);
             }
         }
 
@@ -756,7 +758,7 @@ struct make_ready_future {
     template<class... Args2>
     static
     typename promise<Args...>::future_type
-    make(Args2&& args) {
+    make(Args2&&... args) {
         promise<Args...> p;
         p.set_value(std::forward<Args2>(args)...);
         return p.get_future();
@@ -765,7 +767,7 @@ struct make_ready_future {
     template<class... Args2>
     static
     typename promise<Args...>::future_type
-    error(Args2&& args) {
+    error(Args2&&... args) {
         promise<Args...> p;
         p.set_exception(std::forward<Args2>(args)...);
         return p.get_future();
@@ -775,7 +777,7 @@ struct make_ready_future {
 template<>
 struct make_ready_future<void> {
     static
-    typename promise<void>::future_type
+    promise<void>::future_type
     make() {
         promise<void> p;
         p.set_value();
@@ -785,7 +787,7 @@ struct make_ready_future<void> {
     template<class... Args2>
     static
     typename promise<void>::future_type
-    error(Args2&& args) {
+    error(Args2&&... args) {
         promise<void> p;
         p.set_exception(std::forward<Args2>(args)...);
         return p.get_future();

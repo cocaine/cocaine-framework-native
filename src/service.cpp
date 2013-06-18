@@ -85,7 +85,7 @@ service_t::service_t(const std::string& name,
     // pass
 }
 
-service_t::service_t(const endpoint_type_t& endpoint,
+service_t::service_t(const endpoint_t& endpoint,
                      service_manager_t& manager,
                      unsigned int version) :
     m_endpoint(endpoint),
@@ -111,10 +111,10 @@ future<std::shared_ptr<service_t>>
 service_t::reconnect_async() {
     if (m_name) {
         return m_manager.async_resolve(*m_name)
-               .then(std::bind(&service_t::on_resolved, std::shared_from_this()));
+               .then(std::bind(&service_t::on_resolved, shared_from_this(), std::placeholders::_1));
     } else {
         connect_to_endpoint();
-        return make_ready_future<std::shared_ptr<service_t>>::make(std::shared_from_this());
+        return make_ready_future<std::shared_ptr<service_t>>::make(shared_from_this());
     }
 }
 
@@ -134,7 +134,7 @@ service_t::on_resolved(service_t::handler<cocaine::io::locator::resolve>::future
 
     connect_to_endpoint();
 
-    return std::shared_from_this();
+    return shared_from_this();
 }
 
 void
@@ -146,8 +146,6 @@ service_t::connect_to_endpoint() {
         m_channel->rd->bind(std::bind(&service_t::on_message, this, std::placeholders::_1),
                             std::bind(&service_t::on_error, this, std::placeholders::_1));
         m_channel->wr->bind(std::bind(&service_t::on_error, this, std::placeholders::_1));
-
-        m_connected = true;
     }
 }
 
@@ -183,9 +181,9 @@ service_t::on_message(const cocaine::io::message_t& message) {
     }
 
     if (it == m_handlers.end()) {
-        if (m_manager.system_logger()) {
+        if (m_manager.get_system_logger()) {
             COCAINE_LOG_DEBUG(
-                m_manager.system_logger(),
+                m_manager.get_system_logger(),
                 "Message with unknown session id has been received from service %s",
                 name()
             );
@@ -194,9 +192,9 @@ service_t::on_message(const cocaine::io::message_t& message) {
         try {
             it->second->handle_message(message);
         } catch (const std::exception& e) {
-            if (m_manager.system_logger()) {
+            if (m_manager.get_system_logger()) {
                 COCAINE_LOG_WARNING(
-                    m_manager.system_logger(),
+                    m_manager.get_system_logger(),
                     "Following error has occurred while handling message from service %s: %s",
                     name(),
                     e.what()
@@ -231,7 +229,7 @@ service_manager_t::service_manager_t(endpoint_t resolver_endpoint,
 
     m_working_thread = std::thread(&cocaine::io::reactor_t::run, &m_ioservice);
 
-    auto logging_service = std::make_shared<service_t>("logging", *this, logging_service_t::version);
+    std::shared_ptr<service_t> logging_service(new service_t("logging", *this, logging_service_t::version));
     logging_service->reconnect();
     m_logger = std::make_shared<logging_service_t>(logging_service, logging_prefix);
 }
