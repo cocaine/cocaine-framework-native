@@ -105,17 +105,14 @@ public:
 };
 
 struct ioservice_executor_t {
-    ioservice_executor_t(cocaine::io::reactor_t& ioservice,
-                         ev::async& alarm) :
-        m_ioservice(ioservice),
-        m_alarm(alarm)
+    ioservice_executor_t(cocaine::io::reactor_t& ioservice) :
+        m_ioservice(ioservice)
     {
         // pass
     }
 
     ioservice_executor_t(const ioservice_executor_t& other) :
-        m_ioservice(other.m_ioservice),
-        m_alarm(other.m_alarm)
+        m_ioservice(other.m_ioservice)
     {
         // pass
     }
@@ -123,13 +120,10 @@ struct ioservice_executor_t {
     void
     operator()(const std::function<void()>& f) {
         m_ioservice.post(f);
-        m_alarm.send();
-        //f();
     }
 
 private:
     cocaine::io::reactor_t& m_ioservice;
-    ev::async& m_alarm;
 };
 
 } // namespace
@@ -141,7 +135,6 @@ worker_t::worker_t(const std::string& name,
     m_id(uuid),
     m_heartbeat_timer(m_ioservice.native()),
     m_disown_timer(m_ioservice.native()),
-    m_alarm(m_ioservice.native()),
     m_app_name(name)
 {
     auto socket = std::make_shared<io::socket<io::local>>(io::local::endpoint(endpoint));
@@ -164,7 +157,7 @@ worker_t::worker_t(const std::string& name,
     m_service_manager.reset(
         new service_manager_t(cocaine::io::tcp::endpoint("127.0.0.1", resolver_port),
                               cocaine::format("app/%s", name),
-                              ioservice_executor_t(m_ioservice, m_alarm))
+                              ioservice_executor_t(m_ioservice))
     );
     m_log = m_service_manager->get_system_logger();
 }

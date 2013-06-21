@@ -1,5 +1,5 @@
-#ifndef COCAINE_FRAMEWORK_STREAM_HPP
-#define COCAINE_FRAMEWORK_STREAM_HPP
+#ifndef COCAINE_FRAMEWORK_UPSTREAM_HPP
+#define COCAINE_FRAMEWORK_UPSTREAM_HPP
 
 #include <cocaine/api/stream.hpp>
 
@@ -33,4 +33,4 @@ public:
 
 }} // namespace cocaine::framework
 
-#endif // COCAINE_FRAMEWORK_STREAM_HPP
+#endif // COCAINE_FRAMEWORK_UPSTREAM_HPP

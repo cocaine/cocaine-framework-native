@@ -21,6 +21,7 @@
 #include <condition_variable>
 #include <utility>
 #include <exception>
+#include <iostream>
 
 #if !defined(HAVE_GCC46) && !defined(nullptr)
 #define nullptr ((void*)0)
@@ -32,6 +33,8 @@ typedef std::function<void(const std::function<void()>&)> executor_t;
 
 template<class ... Args>
 struct promise;
+template<class F>
+struct packaged_task;
 template<class ... Args>
 struct future;
 
@@ -49,6 +52,8 @@ namespace detail { namespace future {
 
     template<class ... Args>
     struct promise_base;
+
+    // "Base" types are only needed to reduce duplication of code in templates specializations.
 
     template<class... Args>
     struct shared_state_base {
@@ -105,20 +110,6 @@ namespace detail { namespace future {
             return m_is_ready;
         }
 
-        template<class F, class... FArgs>
-        typename std::enable_if<(sizeof...(FArgs) != 0), void>::type
-        set_callback(F&& callback,
-                     FArgs&&... args)
-        {
-            std::unique_lock<std::mutex> lock(m_ready_mutex);
-            if (this->ready()) {
-                lock.unlock();
-                callback(std::forward<FArgs>(args)...);
-            } else {
-                m_callback = std::bind(std::forward<F>(callback), std::forward<FArgs>(args)...);
-            }
-        }
-
         template<class F>
         void
         set_callback(F&& callback) {
@@ -127,7 +118,7 @@ namespace detail { namespace future {
                 lock.unlock();
                 callback();
             } else {
-                m_callback = callback;
+                m_callback = std::forward<F>(callback);
             }
         }
 
@@ -139,6 +130,7 @@ namespace detail { namespace future {
             lock.unlock();
             if (m_callback) {
                 m_callback();
+                m_callback = std::function<void()>();
             }
         }
 
@@ -150,6 +142,8 @@ namespace detail { namespace future {
         std::condition_variable m_ready;
     };
 
+    // shared state of promise-future
+    // it's a "core" of futures, while "future" and "promise" are just wrappers to access shared state
     template<class... Args>
     struct shared_state :
         public shared_state_base<Args...>
@@ -223,183 +217,8 @@ namespace detail { namespace future {
         }
     };
 
-    template<class Result, class Future>
-    struct then_caller {
-        then_caller(std::shared_ptr<shared_state<Result>> state,
-                    std::function<Result(Future&)> callback,
-                    Future&& f) :
-            m_state(state),
-            m_callback(callback),
-            m_future(new Future(std::move(f)))
-        {
-            // pass
-        }
-
-        void operator()()
-        {
-            try {
-                m_state->try_set_value(m_callback(*m_future));
-            } catch (...) {
-                m_state->try_set_exception(std::current_exception());
-            }
-            m_future.reset();
-            m_state.reset();
-        }
-
-    private:
-        std::shared_ptr<shared_state<Result>> m_state;
-        std::function<Result(Future&)> m_callback;
-        std::shared_ptr<Future> m_future;
-    };
-
-    template<class Future>
-    struct then_caller<void, Future> {
-        then_caller(std::shared_ptr<shared_state<void>> state,
-                    std::function<void(Future&)> callback,
-                    Future&& f) :
-            m_state(state),
-            m_callback(callback),
-            m_future(new Future(std::move(f)))
-        {
-            // pass
-        }
-
-        void operator()()
-        {
-            try {
-                m_callback(*m_future);
-                m_state->try_set_value();
-            } catch (...) {
-                m_state->try_set_exception(std::current_exception());
-            }
-            m_future.reset();
-            m_state.reset();
-        }
-
-    private:
-        std::shared_ptr<shared_state<void>> m_state;
-        std::function<void(Future&)> m_callback;
-        std::shared_ptr<Future> m_future;
-    };
-
-    template<class Future>
-    struct unwrapper {
-        typedef Future
-                unwrapped_type;
-
-        static
-        inline
-        unwrapped_type
-        unwrap(Future&& fut) {
-            return std::move(fut);
-        }
-    };
-
-    template<class... Args>
-    struct unwrapper<cocaine::framework::future<cocaine::framework::future<Args...>>> {
-        typedef cocaine::framework::future<Args...>
-                unwrapped_type;
-
-        struct helper2 {
-            helper2(std::shared_ptr<shared_state<Args...>> new_state) :
-                m_new_state(new_state)
-            {
-                // pass
-            }
-
-            void
-            operator()(cocaine::framework::future<Args...>& fut) {
-                try {
-                    m_new_state->set_value(std::move(fut.get()));
-                } catch (...) {
-                    m_new_state->set_exception(std::current_exception());
-                }
-            }
-
-        private:
-            std::shared_ptr<shared_state<Args...>> m_new_state;
-        };
-
-        struct helper1 {
-            helper1(std::shared_ptr<shared_state<Args...>> new_state) :
-                m_new_state(new_state)
-            {
-                // pass
-            }
-
-            void
-            operator()(cocaine::framework::future<cocaine::framework::future<Args...>>& fut) {
-                try {
-                    fut.get().then(helper2(m_new_state));
-                } catch (...) {
-                    m_new_state->set_exception(std::current_exception());
-                }
-            }
-
-        private:
-            std::shared_ptr<shared_state<Args...>> m_new_state;
-        };
-
-        static
-        inline
-        unwrapped_type
-        unwrap(cocaine::framework::future<cocaine::framework::future<Args...>>&& fut) {
-            auto new_state = std::make_shared<shared_state<Args...>>();
-            auto executor = fut.m_executor;
-            fut.then(helper1(new_state));
-            return cocaine::framework::future<Args...>(new_state, executor);
-        }
-    };
-
-    template<class... Args>
-    struct getter {
-        typedef typename shared_state<Args...>::value_type
-                result_type;
-
-        static
-        inline
-        result_type
-        get(shared_state<Args...>& state) {
-            return std::move(state.get());
-        }
-    };
-
-    template<class T>
-    struct getter<T> {
-        typedef T result_type;
-
-        static
-        inline
-        result_type
-        get(shared_state<T>& state) {
-            return std::move(std::get<0>(state.get()));
-        }
-    };
-
-    template<class T>
-    struct getter<T&> {
-        typedef T& result_type;
-
-        static
-        inline
-        result_type
-        get(shared_state<T&>& state) {
-            return std::get<0>(state.get());
-        }
-    };
-
-    // Helper to declare 'then' result type.
-    // It seems that g++ 4.4 doesn't understand
-    // typename unwrapper<future<decltype((*((F*)nullptr))((*((Args*)nullptr))...))>>::unwrapped_type
-    // written directly in signature of function.
-    template<class F, class... Args>
-    struct unwrapped_result {
-        typedef decltype((*((F*)nullptr))((*((Args*)nullptr))...)) result_type;
-        typedef typename unwrapper<cocaine::framework::future<result_type>>::unwrapped_type type;
-    };
-
-    // "Base" types are only needed to reduce duplication of code in templates specializations.
-
+    // future base types
+    // they are needed to avoid code duplication in template specializations
     template<class ... Args>
     struct future_base {
         COCAINE_DECLARE_NONCOPYABLE(future_base)
@@ -481,6 +300,46 @@ namespace detail { namespace future {
         executor_t m_executor;
     };
 
+    // helper to get content of shared_state
+    template<class... Args>
+    struct getter {
+        typedef std::tuple<Args...> result_type;
+
+        template<class State>
+        static
+        inline
+        result_type
+        get(State& state) {
+            return std::move(state.get());
+        }
+    };
+
+    template<class T>
+    struct getter<T> {
+        typedef T result_type;
+
+        template<class State>
+        static
+        inline
+        result_type
+        get(State& state) {
+            return std::move(std::get<0>(state.get()));
+        }
+    };
+
+    template<class T>
+    struct getter<T&> {
+        typedef T& result_type;
+
+        template<class State>
+        static
+        inline
+        result_type
+        get(State& state) {
+            return std::get<0>(state.get());
+        }
+    };
+
     template<class... Args>
     struct yet_another_future_base :
         public future_base<Args...>
@@ -541,6 +400,18 @@ namespace detail { namespace future {
         }
     };
 
+    // create future from shared_state
+    template<class... Args>
+    inline
+    cocaine::framework::future<Args...>
+    future_from_state(std::shared_ptr<shared_state<Args...>>& state,
+                      executor_t executor = executor_t())
+    {
+        return cocaine::framework::future<Args...>(state, executor);
+    }
+
+    // promise basic type
+    // packaged_task also inherits it
     template<class... Args>
     struct promise_base {
         COCAINE_DECLARE_NONCOPYABLE(promise_base)
@@ -602,13 +473,198 @@ namespace detail { namespace future {
                 throw future_error(future_errc::future_already_retrieved);
             } else {
                 m_retrieved = true;
-                return cocaine::framework::future<Args...>(m_state);
+                return future_from_state<Args...>(m_state);
             }
         }
 
     protected:
+        explicit
+        promise_base(std::shared_ptr<shared_state<Args...>> state,
+                     bool retrieved = false) :
+            m_state(state),
+            m_retrieved(retrieved)
+        {
+            // pass
+        }
+
         std::shared_ptr<shared_state<Args...>> m_state;
         bool m_retrieved;
+    };
+
+    // helpers to provide unwrapping of futures
+    template<class Future>
+    struct unwrapper;
+
+    template<class... Args>
+    struct unwrapper<cocaine::framework::future<Args...>> {
+        typedef cocaine::framework::future<Args...>
+                unwrapped_type;
+
+        static
+        inline
+        unwrapped_type
+        unwrap(cocaine::framework::future<Args...>&& fut) {
+            return std::move(fut);
+        }
+    };
+
+    template<class... Args>
+    struct unwrapper<cocaine::framework::future<cocaine::framework::future<Args...>>> {
+        typedef cocaine::framework::future<Args...>
+                unwrapped_type;
+
+        struct helper2 {
+            helper2(std::shared_ptr<shared_state<Args...>> new_state) :
+                m_new_state(new_state)
+            {
+                // pass
+            }
+
+            void
+            operator()(cocaine::framework::future<Args...>& fut) {
+                try {
+                    m_new_state->set_value(std::move(fut.get()));
+                } catch (...) {
+                    m_new_state->set_exception(std::current_exception());
+                }
+            }
+
+        private:
+            std::shared_ptr<shared_state<Args...>> m_new_state;
+        };
+
+        struct helper1 {
+            helper1(std::shared_ptr<shared_state<Args...>> new_state) :
+                m_new_state(new_state)
+            {
+                // pass
+            }
+
+            void
+            operator()(cocaine::framework::future<cocaine::framework::future<Args...>>& fut) {
+                try {
+                    fut.get().then(helper2(m_new_state));
+                } catch (...) {
+                    m_new_state->set_exception(std::current_exception());
+                }
+            }
+
+        private:
+            std::shared_ptr<shared_state<Args...>> m_new_state;
+        };
+
+        static
+        inline
+        unwrapped_type
+        unwrap(cocaine::framework::future<cocaine::framework::future<Args...>>&& fut) {
+            auto new_state = std::make_shared<shared_state<Args...>>();
+            auto executor = fut.m_executor;
+            fut.then(helper1(new_state));
+            return future_from_state<Args...>(new_state, executor);
+        }
+    };
+
+    // Helper to declare 'then' result type.
+    // It seems that g++ 4.4 doesn't understand
+    // typename unwrapper<future<decltype((*((F*)nullptr))((*((Args*)nullptr))...))>>::unwrapped_type
+    // written directly in signature of function.
+    template<class F, class... Args>
+    struct unwrapped_result {
+        typedef decltype((*((F*)nullptr))((*((Args*)nullptr))...)) result_type;
+        typedef typename unwrapper<cocaine::framework::future<result_type>>::unwrapped_type type;
+    };
+
+    // helper to call packed task
+    template<class Result, class... Args>
+    struct task_caller {
+        static
+        void
+        call(std::shared_ptr<detail::future::shared_state<Result>> state,
+             std::function<Result(Args...)>& f,
+             Args&&... args)
+        {
+            try {
+                state->set_value(f(std::forward<Args>(args)...));
+            } catch (...) {
+                state->set_exception(std::current_exception());
+            }
+        }
+    };
+
+    template<class... Args>
+    struct task_caller<void, Args...> {
+        static
+        void
+        call(std::shared_ptr<detail::future::shared_state<void>> state,
+             std::function<void(Args...)>& f,
+             Args&&... args)
+        {
+            try {
+                f(std::forward<Args>(args)...);
+                state->set_value();
+            } catch (const std::exception& e) {
+                std::cerr << "call: " << e.what() << std::endl;
+                state->set_exception(std::current_exception());
+            }
+        }
+    };
+
+    template<class T>
+    struct shared_callable {
+        shared_callable(std::shared_ptr<T> pointer) :
+            m_pointer(pointer)
+        {
+            // pass
+        }
+
+        void
+        operator()() {
+            (*m_pointer)();
+        }
+    private:
+        std::shared_ptr<T> m_pointer;
+    };
+
+    template<class Result, class Future>
+    struct continuation_caller {
+        template<class F>
+        continuation_caller(F&& callback,
+                            Future&& f) :
+            m_callback(std::forward<F>(callback)),
+            m_future(new Future(std::move(f)))
+        {
+            // pass
+        }
+
+        Result
+        operator()() {
+            return m_callback(*m_future);
+        }
+
+    private:
+        std::function<Result(Future&)> m_callback;
+        std::shared_ptr<Future> m_future;
+    };
+
+    template<class Future>
+    struct continuation_caller<void, Future> {
+        template<class F>
+        continuation_caller(F&& callback,
+                            Future&& f) :
+            m_callback(std::forward<F>(callback)),
+            m_future(new Future(std::move(f)))
+        {
+            // pass
+        }
+
+        void
+        operator()() {
+            m_callback(*m_future);
+        }
+
+    private:
+        std::function<void(Future&)> m_callback;
+        std::shared_ptr<Future> m_future;
     };
 
 }} // namespace detail::future
@@ -617,12 +673,14 @@ template<class... Args>
 class future :
     public detail::future::yet_another_future_base<Args...>
 {
-    friend class detail::future::promise_base<Args...>;
-    template<class A> friend class detail::future::unwrapper;
-    template<class... A> friend class future;
+    friend future<Args...>
+           detail::future::future_from_state<Args...>(
+               std::shared_ptr<shared_state<Args...>>& state,
+               executor_t executor
+           );
 
     explicit future(typename detail::future::future_base<Args...>::state_type state,
-                    const executor_t& executor = executor_t()) :
+                    const executor_t& executor) :
         detail::future::yet_another_future_base<Args...>(state, executor)
     {
         // pass
@@ -651,40 +709,41 @@ public:
     }
 
     template<class F>
-    auto
+    typename detail::future::unwrapped_result<F, future<Args...>>::type
     then(executor_t executor,
-         F&& callback)
-    -> typename detail::future::unwrapped_result<F, future<Args...>>::type
-    {
-        this->check_state();
-
-        typedef decltype(callback(*((future*)(nullptr)))) result_type;
-
-        auto new_state = std::make_shared<detail::future::shared_state<result_type>>();
-        auto old_state = this->m_state;
-
-        if (executor) {
-            old_state->set_callback(
-                executor,
-                detail::future::then_caller<result_type, future>(new_state, std::forward<F>(callback), std::move(*this))
-            );
-        } else {
-            old_state->set_callback(
-                detail::future::then_caller<result_type, future>(new_state, std::forward<F>(callback), std::move(*this))
-            );
-        }
-
-        return future<result_type>(new_state, executor).unwrap();
-    }
+         F&& callback);
 
     template<class F>
-    auto
-    then(F&& callback)
-    -> typename detail::future::unwrapped_result<F, future<Args...>>::type
-    {
+    typename detail::future::unwrapped_result<F, future<Args...>>::type
+    then(F&& callback) {
         return this->then(this->m_executor, std::forward<F>(callback));
     }
 };
+
+template<class... Args>
+template<class F>
+typename detail::future::unwrapped_result<F, future<Args...>>::type
+future<Args...>::then(executor_t executor,
+                      F&& callback)
+{
+    this->check_state();
+
+    typedef decltype(callback(*((future*)(nullptr)))) result_type;
+
+    auto old_state = this->m_state;
+
+    auto task = std::make_shared<packaged_task<result_type()>>(
+        executor,
+        detail::future::continuation_caller<result_type, future<Args...>>(std::forward<F>(callback),
+                                                                          std::move(*this))
+    );
+
+    auto result = task->get_future();
+
+    old_state->set_callback(detail::future::shared_callable<packaged_task<result_type()>>(task));
+
+    return result;
+}
 
 template<class... Args>
 struct promise :
@@ -751,6 +810,97 @@ struct promise<void> :
             throw future_error(future_errc::no_state);
         }
     }
+};
+
+template<class T>
+struct packaged_task;
+
+template<class R, class... Args>
+struct packaged_task<R(Args...)> :
+    public detail::future::promise_base<R>
+{
+    packaged_task() :
+        detail::future::promise_base<R>(std::shared_ptr<detail::future::shared_state<R>>())
+    {
+        // pass
+    }
+
+    template<class F>
+    explicit
+    packaged_task(F&& f) :
+        m_function(std::forward<F>(f))
+    {
+        // pass
+    }
+
+    template<class F>
+    packaged_task(executor_t executor,
+                  F&& f) :
+        m_function(std::forward<F>(f)),
+        m_executor(executor)
+    {
+        // pass
+    }
+
+    packaged_task(packaged_task&& other) :
+        detail::future::promise_base<R>(std::move(other)),
+        m_function(std::move(other.m_function)),
+        m_executor(std::move(other.m_executor))
+    {
+        // pass
+    }
+
+    packaged_task&
+    operator=(packaged_task&& other) {
+        m_function = std::move(other.m_function);
+        m_executor = std::move(other.m_executor);
+        detail::future::promise_base<R>::operator=(std::move(other));
+        return *this;
+    }
+
+    bool
+    valid() const {
+        return static_cast<bool>(m_function);
+    }
+
+    void
+    reset() {
+        this->m_state.reset(new detail::future::shared_state<R>());
+        this->m_retrieved = false;
+    }
+
+    typename detail::future::unwrapper<cocaine::framework::future<R>>::unwrapped_type
+    get_future() {
+        auto f = detail::future::promise_base<R>::get_future().unwrap();
+        f.set_default_executor(m_executor);
+        return f;
+    }
+
+    template<class... Args2>
+    void
+    operator()(Args2&&... args) {
+        if (this->m_state) {
+            if (m_executor) {
+                m_executor(std::bind(detail::future::task_caller<R, Args...>::call,
+                                     this->m_state,
+                                     m_function,
+                                     std::forward<Args2>(args)...));
+            } else {
+                detail::future::task_caller<R, Args...>::call(this->m_state,
+                                                              m_function,
+                                                              std::forward<Args2>(args)...);
+            }
+            this->m_state.reset();
+        } else {
+            throw future_error(future_errc::no_state);
+        }
+    }
+
+private:
+    using detail::future::promise_base<R>::set_exception;
+
+    std::function<R(Args...)> m_function;
+    executor_t m_executor;
 };
 
 template<class... Args>

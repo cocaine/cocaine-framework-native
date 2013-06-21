@@ -73,6 +73,15 @@ public:
         s = this->service_manager()->
                 service_manager_t::get_service<Service>(std::forward<Args>(args)...);
     }
+
+    template<typename... Args>
+    void
+    create_service(std::shared_ptr<service_t> &s,
+                   Args&&... args)
+    {
+        s = this->service_manager()->
+                service_manager_t::get_service(std::forward<Args>(args)...);
+    }
 };
 
 template<class App>

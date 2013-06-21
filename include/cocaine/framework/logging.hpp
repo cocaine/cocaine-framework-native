@@ -2,6 +2,7 @@
 #define COCAINE_FRAMEWORK_LOGGING_HPP
 
 #include <cocaine/forwards.hpp>
+#include <cocaine/traits/enum.hpp>
 #include <cocaine/format.hpp>
 
 #define COCAINE_LOG(_log_, _level_, ...) \

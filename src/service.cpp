@@ -110,7 +110,7 @@ service_t::reconnect() {
 future<std::shared_ptr<service_t>>
 service_t::reconnect_async() {
     if (m_name) {
-        return m_manager.async_resolve(*m_name)
+        return this->m_manager.async_resolve(*m_name)
                .then(std::bind(&service_t::on_resolved, shared_from_this(), std::placeholders::_1));
     } else {
         connect_to_endpoint();
@@ -179,6 +179,8 @@ service_t::on_message(const cocaine::io::message_t& message) {
         std::lock_guard<std::mutex> lock(m_handlers_lock);
         it = m_handlers.find(message.band());
     }
+
+    std::cout << "on_message in " << name() << " with id " << message.band() << std::endl;
 
     if (it == m_handlers.end()) {
         if (m_manager.get_system_logger()) {
