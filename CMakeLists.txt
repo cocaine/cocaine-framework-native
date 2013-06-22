@@ -35,12 +35,10 @@ LINK_DIRECTORIES(
 
 ADD_LIBRARY(cocaine-framework SHARED
     src/basic_application
-    src/resolver
     src/service
     src/worker
     src/handlers/functional
-    src/handlers/http
-    src/services/logger)
+    src/handlers/http)
 
 TARGET_LINK_LIBRARIES(cocaine-framework
     boost_program_options-mt

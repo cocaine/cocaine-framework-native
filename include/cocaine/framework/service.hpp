@@ -10,9 +10,9 @@
 #include <cocaine/rpc/message.hpp>
 #include <cocaine/rpc/protocol.hpp>
 #include <cocaine/traits/enum.hpp>
+#include <cocaine/traits/literal.hpp>
 #include <cocaine/traits/typelist.hpp>
 #include <cocaine/traits/tuple.hpp>
-#include <cocaine/traits/string_literal.hpp>
 #include <cocaine/messages.hpp>
 #include <cocaine/asio/socket.hpp>
 #include <cocaine/asio/tcp.hpp>
@@ -433,7 +433,7 @@ struct service_stub_t {
 private:
     static
     void
-    empty(future<std::shared_ptr<service_t>> &f) {
+    empty(future<std::shared_ptr<service_t>>&) {
         // pass
     }
 
