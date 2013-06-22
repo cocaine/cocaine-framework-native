@@ -1,6 +1,6 @@
 cocaine-framework-native (0.10.4-0) lucid; urgency=low
 
-  * Release 10.5.
+  * Release 10.4.
   * Support for service remoting.
   * Support for the named queues.
   * Support for locator port forwarding.
