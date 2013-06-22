@@ -1,4 +1,4 @@
-cocaine-framework-native (0.10.5-0) lucid; urgency=low
+cocaine-framework-native (0.10.4-0) lucid; urgency=low
 
   * Release 10.5.
   * Support for service remoting.
