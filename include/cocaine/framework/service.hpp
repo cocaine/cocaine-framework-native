@@ -7,11 +7,11 @@
 #include <cocaine/rpc/channel.hpp>
 #include <cocaine/rpc/message.hpp>
 #include <cocaine/rpc/protocol.hpp>
+#include <cocaine/rpc/slots/function.hpp>
 #include <cocaine/messages.hpp>
 #include <cocaine/asio/socket.hpp>
 #include <cocaine/asio/tcp.hpp>
 #include <cocaine/asio/reactor.hpp>
-#include <cocaine/slot.hpp>
 
 #include <memory>
 #include <stdexcept>
@@ -76,7 +76,7 @@ namespace detail { namespace service {
             >::type
         >
     {
-        typedef typename cocaine::basic_slot<void, Result>::callable_type
+        typedef typename cocaine::io::function_slot<void, Result>::callable_type
                 type;
 
         template<class It, class End, class... Args>
@@ -112,7 +112,7 @@ namespace detail { namespace service {
         apply(const F& fun,
               const msgpack::object& message)
         {
-            cocaine::invoke<Result>::apply(fun, message);
+            cocaine::io::detail::invoke<Result>::apply(fun, message);
         }
     };
 

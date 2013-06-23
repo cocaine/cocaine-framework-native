@@ -2,6 +2,8 @@
 
 #include <cocaine/messages.hpp>
 
+#include <cocaine/traits/tuple.hpp>
+
 #include <iostream>
 
 using namespace cocaine::framework;

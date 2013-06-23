@@ -4,6 +4,8 @@
 #include <cocaine/framework/service.hpp>
 #include <cocaine/framework/logging.hpp>
 
+#include <cocaine/traits/enum.hpp>
+
 namespace cocaine { namespace framework {
 
 class logging_service_t :
