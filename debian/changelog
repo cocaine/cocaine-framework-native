@@ -1,4 +1,4 @@
-cocaine-framework-native (0.10.4-1) lucid; urgency=low
+cocaine-framework-native (0.10.4-1) unstable; urgency=low
 
   * Compatibility with Core 0.10.5-5.
 
