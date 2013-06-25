@@ -42,7 +42,7 @@ namespace {
         }
 
         std::string
-        message(int error_value) const {
+        message(int /* error_value */) const {
             return "Error from service";
         }
     };
@@ -150,7 +150,7 @@ service_t::connect_to_endpoint() {
 }
 
 void
-service_t::on_error(const std::error_code& code) {
+service_t::on_error(const std::error_code& /* code */) {
     m_channel.reset();
 
     handlers_map_t handlers;
