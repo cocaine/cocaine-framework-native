@@ -16,12 +16,12 @@ struct stream;
 namespace detail { namespace stream {
 
     template<class... Args>
-    struct when_closed_callback;
+    struct close_callback;
 
     template<class... Args>
     struct shared_stream_state {
 
-        friend class when_closed_callback<Args...>;
+        friend class close_callback<Args...>;
 
         typedef std::tuple<Args...> value_type;
 
@@ -35,8 +35,7 @@ namespace detail { namespace stream {
         set_exception(std::exception_ptr e) {
             std::unique_lock<std::mutex> lock(m_ready_mutex);
             if (!closed()) {
-                m_exception = e;
-                close(lock);
+                do_push_exception(lock, e);
             } else {
                 throw future_error(future_errc::promise_already_satisfied);
             }
@@ -46,8 +45,7 @@ namespace detail { namespace stream {
         try_set_exception(std::exception_ptr e) {
             std::unique_lock<std::mutex> lock(m_ready_mutex);
             if (!closed()) {
-                m_exception = e;
-                close(lock);
+                do_push_exception(lock, e);
             }
         }
 
@@ -56,8 +54,7 @@ namespace detail { namespace stream {
         push(Args2&&... args) {
             std::unique_lock<std::mutex> lock(this->m_ready_mutex);
             if (!this->closed()) {
-                m_result.emplace(std::forward<Args2>(args)...);
-                this->make_ready(lock);
+                do_push(lock, std::forward<Args2>(args)...);
             } else {
                 throw future_error(future_errc::promise_already_satisfied);
             }
@@ -68,8 +65,7 @@ namespace detail { namespace stream {
         try_push(Args2&&... args) {
             std::unique_lock<std::mutex> lock(this->m_ready_mutex);
             if (!this->closed()) {
-                m_result.emplace(std::forward<Args2>(args)...);
-                this->make_ready(lock);
+                do_push(lock, std::forward<Args2>(args)...);
             }
         }
 
@@ -88,17 +84,6 @@ namespace detail { namespace stream {
             std::unique_lock<std::mutex> lock(this->m_ready_mutex);
             if (!closed()) {
                 close(lock);
-            }
-        }
-
-        void
-        close(std::unique_lock<std::mutex>& lock) {
-            m_is_closed = true;
-            if (m_close_callback) {
-                m_close_callback();
-                m_close_callback = std::function<void()>();
-            } else {
-                make_ready(lock);
             }
         }
 
@@ -154,19 +139,44 @@ namespace detail { namespace stream {
 
         template<class F>
         void
-        set_callback(bool once,
-                     F&& callback)
-        {
+        set_once_callback(F&& callback) {
             std::unique_lock<std::mutex> lock(m_ready_mutex);
-            m_call_once = once;
-            m_callback = std::forward<F>(callback);
-            lock.unlock();
-            this->do_calls();
+            if (!this->m_result.empty() ||
+                this->m_exception != std::exception_ptr() ||
+                this->closed())
+            {
+                lock.unlock();
+                callback();
+            } else {
+                m_once_callback = std::forward<F>(callback);
+            }
         }
 
         template<class F>
         void
-        on_close(F&& callback)
+        set_foreach_callback(F&& callback) {
+            std::unique_lock<std::mutex> lock(m_ready_mutex);
+
+            while (!m_result.empty()) {
+                auto f = cocaine::framework::make_ready_future<Args...>::make(
+                    std::move(m_result.front())
+                );
+                m_result.pop();
+                callback(f);
+            }
+
+            if (m_exception != std::exception_ptr()) {
+                auto f = cocaine::framework::make_ready_future<Args...>::error(m_exception);
+                m_exception = std::exception_ptr();
+                callback(f);
+            } else if (!closed()) {
+                m_foreach_callback = std::forward<F>(callback);
+            }
+        }
+
+        template<class F>
+        void
+        set_close_callback(F&& callback)
         {
             std::unique_lock<std::mutex> lock(m_ready_mutex);
             if (this->closed()) {
@@ -179,41 +189,65 @@ namespace detail { namespace stream {
 
     protected:
         void
-        make_ready(std::unique_lock<std::mutex>& lock) {
-            m_ready.notify_all();
+        close(std::unique_lock<std::mutex>& lock) {
+            m_is_closed = true;
+
+            std::function<void()> callback;
+            if (m_close_callback) {
+                m_close_callback.swap(callback);
+            } else if (m_once_callback) {
+                m_once_callback.swap(callback);
+            } else {
+                return;
+            }
             lock.unlock();
-            if (m_callback) {
-                this->do_calls();
+            callback();
+        }
+
+        template<class... Args2>
+        void
+        do_push(std::unique_lock<std::mutex>& lock,
+                Args2&&... args)
+        {
+            if (m_foreach_callback) {
+                auto f = cocaine::framework::make_ready_future<Args...>::make(
+                    std::forward<Args2>(args)...
+                );
+                m_ready.notify_all();
+                m_foreach_callback(f);
+            } else {
+                m_result.emplace(std::forward<Args2>(args)...);
+                m_ready.notify_all();
+                if (m_once_callback) {
+                    lock.unlock();
+                    std::function<void()> callback;
+                    m_once_callback.swap(callback);
+                    callback();
+                }
             }
         }
 
+        template<class... Args2>
         void
-        do_calls() {
-            if (m_call_once) {
-                if (m_callback && (!m_result.empty() || m_exception != std::exception_ptr() || closed())) {
-                    auto callback = m_callback;
-                    m_callback = std::function<void()>();
-                    callback();
-                }
-            } else if (m_callback) {
-                while (!m_result.empty()) {
-                    m_callback();
-                }
-
-                if (m_exception != std::exception_ptr()) {
-                    m_callback();
-                    m_callback = std::function<void()>();
-                } else if (closed()) {
-                    m_callback = std::function<void()>();
-                }
+        do_push_exception(std::unique_lock<std::mutex>& lock,
+                          std::exception_ptr e)
+        {
+            if (m_foreach_callback) {
+                auto f = cocaine::framework::make_ready_future<Args...>::error(e);
+                m_ready.notify_all();
+                m_foreach_callback(f);
+            } else {
+                m_exception = e;
+                m_ready.notify_all();
             }
+            close(lock);
         }
 
     protected:
         std::exception_ptr m_exception;
         std::queue<value_type> m_result;
-        std::function<void()> m_callback;
-        bool m_call_once; // call m_callback once or on each item
+        std::function<void()> m_once_callback;
+        std::function<void(cocaine::framework::future<Args...>&)> m_foreach_callback;
         std::function<void()> m_close_callback;
         std::atomic<bool> m_is_closed;
         std::mutex m_ready_mutex;
@@ -270,11 +304,11 @@ namespace detail { namespace stream {
     };
 
     template<class... Args>
-    struct when_closed_callback {
+    struct close_callback {
         typedef promise<std::vector<typename storable_type<Args...>::type>>
                 promise_type;
 
-        when_closed_callback(std::shared_ptr<shared_stream_state<Args...>> state) :
+        close_callback(std::shared_ptr<shared_stream_state<Args...>> state) :
             m_state(state)
         {
             m_promise.reset(new promise_type());
@@ -323,38 +357,54 @@ namespace detail { namespace stream {
             m_executor(executor),
             m_callback(task),
             m_producer(new producer_type(std::move(producer))),
-            m_consumer(new cocaine::framework::stream<result_type>)
+            m_consumer(new shared_stream_state<result_type>)
         {
             // pass
         }
 
         cocaine::framework::generator<result_type>
         get_generator() {
-            return m_consumer->get_generator();
+            return generator_from_state<result_type>(m_consumer);
+        }
+
+        std::shared_ptr<shared_stream_state<result_type>>
+        get_state() {
+            return m_consumer;
         }
 
         void
-        operator()() {
-            future_type f;
-            try {
-                f = make_ready_future<Args...>::make(m_producer->next());
-            } catch (...) {
-                f = make_ready_future<Args...>::error(std::current_exception());
-            }
+        operator()(future_type& f) {
             cocaine::framework::packaged_task<Result()> t(
                 m_executor,
                 detail::future::continuation_caller<Result, future_type>(m_callback, f)
             );
 
             t();
-            m_consumer->push_value(t.get_future());
+            m_consumer->try_push(t.get_future());
         }
 
     private:
         executor_t m_executor;
         task_type m_callback;
         std::shared_ptr<producer_type> m_producer;
-        std::shared_ptr<cocaine::framework::stream<result_type>> m_consumer;
+        std::shared_ptr<shared_stream_state<result_type>> m_consumer;
+    };
+
+    template<class State>
+    struct closer {
+        closer(std::shared_ptr<State> state) :
+            m_state(state)
+        {
+            // pass
+        }
+
+        void
+        operator()() {
+            m_state->close();
+        }
+
+    private:
+        std::shared_ptr<State> m_state;
     };
 
 }} // namespace detail::stream
@@ -468,8 +518,8 @@ struct generator {
     gather() {
         check_state();
 
-        detail::stream::when_closed_callback<Args...> callback(m_state);
-        m_state->on_close(callback);
+        detail::stream::close_callback<Args...> callback(m_state);
+        m_state->set_close_callback(callback);
         invalidate();
 
         return callback.get_future();
@@ -523,9 +573,9 @@ generator<Args...>::then(executor_t executor,
                           ));
 
     if (executor) {
-        old_state->set_callback(true, std::bind(executor, std::function<void()>(task)));
+        old_state->set_once_callback(std::bind(executor, std::function<void()>(task)));
     } else {
-        old_state->set_callback(true, std::function<void()>(task));
+        old_state->set_once_callback(std::function<void()>(task));
     }
 
     return detail::future::future_from_state<result_type>(new_state).unwrap();
@@ -547,7 +597,12 @@ generator<Args...>::map(executor_t executor,
                                                                    std::forward<F>(callback),
                                                                    std::move(*this));
 
-    old_state->set_callback(false, std::function<void()>(task));
+    old_state->set_foreach_callback(task);
+    old_state->set_close_callback(
+        detail::stream::closer<detail::stream::shared_stream_state<
+            typename detail::stream::map_callback<result_type, Args...>::result_type
+        >>(task.get_state())
+    );
 
     return task.get_generator();
 }
