@@ -265,6 +265,12 @@ public:
                 promise;
     };
 
+    enum class status {
+        disconnected,
+        connecting,
+        connected
+    };
+
 public:
     void
     reconnect();
@@ -318,6 +324,7 @@ private:
 
     service_manager_t& m_manager;
     std::unique_ptr<iochannel_t> m_channel;
+    status m_connection_status;
 
     session_id_t m_session_counter;
     handlers_map_t m_handlers;
@@ -415,18 +422,24 @@ private:
 template<class Event, typename... Args>
 typename service_t::handler<Event>::future
 service_t::call(Args&&... args) {
-    if (m_channel) {
-        std::lock_guard<std::mutex> lock(m_handlers_lock);
+    switch (m_connection_status) {
+        case status::connected: {
+            std::lock_guard<std::mutex> lock(m_handlers_lock);
 
-        auto h = std::make_shared<typename service_t::handler<Event>::type>();
-        auto f = h->get_future();
-        f.set_default_executor(m_manager.m_default_executor);
-        m_channel->wr->write<Event>(m_session_counter, std::forward<Args>(args)...);
-        m_handlers[m_session_counter] = h;
-        ++m_session_counter;
-        return f;
-    } else {
-        throw service_error_t(service_errc::not_connected);
+            auto h = std::make_shared<typename service_t::handler<Event>::type>();
+            auto f = h->get_future();
+            f.set_default_executor(m_manager.m_default_executor);
+            m_channel->wr->write<Event>(m_session_counter, std::forward<Args>(args)...);
+            m_handlers[m_session_counter] = h;
+            ++m_session_counter;
+            return f;
+        }
+        case status::connecting: {
+            throw service_error_t(service_errc::wait_for_connection);
+        }
+        case status::disconnected: {
+            throw service_error_t(service_errc::not_connected);
+        }
     }
 }
 

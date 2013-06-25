@@ -10,7 +10,8 @@ namespace cocaine { namespace framework {
 
 enum class service_errc {
     bad_version,
-    not_connected
+    not_connected,
+    wait_for_connection
 };
 
 const std::error_category&

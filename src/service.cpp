@@ -80,6 +80,7 @@ service_t::service_t(const std::string& name,
     m_name(name),
     m_version(version),
     m_manager(manager),
+    m_connection_status(status::disconnected),
     m_session_counter(1)
 {
     // pass
@@ -91,6 +92,7 @@ service_t::service_t(const endpoint_t& endpoint,
     m_endpoint(endpoint),
     m_version(version),
     m_manager(manager),
+    m_connection_status(status::disconnected),
     m_session_counter(1)
 {
     // pass
@@ -98,6 +100,7 @@ service_t::service_t(const endpoint_t& endpoint,
 
 void
 service_t::reconnect() {
+    m_connection_status = status::connecting;
     if (m_name) {
         auto f = m_manager.async_resolve(*m_name);
         f.wait();
@@ -109,27 +112,37 @@ service_t::reconnect() {
 
 future<std::shared_ptr<service_t>>
 service_t::reconnect_async() {
+    m_connection_status = status::connecting;
     if (m_name) {
         return this->m_manager.async_resolve(*m_name)
                .then(std::bind(&service_t::on_resolved, shared_from_this(), std::placeholders::_1));
     } else {
-        connect_to_endpoint();
+        try {
+            connect_to_endpoint();
+        } catch (...) {
+            return make_ready_future<std::shared_ptr<service_t>>::error(std::current_exception());
+        }
         return make_ready_future<std::shared_ptr<service_t>>::make(shared_from_this());
     }
 }
 
 std::shared_ptr<service_t>
 service_t::on_resolved(service_t::handler<cocaine::io::locator::resolve>::future& f) {
-    auto service_info = f.get();
-    std::string hostname;
-    uint16_t port;
+    try {
+        auto service_info = f.get();
+        std::string hostname;
+        uint16_t port;
 
-    std::tie(hostname, port) = std::get<0>(service_info);
+        std::tie(hostname, port) = std::get<0>(service_info);
 
-    m_endpoint = cocaine::io::resolver<cocaine::io::tcp>::query(hostname, port);
+        m_endpoint = cocaine::io::resolver<cocaine::io::tcp>::query(hostname, port);
 
-    if (m_version != std::get<1>(service_info)) {
-        throw service_error_t(service_errc::bad_version);
+        if (m_version != std::get<1>(service_info)) {
+            throw service_error_t(service_errc::bad_version);
+        }
+    } catch (...) {
+        m_connection_status = status::disconnected;
+        throw;
     }
 
     connect_to_endpoint();
@@ -139,18 +152,24 @@ service_t::on_resolved(service_t::handler<cocaine::io::locator::resolve>::future
 
 void
 service_t::connect_to_endpoint() {
-    if (!m_channel) {
+    try {
         auto socket = std::make_shared<cocaine::io::socket<cocaine::io::tcp>>(m_endpoint);
 
         m_channel.reset(new iochannel_t(m_manager.m_ioservice, socket));
         m_channel->rd->bind(std::bind(&service_t::on_message, this, std::placeholders::_1),
                             std::bind(&service_t::on_error, this, std::placeholders::_1));
         m_channel->wr->bind(std::bind(&service_t::on_error, this, std::placeholders::_1));
+
+        m_connection_status = status::connected;
+    } catch (...) {
+        m_connection_status = status::disconnected;
+        throw;
     }
 }
 
 void
 service_t::on_error(const std::error_code& /* code */) {
+    m_connection_status = status::disconnected;
     m_channel.reset();
 
     handlers_map_t handlers;
@@ -169,6 +188,9 @@ service_t::on_error(const std::error_code& /* code */) {
     for (auto it = handlers.begin(); it != handlers.end(); ++it) {
         it->second->error(error);
     }
+
+    // i don't sure that this is a good idea
+    reconnect_async();
 }
 
 void
