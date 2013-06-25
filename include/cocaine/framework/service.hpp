@@ -12,7 +12,7 @@
 #include <cocaine/traits/enum.hpp>
 #include <cocaine/traits/typelist.hpp>
 #include <cocaine/traits/tuple.hpp>
-#include <cocaine/traits/string_literal.hpp>
+#include <cocaine/traits/literal.hpp>
 #include <cocaine/messages.hpp>
 #include <cocaine/asio/socket.hpp>
 #include <cocaine/asio/tcp.hpp>
@@ -24,7 +24,6 @@
 #include <utility>
 #include <mutex>
 #include <thread>
-#include <iostream>
 
 namespace cocaine { namespace framework {
 
@@ -49,20 +48,19 @@ namespace detail { namespace service {
     };
 
     template<template<class...> class Wrapper, class... Args>
-    struct wrapper_trait {
+    struct wrapper_traits {
         typedef Wrapper<Args...> type;
     };
 
     template<template<class...> class Wrapper, class... Args>
-    struct wrapper_trait<Wrapper, std::tuple<Args...>> {
+    struct wrapper_traits<Wrapper, std::tuple<Args...>> {
         typedef Wrapper<Args...> type;
     };
 
-    template<class T>
-    struct future_trait {
-        typedef typename wrapper_trait<cocaine::framework::promise, T>::type promise_type;
-        typedef typename wrapper_trait<cocaine::framework::future, T>::type future_type;
-        typedef T result_type;
+    template<class T, bool streamed>
+    struct future_traits {
+        typedef typename wrapper_traits<cocaine::framework::promise, T>::type promise_type;
+        typedef typename wrapper_traits<cocaine::framework::future, T>::type future_type;
 
         static
         inline
@@ -75,16 +73,17 @@ namespace detail { namespace service {
         static
         inline
         void
-        push_value(promise_type& p, Args&&... args) {
-            return p.set_value(std::forward<Args>(args)...);
+        push_value(promise_type& p,
+                   Args&&... args)
+        {
+             p.set_value(std::forward<Args>(args)...);
         }
     };
 
     template<class T>
-    struct future_trait<cocaine::framework::stream<T>> {
-        typedef typename wrapper_trait<cocaine::framework::stream, T>::type promise_type;
-        typedef typename wrapper_trait<cocaine::framework::generator, T>::type future_type;
-        typedef T result_type;
+    struct future_traits<T, true> {
+        typedef typename wrapper_traits<cocaine::framework::stream, T>::type promise_type;
+        typedef typename wrapper_traits<cocaine::framework::generator, T>::type future_type;
 
         static
         inline
@@ -97,67 +96,97 @@ namespace detail { namespace service {
         static
         inline
         void
-        push_value(promise_type& p, Args&&... args) {
-            return p.push_value(std::forward<Args>(args)...);
+        push_value(promise_type& p,
+                   Args&&... args)
+        {
+             p.push_value(std::forward<Args>(args)...);
         }
     };
 
-    template<class ResultType>
-    inline
-    void
-    set_promise_result(typename future_trait<ResultType>::promise_type& p,
-                       const cocaine::io::message_t& message)
-    {
-        if (message.id() == io::event_traits<io::rpc::chunk>::id) {
-            std::string data;
-            message.as<cocaine::io::rpc::chunk>(data);
+    template<class Event, class ResultType = typename cocaine::io::event_traits<Event>::result_type>
+    struct unpacker {
+        typedef future_traits<ResultType, cocaine::io::event_traits<Event>::streamed>
+                traits;
+
+        static
+        inline
+        void
+        unpack(typename traits::promise_type& p,
+               std::string& data)
+        {
             msgpack::unpacked msg;
             msgpack::unpack(&msg, data.data(), data.size());
 
-            typename future_trait<ResultType>::result_type r;
-            cocaine::io::type_traits<typename future_trait<ResultType>::result_type>::unpack(msg.get(), r);
-            future_trait<ResultType>::push_value(p, std::move(r));
-
-            std::cout << "set_promise chunk" << std::endl;
-        } else if (message.id() == io::event_traits<io::rpc::error>::id) {
-            int code;
-            std::string msg;
-            message.as<cocaine::io::rpc::error>(code, msg);
-            p.set_exception(
-                service_error_t(std::error_code(code, service_response_category()), msg)
-            );
-            std::cout << "set_promise error" << std::endl;
-        } else if (message.id() == io::event_traits<io::rpc::choke>::id) {
-            std::cout << "set_promise choke" << std::endl;
-        } else {
-            std::cout << "set_promise xz" << std::endl;
+            ResultType r;
+            cocaine::io::type_traits<ResultType>::unpack(msg.get(), r);
+            traits::push_value(p, std::move(r));
         }
-    }
+    };
 
-    template<>
-    inline
-    void
-    set_promise_result<void>(promise<void>& p,
-                             const cocaine::io::message_t& message)
-    {
-        if (message.id() == io::event_traits<io::rpc::choke>::id) {
-            p.set_value();
+    template<class Event>
+    struct unpacker<Event, cocaine::io::raw_t> {
+        typedef future_traits<std::string, cocaine::io::event_traits<Event>::streamed>
+        traits;
 
-            std::cout << "set_promise choke" << std::endl;
-        } else if (message.id() == io::event_traits<io::rpc::error>::id) {
-            int code;
-            std::string msg;
-            message.as<cocaine::io::rpc::error>(code, msg);
-            p.set_exception(
-                service_error_t(std::error_code(code, service_response_category()), msg)
-            );
-            std::cout << "set_promise error" << std::endl;
-        } else if (message.id() == io::event_traits<io::rpc::chunk>::id) {
-            std::cout << "set_promise chunk" << std::endl;
-        } else {
-            std::cout << "set_promise xz" << std::endl;
+        static
+        inline
+        void
+        unpack(typename traits::promise_type& p,
+               std::string& data)
+        {
+            traits::push_value(p, std::move(data));
         }
-    }
+    };
+
+    template<class Event, class ResultType = typename cocaine::io::event_traits<Event>::result_type>
+    struct message_handler {
+        typedef typename unpacker<Event>::traits
+                traits;
+
+        static
+        inline
+        void
+        handle(typename traits::promise_type& p,
+               const cocaine::io::message_t& message)
+        {
+            if (message.id() == io::event_traits<io::rpc::chunk>::id) {
+                std::string data;
+                message.as<cocaine::io::rpc::chunk>(data);
+                unpacker<Event>::unpack(p, data);
+            } else if (message.id() == io::event_traits<io::rpc::error>::id) {
+                int code;
+                std::string msg;
+                message.as<cocaine::io::rpc::error>(code, msg);
+                p.set_exception(
+                    service_error_t(std::error_code(code, service_response_category()), msg)
+                );
+            }
+        }
+    };
+
+    template<class Event>
+    struct message_handler<Event, void> {
+        typedef typename unpacker<Event>::traits
+                traits;
+
+        static
+        inline
+        void
+        handle(typename traits::promise_type& p,
+               const cocaine::io::message_t& message)
+        {
+            if (message.id() == io::event_traits<io::rpc::choke>::id) {
+                p.set_value();
+            } else if (message.id() == io::event_traits<io::rpc::error>::id) {
+                int code;
+                std::string msg;
+                message.as<cocaine::io::rpc::error>(code, msg);
+                p.set_exception(
+                    service_error_t(std::error_code(code, service_response_category()), msg)
+                );
+            }
+        }
+    };
 
     template<class Event>
     class service_handler :
@@ -166,13 +195,10 @@ namespace detail { namespace service {
         COCAINE_DECLARE_NONCOPYABLE(service_handler)
 
     public:
-        typedef typename cocaine::io::event_traits<Event>::result_type
-                result_type;
-
-        typedef typename detail::service::future_trait<result_type>::future_type
+        typedef typename unpacker<Event>::traits::future_type
                 future_type;
 
-        typedef typename detail::service::future_trait<result_type>::promise_type
+        typedef typename unpacker<Event>::traits::promise_type
                 promise_type;
 
         service_handler()
@@ -188,12 +214,12 @@ namespace detail { namespace service {
 
         future_type
         get_future() {
-            return detail::service::future_trait<result_type>::get_future(m_promise);
+            return unpacker<Event>::traits::get_future(m_promise);
         }
 
         void
         handle_message(const cocaine::io::message_t& message) {
-            set_promise_result<result_type>(m_promise, message);
+            message_handler<Event>::handle(m_promise, message);
         }
 
         void
@@ -433,7 +459,7 @@ struct service_stub_t {
 private:
     static
     void
-    empty(future<std::shared_ptr<service_t>> &f) {
+    empty(future<std::shared_ptr<service_t>>& f) {
         // pass
     }
 

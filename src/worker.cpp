@@ -180,7 +180,7 @@ worker_t::on_message(const io::message_t& message) {
             message.as<io::rpc::invoke>(event);
 
             COCAINE_LOG_DEBUG(m_log,
-                              "worker %s invoking session %s with event '%s'",
+                              "worker %s invoking session %d with event '%s'",
                               m_id,
                               message.band(),
                               event);

@@ -180,8 +180,6 @@ service_t::on_message(const cocaine::io::message_t& message) {
         it = m_handlers.find(message.band());
     }
 
-    std::cout << "on_message in " << name() << " with id " << message.band() << std::endl;
-
     if (it == m_handlers.end()) {
         if (m_manager.get_system_logger()) {
             COCAINE_LOG_DEBUG(

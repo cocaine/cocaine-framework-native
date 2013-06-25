@@ -21,7 +21,6 @@
 #include <condition_variable>
 #include <utility>
 #include <exception>
-#include <iostream>
 
 #if !defined(HAVE_GCC46) && !defined(nullptr)
 #define nullptr ((void*)0)
@@ -29,7 +28,7 @@
 
 namespace cocaine { namespace framework {
 
-typedef std::function<void(const std::function<void()>&)> executor_t;
+typedef std::function<void(std::function<void()>)> executor_t;
 
 template<class ... Args>
 struct promise;
@@ -49,6 +48,10 @@ namespace detail { namespace future {
             return std::current_exception();
         }
     }
+
+    template<class T>
+    T&&
+    declval();
 
     template<class ... Args>
     struct promise_base;
@@ -393,7 +396,7 @@ namespace detail { namespace future {
         }
     protected:
         explicit yet_another_future_base(future_base<void>::state_type state,
-                                         const executor_t& executor = executor_t()) :
+                                         const executor_t& executor) :
             future_base<void>(state, executor)
         {
             // pass
@@ -418,14 +421,14 @@ namespace detail { namespace future {
 
         promise_base() :
             m_state(new shared_state<Args...>()),
-            m_retrieved(false)
+            m_future(future_from_state<Args...>(m_state))
         {
             // pass
         }
 
         promise_base(promise_base&& other) :
             m_state(std::move(other.m_state)),
-            m_retrieved(other.m_retrieved)
+            m_future(std::move(other.m_future))
         {
             // pass
         }
@@ -441,7 +444,7 @@ namespace detail { namespace future {
         void
         operator=(promise_base&& other) {
             m_state = std::move(other.m_state);
-            m_retrieved = other.m_retrieved;
+            m_future = std::move(other.m_future);
         }
 
         void
@@ -467,28 +470,28 @@ namespace detail { namespace future {
 
         cocaine::framework::future<Args...>
         get_future() {
-            if (!m_state) {
-                throw future_error(future_errc::no_state);
-            } else if (m_retrieved) {
-                throw future_error(future_errc::future_already_retrieved);
+            if (!m_future.valid()) {
+                if (m_state) {
+                    throw future_error(future_errc::future_already_retrieved);
+                } else {
+                    throw future_error(future_errc::no_state);
+                }
             } else {
-                m_retrieved = true;
-                return future_from_state<Args...>(m_state);
+                return std::move(m_future);
             }
         }
 
     protected:
         explicit
-        promise_base(std::shared_ptr<shared_state<Args...>> state,
-                     bool retrieved = false) :
+        promise_base(std::shared_ptr<shared_state<Args...>> state) :
             m_state(state),
-            m_retrieved(retrieved)
+            m_future(future_from_state<Args...>(m_state))
         {
             // pass
         }
 
         std::shared_ptr<shared_state<Args...>> m_state;
-        bool m_retrieved;
+        cocaine::framework::future<Args...> m_future;
     };
 
     // helpers to provide unwrapping of futures
@@ -566,11 +569,11 @@ namespace detail { namespace future {
 
     // Helper to declare 'then' result type.
     // It seems that g++ 4.4 doesn't understand
-    // typename unwrapper<future<decltype((*((F*)nullptr))((*((Args*)nullptr))...))>>::unwrapped_type
+    // typename unwrapper<future<decltype(declval<F>()(declval<Args>()...))>>::unwrapped_type
     // written directly in signature of function.
     template<class F, class... Args>
     struct unwrapped_result {
-        typedef decltype((*((F*)nullptr))((*((Args*)nullptr))...)) result_type;
+        typedef decltype(declval<F>()(declval<Args>()...)) result_type;
         typedef typename unwrapper<cocaine::framework::future<result_type>>::unwrapped_type type;
     };
 
@@ -579,8 +582,8 @@ namespace detail { namespace future {
     struct task_caller {
         static
         void
-        call(std::shared_ptr<detail::future::shared_state<Result>> state,
-             std::function<Result(Args...)>& f,
+        call(std::shared_ptr<shared_state<Result>> state,
+             std::function<Result(Args...)> f,
              Args&&... args)
         {
             try {
@@ -595,34 +598,17 @@ namespace detail { namespace future {
     struct task_caller<void, Args...> {
         static
         void
-        call(std::shared_ptr<detail::future::shared_state<void>> state,
-             std::function<void(Args...)>& f,
+        call(std::shared_ptr<shared_state<void>> state,
+             std::function<void(Args...)> f,
              Args&&... args)
         {
             try {
                 f(std::forward<Args>(args)...);
                 state->set_value();
-            } catch (const std::exception& e) {
-                std::cerr << "call: " << e.what() << std::endl;
+            } catch (...) {
                 state->set_exception(std::current_exception());
             }
         }
-    };
-
-    template<class T>
-    struct shared_callable {
-        shared_callable(std::shared_ptr<T> pointer) :
-            m_pointer(pointer)
-        {
-            // pass
-        }
-
-        void
-        operator()() {
-            (*m_pointer)();
-        }
-    private:
-        std::shared_ptr<T> m_pointer;
     };
 
     template<class Result, class Future>
@@ -697,6 +683,8 @@ public:
         // pass
     }
 
+    future(const future&) = delete;
+
     future&
     operator=(future&& other) {
         detail::future::future_base<Args...>::operator=(std::move(other));
@@ -709,12 +697,12 @@ public:
     }
 
     template<class F>
-    typename detail::future::unwrapped_result<F, future<Args...>>::type
+    typename detail::future::unwrapped_result<F, future<Args...>&>::type
     then(executor_t executor,
          F&& callback);
 
     template<class F>
-    typename detail::future::unwrapped_result<F, future<Args...>>::type
+    typename detail::future::unwrapped_result<F, future<Args...>&>::type
     then(F&& callback) {
         return this->then(this->m_executor, std::forward<F>(callback));
     }
@@ -722,27 +710,30 @@ public:
 
 template<class... Args>
 template<class F>
-typename detail::future::unwrapped_result<F, future<Args...>>::type
+typename detail::future::unwrapped_result<F, future<Args...>&>::type
 future<Args...>::then(executor_t executor,
                       F&& callback)
 {
     this->check_state();
 
-    typedef decltype(callback(*((future*)(nullptr)))) result_type;
+    typedef decltype(callback(*this)) result_type;
 
     auto old_state = this->m_state;
+    auto new_state = std::make_shared<detail::future::shared_state<result_type>>();
+    auto task = std::bind(detail::future::task_caller<result_type>::call,
+                          new_state,
+                          detail::future::continuation_caller<result_type, future<Args...>>(
+                              std::forward<F>(callback),
+                              std::move(*this)
+                          ));
 
-    auto task = std::make_shared<packaged_task<result_type()>>(
-        executor,
-        detail::future::continuation_caller<result_type, future<Args...>>(std::forward<F>(callback),
-                                                                          std::move(*this))
-    );
+    if (executor) {
+        old_state->set_callback(std::bind(executor, std::function<void()>(task))); // why i can't write just task?
+    } else {
+        old_state->set_callback(std::function<void()>(task));
+    }
 
-    auto result = task->get_future();
-
-    old_state->set_callback(detail::future::shared_callable<packaged_task<result_type()>>(task));
-
-    return result;
+    return detail::future::future_from_state<result_type>(new_state).unwrap();
 }
 
 template<class... Args>

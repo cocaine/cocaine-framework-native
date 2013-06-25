@@ -159,7 +159,7 @@ namespace detail { namespace stream {
         {
             std::unique_lock<std::mutex> lock(m_ready_mutex);
             m_call_once = once;
-            m_callback = callback;
+            m_callback = std::forward<F>(callback);
             lock.unlock();
             this->do_calls();
         }
@@ -173,7 +173,7 @@ namespace detail { namespace stream {
                 lock.unlock();
                 callback();
             } else {
-                m_close_callback = callback;
+                m_close_callback = std::forward<F>(callback);
             }
         }
 
@@ -200,8 +200,10 @@ namespace detail { namespace stream {
                     m_callback();
                 }
 
-                if (m_exception != std::exception_ptr() || closed()) {
+                if (m_exception != std::exception_ptr()) {
                     m_callback();
+                    m_callback = std::function<void()>();
+                } else if (closed()) {
                     m_callback = std::function<void()>();
                 }
             }
@@ -280,12 +282,12 @@ namespace detail { namespace stream {
 
         void
         operator()() {
-            if (m_state->m_exception) {
+            if (m_state->m_exception != std::exception_ptr()) {
                 m_promise->set_exception(m_state->m_exception);
             } else {
                 std::vector<typename storable_type<Args...>::type> result;
                 while (!m_state->m_result.empty()) {
-                    result.emlace(storable_type<Args...>::pop_from(m_state->m_result));
+                    result.emplace_back(storable_type<Args...>::pop_from(m_state->m_result));
                 }
                 m_promise->set_value(std::move(result));
             }
@@ -309,56 +311,50 @@ namespace detail { namespace stream {
         typedef cocaine::framework::future<Args...>
                 future_type;
 
-        typedef cocaine::framework::packaged_task<Result(future_type&)>
+        typedef std::function<Result(future_type&)>
                 task_type;
 
-        typedef decltype(task_type().get_future())
+        typedef decltype(cocaine::framework::future<Result>().unwrap())
                 result_type;
 
-        map_callback(task_type&& task,
+        map_callback(executor_t executor,
+                     task_type task,
                      producer_type&& producer) :
-            m_callback(std::move(task)),
-            m_producer(std::move(producer))
-        {
-            // pass
-        }
-
-        map_callback(map_callback&& other) :
-            m_callback(std::move(other.m_callback)),
-            m_producer(std::move(other.m_producer)),
-            m_consumer(std::move(other.m_consumer))
+            m_executor(executor),
+            m_callback(task),
+            m_producer(new producer_type(std::move(producer))),
+            m_consumer(new cocaine::framework::stream<result_type>)
         {
             // pass
         }
 
         cocaine::framework::generator<result_type>
         get_generator() {
-            return m_consumer.get_generator();
+            return m_consumer->get_generator();
         }
 
         void
         operator()() {
-            m_callback.reset();
             future_type f;
             try {
-                f = make_ready_future<Args...>::make(m_producer.get());
-            } catch (const future_error& e) {
-                f = make_ready_future<Args...>::error(std::current_exception());
-                if (e.code() == future_errc::stream_closed) {
-                    m_callback(std::move(f));
-                    return;
-                }
+                f = make_ready_future<Args...>::make(m_producer->next());
             } catch (...) {
                 f = make_ready_future<Args...>::error(std::current_exception());
             }
-            m_callback(std::move(f));
-            m_consumer.push_value(m_callback.get_future());
+            cocaine::framework::packaged_task<Result()> t(
+                m_executor,
+                detail::future::continuation_caller<Result, future_type>(m_callback, f)
+            );
+
+            t();
+            m_consumer->push_value(t.get_future());
         }
 
     private:
+        executor_t m_executor;
         task_type m_callback;
-        producer_type m_producer;
-        cocaine::framework::stream<result_type> m_consumer;
+        std::shared_ptr<producer_type> m_producer;
+        std::shared_ptr<cocaine::framework::stream<result_type>> m_consumer;
     };
 
 }} // namespace detail::stream
@@ -416,7 +412,7 @@ struct generator {
     }
 
     typename detail::future::getter<Args...>::result_type
-    get() {
+    next() {
         check_state();
         return detail::future::getter<Args...>::get(*m_state);
     }
@@ -442,25 +438,25 @@ struct generator {
     // calls callback only once (for first available item)
     // invalidates current generator
     template<class F>
-    typename detail::future::unwrapped_result<F, generator<Args...>>::type
-    next(executor_t executor,
+    typename detail::future::unwrapped_result<F, generator<Args...>&>::type
+    then(executor_t executor,
          F&& callback);
 
     template<class F>
-    typename detail::future::unwrapped_result<F, generator<Args...>>::type
-    next(F&& callback) {
-        return next(m_executor, std::forward<F>(callback));
+    typename detail::future::unwrapped_result<F, generator<Args...>&>::type
+    then(F&& callback) {
+        return then(m_executor, std::forward<F>(callback));
     }
 
     // calls callback for each item or exception
     // returns new generator of futures - results of callbacks
     template<class F>
-    generator<typename detail::future::unwrapped_result<F, generator<Args...>>::type>
+    generator<typename detail::future::unwrapped_result<F, generator<Args...>&>::type>
     map(executor_t executor,
         F&& callback);
 
     template<class F>
-    generator<typename detail::future::unwrapped_result<F, generator<Args...>>::type>
+    generator<typename detail::future::unwrapped_result<F, generator<Args...>&>::type>
     map(F&& callback) {
         return map(m_executor, std::forward<F>(callback));
     }
@@ -469,7 +465,7 @@ struct generator {
     // invalidates generator
     // if Args... is T& then result is future<vector<reference_wrapper<T>>>
     future<std::vector<typename detail::stream::storable_type<Args...>::type>>
-    when_closed() {
+    gather() {
         check_state();
 
         detail::stream::when_closed_callback<Args...> callback(m_state);
@@ -509,37 +505,35 @@ protected:
 
 template<class... Args>
 template<class F>
-typename detail::future::unwrapped_result<F, generator<Args...>>::type
-generator<Args...>::next(executor_t executor,
+typename detail::future::unwrapped_result<F, generator<Args...>&>::type
+generator<Args...>::then(executor_t executor,
                          F&& callback)
 {
     this->check_state();
 
-    typedef decltype(callback(*((generator*)(nullptr)))) result_type;
+    typedef decltype(callback(*this)) result_type;
 
     auto old_state = this->m_state;
+    auto new_state = std::make_shared<detail::future::shared_state<result_type>>();
+    auto task = std::bind(detail::future::task_caller<result_type>::call,
+                          new_state,
+                          detail::future::continuation_caller<result_type, generator<Args...>>(
+                              std::forward<F>(callback),
+                              std::move(*this)
+                          ));
 
-    auto task = std::make_shared<packaged_task<result_type()>>(
-        executor,
-        detail::future::continuation_caller<result_type, generator<Args...>>(
-            std::forward<F>(callback),
-            std::move(*this)
-        )
-    );
+    if (executor) {
+        old_state->set_callback(true, std::bind(executor, std::function<void()>(task)));
+    } else {
+        old_state->set_callback(true, std::function<void()>(task));
+    }
 
-    auto result = task->get_future();
-
-    old_state->set_callback(
-        true,
-        detail::future::shared_callable<packaged_task<result_type()>>(task)
-    );
-
-    return result;
+    return detail::future::future_from_state<result_type>(new_state).unwrap();
 }
 
 template<class... Args>
 template<class F>
-generator<typename detail::future::unwrapped_result<F, generator<Args...>>::type>
+generator<typename detail::future::unwrapped_result<F, generator<Args...>&>::type>
 generator<Args...>::map(executor_t executor,
                         F&& callback)
 {
@@ -547,19 +541,15 @@ generator<Args...>::map(executor_t executor,
 
     auto old_state = this->m_state;
 
-    typedef decltype(callback(*((generator*)(nullptr)))) result_type;
+    typedef decltype(callback(detail::future::declval<future<Args...>&>())) result_type;
 
-    auto task = std::make_shared<detail::stream::map_callback<result_type, Args...>>(
-        packaged_task<result_type(future<Args...>&)>(executor, std::forward<F>(callback)),
-        std::move(*this)
-    );
+    auto task = detail::stream::map_callback<result_type, Args...>(executor,
+                                                                   std::forward<F>(callback),
+                                                                   std::move(*this));
 
-    old_state->set_callback(
-        false,
-        detail::future::shared_callable<detail::stream::map_callback<result_type, Args...>>(task)
-    );
+    old_state->set_callback(false, std::function<void()>(task));
 
-    return task->get_generator();
+    return task.get_generator();
 }
 
 template<class... Args>
@@ -568,14 +558,14 @@ struct stream {
 
     stream() :
         m_state(new detail::stream::shared_stream_state<Args...>()),
-        m_retrieved(false)
+        m_generator(detail::stream::generator_from_state<Args...>(m_state))
     {
         // pass
     }
 
     stream(stream&& other) :
         m_state(std::move(other.m_state)),
-        m_retrieved(other.m_retrieved)
+        m_generator(std::move(other.m_generator))
     {
         // pass
     }
@@ -589,7 +579,7 @@ struct stream {
     void
     operator=(stream&& other) {
         m_state = std::move(other.m_state);
-        m_retrieved = other.m_retrieved;
+        m_generator = std::move(other.m_generator);
     }
 
     template<class... Args2>
@@ -632,19 +622,20 @@ struct stream {
 
     cocaine::framework::generator<Args...>
     get_generator() {
-        if (!m_state) {
-            throw future_error(future_errc::no_state);
-        } else if (m_retrieved) {
-            throw future_error(future_errc::future_already_retrieved);
+        if (!m_generator.valid()) {
+            if (m_state) {
+                throw future_error(future_errc::future_already_retrieved);
+            } else {
+                throw future_error(future_errc::no_state);
+            }
         } else {
-            m_retrieved = true;
-            return detail::stream::generator_from_state<Args...>(m_state);
+            return std::move(m_generator);
         }
     }
 
 protected:
     std::shared_ptr<detail::stream::shared_stream_state<Args...>> m_state;
-    bool m_retrieved;
+    cocaine::framework::generator<Args...> m_generator;
 };
 
 }} // namespace cocaine::framework
