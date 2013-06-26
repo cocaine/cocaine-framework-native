@@ -27,6 +27,12 @@ namespace {
                 case static_cast<int>(cocaine::framework::service_errc::not_connected):
                     return "There is no connection to service";
 
+                case static_cast<int>(cocaine::framework::service_errc::wait_for_connection):
+                    return "Client is reconnecting to service at now";
+
+                case static_cast<int>(cocaine::framework::service_errc::broken_manager):
+                    return "Service manager no longer exist";
+
                 default:
                     return "Unknown service error o_O";
             }
@@ -75,7 +81,7 @@ cocaine::framework::make_error_condition(cocaine::framework::service_errc e) {
 
 
 service_t::service_t(const std::string& name,
-                     service_manager_t& manager,
+                     std::shared_ptr<service_manager_t> manager,
                      unsigned int version) :
     m_name(name),
     m_version(version),
@@ -87,7 +93,7 @@ service_t::service_t(const std::string& name,
 }
 
 service_t::service_t(const endpoint_t& endpoint,
-                     service_manager_t& manager,
+                     std::shared_ptr<service_manager_t> manager,
                      unsigned int version) :
     m_endpoint(endpoint),
     m_version(version),
@@ -100,29 +106,34 @@ service_t::service_t(const endpoint_t& endpoint,
 
 void
 service_t::reconnect() {
-    m_connection_status = status::connecting;
     if (m_name) {
-        auto f = m_manager.async_resolve(*m_name);
+        auto m = manager();
+        m_connection_status = status::connecting;
+        auto f = m->async_resolve(*m_name);
         f.wait();
         on_resolved(f);
     } else {
+        m_connection_status = status::connecting;
         connect_to_endpoint();
     }
 }
 
 future<std::shared_ptr<service_t>>
 service_t::reconnect_async() {
-    m_connection_status = status::connecting;
-    if (m_name) {
-        return this->m_manager.async_resolve(*m_name)
-               .then(std::bind(&service_t::on_resolved, shared_from_this(), std::placeholders::_1));
-    } else {
-        try {
+    try {
+        if (m_name) {
+            auto m = manager();
+            m_connection_status = status::connecting;
+            return m->async_resolve(*m_name).then(std::bind(&service_t::on_resolved,
+                                                            shared_from_this(),
+                                                            std::placeholders::_1));
+        } else {
+            m_connection_status = status::connecting;
             connect_to_endpoint();
-        } catch (...) {
-            return make_ready_future<std::shared_ptr<service_t>>::error(std::current_exception());
+            return make_ready_future<std::shared_ptr<service_t>>::make(shared_from_this());
         }
-        return make_ready_future<std::shared_ptr<service_t>>::make(shared_from_this());
+    } catch (...) {
+        return make_ready_future<std::shared_ptr<service_t>>::error(std::current_exception());
     }
 }
 
@@ -150,15 +161,23 @@ service_t::on_resolved(service_t::handler<cocaine::io::locator::resolve>::future
     return shared_from_this();
 }
 
+namespace {
+    void
+    emptyf(){}
+}
+
 void
 service_t::connect_to_endpoint() {
     try {
+        auto m = manager();
+
         auto socket = std::make_shared<cocaine::io::socket<cocaine::io::tcp>>(m_endpoint);
 
-        m_channel.reset(new iochannel_t(m_manager.m_ioservice, socket));
-        m_channel->rd->bind(std::bind(&service_t::on_message, this, std::placeholders::_1),
-                            std::bind(&service_t::on_error, this, std::placeholders::_1));
-        m_channel->wr->bind(std::bind(&service_t::on_error, this, std::placeholders::_1));
+        m_channel.reset(new iochannel_t(m->m_ioservice, socket));
+        m_channel->rd->bind(std::bind(&service_t::on_message, shared_from_this(), std::placeholders::_1),
+                            std::bind(&service_t::on_error, shared_from_this(), std::placeholders::_1));
+        m_channel->wr->bind(std::bind(&service_t::on_error, shared_from_this(), std::placeholders::_1));
+        m->m_ioservice.post(&emptyf); // wake up event-loop
 
         m_connection_status = status::connected;
     } catch (...) {
@@ -203,9 +222,10 @@ service_t::on_message(const cocaine::io::message_t& message) {
     }
 
     if (it == m_handlers.end()) {
-        if (m_manager.get_system_logger()) {
+        auto m = m_manager.lock();
+        if (m && m->get_system_logger()) {
             COCAINE_LOG_DEBUG(
-                m_manager.get_system_logger(),
+                m->get_system_logger(),
                 "Message with unknown session id has been received from service %s",
                 name()
             );
@@ -214,9 +234,10 @@ service_t::on_message(const cocaine::io::message_t& message) {
         try {
             it->second->handle_message(message);
         } catch (const std::exception& e) {
-            if (m_manager.get_system_logger()) {
+            auto m = m_manager.lock();
+            if (m && m->get_system_logger()) {
                 COCAINE_LOG_WARNING(
-                    m_manager.get_system_logger(),
+                    m->get_system_logger(),
                     "Following error has occurred while handling message from service %s: %s",
                     name(),
                     e.what()
@@ -231,33 +252,29 @@ service_t::on_message(const cocaine::io::message_t& message) {
     }
 }
 
-
-service_manager_t::service_manager_t(endpoint_t resolver_endpoint,
-                                     const std::string& logging_prefix,
-                                     const executor_t& executor) :
-    m_resolver_endpoint(resolver_endpoint),
-    m_default_executor(executor)
-{
+void
+service_manager_t::init() {
     // The order of initialization of objects is important here.
     // reactor_t must have at least one watcher before run (m_resolver is watcher),
     // but logging_service can be constructed only with m_ioservice running in thread.
     m_resolver.reset(
         new service_t(m_resolver_endpoint,
-                      *this,
+                      shared_from_this(),
                       cocaine::io::protocol<cocaine::io::locator_tag>::version::value)
     );
 
     m_resolver->reconnect();
 
     m_working_thread = std::thread(&cocaine::io::reactor_t::run, &m_ioservice);
+}
 
-    std::shared_ptr<service_t> logging_service(new service_t("logging", *this, logging_service_t::version));
-    logging_service->reconnect();
-    m_logger = std::make_shared<logging_service_t>(logging_service, logging_prefix);
+void
+service_manager_t::init_logger(const std::string& logging_prefix) {
+    m_logger = get_service<logging_service_t>("logging", logging_prefix);
 }
 
 service_manager_t::~service_manager_t() {
-    m_ioservice.stop();
+    m_ioservice.post(std::bind(&cocaine::io::reactor_t::stop, &m_ioservice));
     if (m_working_thread.joinable()) {
         m_working_thread.join();
     }

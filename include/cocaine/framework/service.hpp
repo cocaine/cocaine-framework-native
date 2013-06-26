@@ -298,12 +298,22 @@ public:
 
 private:
     service_t(const std::string& name,
-              service_manager_t& manager,
+              std::shared_ptr<service_manager_t> manager,
               unsigned int version);
 
     service_t(const endpoint_t& endpoint,
-              service_manager_t& manager,
+              std::shared_ptr<service_manager_t> manager,
               unsigned int version);
+
+    std::shared_ptr<service_manager_t>
+    manager() {
+        auto m = m_manager.lock();
+        if (m) {
+            return m;
+        } else {
+            throw service_error_t(service_errc::broken_manager);
+        }
+    }
 
     void
     on_message(const cocaine::io::message_t& message);
@@ -322,7 +332,7 @@ private:
     endpoint_t m_endpoint;
     unsigned int m_version;
 
-    service_manager_t& m_manager;
+    std::weak_ptr<service_manager_t> m_manager;
     std::unique_ptr<iochannel_t> m_channel;
     status m_connection_status;
 
@@ -331,17 +341,49 @@ private:
     std::mutex m_handlers_lock;
 };
 
-class service_manager_t {
+class service_manager_t :
+    public std::enable_shared_from_this<service_manager_t>
+{
     COCAINE_DECLARE_NONCOPYABLE(service_manager_t)
 
     friend class service_t;
 
     typedef cocaine::io::tcp::endpoint endpoint_t;
 
-public:
     service_manager_t(endpoint_t resolver_endpoint,
-                      const std::string& logging_prefix,
-                      const executor_t& executor);
+                      const executor_t& executor) :
+        m_resolver_endpoint(resolver_endpoint),
+        m_default_executor(executor)
+    {
+        // pass
+    }
+
+    void
+    init();
+
+    void
+    init_logger(const std::string& logging_prefix);
+
+    void
+    init_logger(std::shared_ptr<logger_t> logger) {
+        m_logger = logger;
+    }
+
+public:
+    template<class Logger>
+    static
+    std::shared_ptr<service_manager_t>
+    create(endpoint_t resolver_endpoint,
+           Logger&& logger,
+           const executor_t& executor = executor_t())
+    {
+        auto manager = std::shared_ptr<service_manager_t>(
+            new service_manager_t(resolver_endpoint, executor)
+        );
+        manager->init();
+        manager->init_logger(std::forward<Logger>(logger));
+        return manager;
+    }
 
     ~service_manager_t();
 
@@ -350,7 +392,7 @@ public:
     get_service(const std::string& name,
                 Args&&... args)
     {
-        std::shared_ptr<service_t> service(new service_t(name, *this, Service::version));
+        std::shared_ptr<service_t> service(new service_t(name, shared_from_this(), Service::version));
         service->reconnect();
         return std::make_shared<Service>(service, std::forward<Args>(args)...);
     }
@@ -359,7 +401,7 @@ public:
     get_service(const std::string& name,
                 unsigned int version)
     {
-        std::shared_ptr<service_t> service(new service_t(name, *this, version));
+        std::shared_ptr<service_t> service(new service_t(name, shared_from_this(), version));
         service->reconnect();
         return service;
     }
@@ -369,7 +411,7 @@ public:
     get_service_async(const std::string& name,
                       Args&&... args)
     {
-        std::shared_ptr<service_t> service(new service_t(name, *this, Service::version));
+        std::shared_ptr<service_t> service(new service_t(name, shared_from_this(), Service::version));
         auto f = service->reconnect_async()
             .then(executor_t(),
                   std::bind(&service_manager_t::make_service_stub,
@@ -383,7 +425,7 @@ public:
     get_service_async(const std::string& name,
                       unsigned int version)
     {
-        std::shared_ptr<service_t> service(new service_t(name, *this, version));
+        std::shared_ptr<service_t> service(new service_t(name, shared_from_this(), version));
         return service->reconnect_async();
     }
 
@@ -397,7 +439,7 @@ public:
         return m_resolver->call<cocaine::io::locator::resolve>(name);
     }
 
-    const std::unique_ptr<service_t>&
+    const std::shared_ptr<service_t>&
     get_resolver() const {
         return m_resolver;
     }
@@ -415,7 +457,7 @@ private:
     std::thread m_working_thread;
     endpoint_t m_resolver_endpoint;
     executor_t m_default_executor;
-    std::unique_ptr<service_t> m_resolver;
+    std::shared_ptr<service_t> m_resolver;
     std::shared_ptr<logger_t> m_logger;
 };
 
@@ -428,7 +470,7 @@ service_t::call(Args&&... args) {
 
             auto h = std::make_shared<typename service_t::handler<Event>::type>();
             auto f = h->get_future();
-            f.set_default_executor(m_manager.m_default_executor);
+            f.set_default_executor(manager()->m_default_executor);
             m_channel->wr->write<Event>(m_session_counter, std::forward<Args>(args)...);
             m_handlers[m_session_counter] = h;
             ++m_session_counter;

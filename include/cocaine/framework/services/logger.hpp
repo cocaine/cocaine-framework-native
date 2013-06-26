@@ -16,7 +16,7 @@ struct logging_service_t :
                       const std::string& source) :
         service_stub_t(service),
         m_source(source),
-        m_priority(cocaine::logging::debug/*backend()->call<cocaine::io::logging::verbosity>().get()*/)
+        m_priority(backend()->call<cocaine::io::logging::verbosity>().get())
     {
         // pass
     }

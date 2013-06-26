@@ -154,10 +154,10 @@ worker_t::worker_t(const std::string& name,
     // Set the lowest priority for the disown timer.
     m_disown_timer.priority = EV_MINPRI;
 
-    m_service_manager.reset(
-        new service_manager_t(cocaine::io::tcp::endpoint("127.0.0.1", resolver_port),
-                              cocaine::format("app/%s", name),
-                              ioservice_executor_t(m_ioservice))
+    m_service_manager = service_manager_t::create(
+        cocaine::io::tcp::endpoint("127.0.0.1", resolver_port),
+        cocaine::format("app/%s", name),
+        ioservice_executor_t(m_ioservice)
     );
     m_log = m_service_manager->get_system_logger();
 }

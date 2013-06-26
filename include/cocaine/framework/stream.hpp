@@ -501,12 +501,12 @@ struct generator {
     // calls callback for each item or exception
     // returns new generator of futures - results of callbacks
     template<class F>
-    generator<typename detail::future::unwrapped_result<F, generator<Args...>&>::type>
+    generator<typename detail::future::unwrapped_result<F, future<Args...>&>::type>
     map(executor_t executor,
         F&& callback);
 
     template<class F>
-    generator<typename detail::future::unwrapped_result<F, generator<Args...>&>::type>
+    generator<typename detail::future::unwrapped_result<F, future<Args...>&>::type>
     map(F&& callback) {
         return map(m_executor, std::forward<F>(callback));
     }
@@ -583,7 +583,7 @@ generator<Args...>::then(executor_t executor,
 
 template<class... Args>
 template<class F>
-generator<typename detail::future::unwrapped_result<F, generator<Args...>&>::type>
+generator<typename detail::future::unwrapped_result<F, future<Args...>&>::type>
 generator<Args...>::map(executor_t executor,
                         F&& callback)
 {
