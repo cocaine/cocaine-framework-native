@@ -86,10 +86,11 @@ service_t::service_t(const std::string& name,
     m_name(name),
     m_version(version),
     m_manager(manager),
+    m_throw_when_reconnecting(false),
     m_connection_status(status::disconnected),
     m_session_counter(1)
 {
-    // pass
+    m_channel.reset(new iochannel_t);
 }
 
 service_t::service_t(const endpoint_t& endpoint,
@@ -98,10 +99,11 @@ service_t::service_t(const endpoint_t& endpoint,
     m_endpoint(endpoint),
     m_version(version),
     m_manager(manager),
+    m_throw_when_reconnecting(false),
     m_connection_status(status::disconnected),
     m_session_counter(1)
 {
-    // pass
+    m_channel.reset(new iochannel_t);
 }
 
 void
@@ -173,7 +175,7 @@ service_t::connect_to_endpoint() {
 
         auto socket = std::make_shared<cocaine::io::socket<cocaine::io::tcp>>(m_endpoint);
 
-        m_channel.reset(new iochannel_t(m->m_ioservice, socket));
+        m_channel->attach(m->m_ioservice, socket);
         m_channel->rd->bind(std::bind(&service_t::on_message, shared_from_this(), std::placeholders::_1),
                             std::bind(&service_t::on_error, shared_from_this(), std::placeholders::_1));
         m_channel->wr->bind(std::bind(&service_t::on_error, shared_from_this(), std::placeholders::_1));
@@ -189,7 +191,7 @@ service_t::connect_to_endpoint() {
 void
 service_t::on_error(const std::error_code& /* code */) {
     m_connection_status = status::disconnected;
-    m_channel.reset();
+    m_channel.reset(new iochannel_t);
 
     handlers_map_t handlers;
     {

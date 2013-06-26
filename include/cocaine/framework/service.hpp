@@ -278,6 +278,11 @@ public:
     future<std::shared_ptr<service_t>>
     reconnect_async();
 
+    void
+    throw_when_reconnecting(bool t) {
+        m_throw_when_reconnecting = t;
+    }
+
     template<class Event, typename... Args>
     typename handler<Event>::future
     call(Args&&... args);
@@ -334,6 +339,7 @@ private:
 
     std::weak_ptr<service_manager_t> m_manager;
     std::unique_ptr<iochannel_t> m_channel;
+    bool m_throw_when_reconnecting;
     status m_connection_status;
 
     session_id_t m_session_counter;
@@ -464,24 +470,20 @@ private:
 template<class Event, typename... Args>
 typename service_t::handler<Event>::future
 service_t::call(Args&&... args) {
-    switch (m_connection_status) {
-        case status::connected: {
-            std::lock_guard<std::mutex> lock(m_handlers_lock);
+    if (m_connection_status == status::disconnected) {
+        throw service_error_t(service_errc::not_connected);
+    } else if (m_connection_status == status::connecting && m_throw_when_reconnecting) {
+        throw service_error_t(service_errc::wait_for_connection);
+    } else {
+        std::lock_guard<std::mutex> lock(m_handlers_lock);
 
-            auto h = std::make_shared<typename service_t::handler<Event>::type>();
-            auto f = h->get_future();
-            f.set_default_executor(manager()->m_default_executor);
-            m_channel->wr->write<Event>(m_session_counter, std::forward<Args>(args)...);
-            m_handlers[m_session_counter] = h;
-            ++m_session_counter;
-            return f;
-        }
-        case status::connecting: {
-            throw service_error_t(service_errc::wait_for_connection);
-        }
-        case status::disconnected: {
-            throw service_error_t(service_errc::not_connected);
-        }
+        auto h = std::make_shared<typename service_t::handler<Event>::type>();
+        auto f = h->get_future();
+        f.set_default_executor(manager()->m_default_executor);
+        m_channel->wr->write<Event>(m_session_counter, std::forward<Args>(args)...);
+        m_handlers[m_session_counter] = h;
+        ++m_session_counter;
+        return f;
     }
 }
 
