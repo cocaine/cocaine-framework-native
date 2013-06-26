@@ -155,6 +155,7 @@ service_t::on_resolved(service_t::handler<cocaine::io::locator::resolve>::future
         }
     } catch (...) {
         m_connection_status = status::disconnected;
+        reset_sessions();
         throw;
     }
 
@@ -184,6 +185,7 @@ service_t::connect_to_endpoint() {
         m_connection_status = status::connected;
     } catch (...) {
         m_connection_status = status::disconnected;
+        reset_sessions();
         throw;
     }
 }
@@ -193,6 +195,14 @@ service_t::on_error(const std::error_code& /* code */) {
     m_connection_status = status::disconnected;
     m_channel.reset(new iochannel_t);
 
+    reset_sessions();
+
+    // i don't sure that this is a good idea
+    reconnect_async();
+}
+
+void
+service_t::reset_sessions() {
     handlers_map_t handlers;
     {
         std::lock_guard<std::mutex> lock(m_handlers_lock);
@@ -209,9 +219,6 @@ service_t::on_error(const std::error_code& /* code */) {
     for (auto it = handlers.begin(); it != handlers.end(); ++it) {
         it->second->error(error);
     }
-
-    // i don't sure that this is a good idea
-    reconnect_async();
 }
 
 void

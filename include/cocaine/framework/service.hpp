@@ -332,6 +332,9 @@ private:
     void
     connect_to_endpoint();
 
+    void
+    reset_sessions();
+
 private:
     boost::optional<std::string> m_name;
     endpoint_t m_endpoint;
