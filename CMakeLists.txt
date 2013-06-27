@@ -37,6 +37,7 @@ ADD_LIBRARY(cocaine-framework SHARED
     src/basic_application
     src/service
     src/worker
+    src/future
     src/handlers/functional
     src/handlers/http)
 
