@@ -373,24 +373,32 @@ class service_manager_t :
     void
     init_logger(const std::string& logging_prefix);
 
-    void
-    init_logger(std::shared_ptr<logger_t> logger) {
-        m_logger = logger;
-    }
-
 public:
-    template<class Logger>
     static
     std::shared_ptr<service_manager_t>
     create(endpoint_t resolver_endpoint,
-           Logger&& logger,
+           const std::string& logging_prefix,
            const executor_t& executor = executor_t())
     {
         auto manager = std::shared_ptr<service_manager_t>(
             new service_manager_t(resolver_endpoint, executor)
         );
         manager->init();
-        manager->init_logger(std::forward<Logger>(logger));
+        manager->init_logger(logging_prefix);
+        return manager;
+    }
+
+    static
+    std::shared_ptr<service_manager_t>
+    create(endpoint_t resolver_endpoint,
+           std::shared_ptr<logger_t> logger = std::shared_ptr<logger_t>(),
+           const executor_t& executor = executor_t())
+    {
+        auto manager = std::shared_ptr<service_manager_t>(
+            new service_manager_t(resolver_endpoint, executor)
+        );
+        manager->init();
+        manager->m_logger = logger;
         return manager;
     }
 

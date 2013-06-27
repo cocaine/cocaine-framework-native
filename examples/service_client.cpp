@@ -19,10 +19,7 @@ int
 main(int argc,
      char *argv[])
 {
-    auto manager = cf::service_manager_t::create(
-        cocaine::io::tcp::endpoint("127.0.0.1", 10053), // locator
-        "example" // use cocaine logger with source "example"
-    );
+    auto manager = cf::service_manager_t::create(cocaine::io::tcp::endpoint("127.0.0.1", 10053));
 
     // call application
     auto app = manager->get_service<cf::application_client_t>("app1");
