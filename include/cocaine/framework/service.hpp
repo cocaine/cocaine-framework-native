@@ -345,7 +345,7 @@ private:
     bool m_throw_when_reconnecting;
     status m_connection_status;
 
-    session_id_t m_session_counter;
+    std::atomic<session_id_t> m_session_counter;
     handlers_map_t m_handlers;
     std::mutex m_handlers_lock;
 };
@@ -486,14 +486,18 @@ service_t::call(Args&&... args) {
     } else if (m_connection_status == status::connecting && m_throw_when_reconnecting) {
         throw service_error_t(service_errc::wait_for_connection);
     } else {
-        std::lock_guard<std::mutex> lock(m_handlers_lock);
-
+        // prepare future
         auto h = std::make_shared<typename service_t::handler<Event>::type>();
         auto f = h->get_future();
         f.set_default_executor(manager()->m_default_executor);
-        m_channel->wr->write<Event>(m_session_counter, std::forward<Args>(args)...);
-        m_handlers[m_session_counter] = h;
-        ++m_session_counter;
+
+        // create session and do call
+        session_id_t current_session = m_session_counter++;
+        {
+            std::lock_guard<std::mutex> lock(m_handlers_lock);
+            m_handlers[current_session] = h;
+        }
+        m_channel->wr->write<Event>(current_session, std::forward<Args>(args)...);
         return f;
     }
 }
