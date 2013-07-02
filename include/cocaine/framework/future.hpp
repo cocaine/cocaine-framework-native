@@ -56,15 +56,21 @@ namespace detail { namespace future {
     template<class ... Args>
     struct promise_base;
 
-    // "Base" types are only needed to reduce duplication of code in templates specializations.
-
     template<class... Args>
-    struct shared_state_base {
-        shared_state_base() :
-            m_is_ready(false)
-        {
-            // pass
-        }
+    struct tuple_type {
+        typedef std::tuple<Args...> type;
+    };
+
+    template<>
+    struct tuple_type<void> {
+        typedef std::tuple<> type;
+    };
+
+    // shared state of promise-future
+    // it's a "core" of futures, while "future" and "promise" are just wrappers to access shared state
+    template<class... Args>
+    struct shared_state {
+        typedef typename tuple_type<Args...>::type value_type;
 
         void
         set_exception(std::exception_ptr e) {
@@ -85,73 +91,6 @@ namespace detail { namespace future {
                 make_ready(lock);
             }
         }
-
-        void
-        wait() {
-            std::unique_lock<std::mutex> lock(m_ready_mutex);
-            while (!ready()) {
-                m_ready.wait(lock);
-            }
-        }
-
-        template<class Rep, class Period>
-        void
-        wait_for(const std::chrono::duration<Rep, Period>& rel_time) {
-            std::unique_lock<std::mutex> lock(m_ready_mutex);
-            m_ready.wait_for(lock, rel_time, std::bind(&shared_state_base::ready, this));
-        }
-
-        template<class Clock, class Duration>
-        void
-        wait_until(const std::chrono::time_point<Clock, Duration>& timeout_time) {
-            std::unique_lock<std::mutex> lock(m_ready_mutex);
-            m_ready.wait_until(lock, timeout_time, std::bind(&shared_state_base::ready, this));
-        }
-
-        bool
-        ready() const {
-            return m_is_ready;
-        }
-
-        template<class F>
-        void
-        set_callback(F&& callback) {
-            std::unique_lock<std::mutex> lock(m_ready_mutex);
-            if (this->ready()) {
-                lock.unlock();
-                callback();
-            } else {
-                m_callback = std::forward<F>(callback);
-            }
-        }
-
-    protected:
-        void
-        make_ready(std::unique_lock<std::mutex>& lock) {
-            m_is_ready = true;
-            m_ready.notify_all();
-            lock.unlock();
-            if (m_callback) {
-                m_callback();
-                m_callback = std::function<void()>();
-            }
-        }
-
-    protected:
-        std::exception_ptr m_exception;
-        std::function<void()> m_callback;
-        std::atomic<bool> m_is_ready;
-        std::mutex m_ready_mutex;
-        std::condition_variable m_ready;
-    };
-
-    // shared state of promise-future
-    // it's a "core" of futures, while "future" and "promise" are just wrappers to access shared state
-    template<class... Args>
-    struct shared_state :
-        public shared_state_base<Args...>
-    {
-        typedef std::tuple<Args...> value_type;
 
         template<class... Args2>
         void
@@ -185,122 +124,62 @@ namespace detail { namespace future {
             }
         }
 
-    private:
-        std::unique_ptr<value_type> m_result; // instead of boost::optional that can not into move semantic
-    };
-
-    template<>
-    struct shared_state<void> :
-        public shared_state_base<void>
-    {
         void
-        set_value() {
-            std::unique_lock<std::mutex> lock(this->m_ready_mutex);
-            if (!this->ready()) {
-                this->make_ready(lock);
-            } else {
-                throw future_error(future_errc::promise_already_satisfied);
+        wait() {
+            std::unique_lock<std::mutex> lock(m_ready_mutex);
+            while (!ready()) {
+                m_ready.wait(lock);
             }
-        }
-
-        void
-        try_set_value() {
-            std::unique_lock<std::mutex> lock(this->m_ready_mutex);
-            if (!this->ready()) {
-                this->make_ready(lock);
-            }
-        }
-
-        void
-        get() {
-            this->wait();
-            if (this->m_exception != std::exception_ptr()) {
-                std::rethrow_exception(this->m_exception);
-            }
-        }
-    };
-
-    // future base types
-    // they are needed to avoid code duplication in template specializations
-    template<class ... Args>
-    struct future_base {
-        COCAINE_DECLARE_NONCOPYABLE(future_base)
-
-        bool
-        valid() const {
-            return static_cast<bool>(m_state);
-        }
-
-        void
-        wait() const {
-            check_state();
-            m_state->wait();
         }
 
         template<class Rep, class Period>
         void
-        wait_for(const std::chrono::duration<Rep, Period>& rel_time) const {
-            check_state();
-            m_state->wait(rel_time);
+        wait_for(const std::chrono::duration<Rep, Period>& rel_time) {
+            std::unique_lock<std::mutex> lock(m_ready_mutex);
+            m_ready.wait_for(lock, rel_time, std::bind(&shared_state::ready, this));
         }
 
         template<class Clock, class Duration>
         void
-        wait_until(const std::chrono::time_point<Clock, Duration>& timeout_time) const {
-            check_state();
-            m_state->wait(timeout_time);
+        wait_until(const std::chrono::time_point<Clock, Duration>& timeout_time) {
+            std::unique_lock<std::mutex> lock(m_ready_mutex);
+            m_ready.wait_until(lock, timeout_time, std::bind(&shared_state::ready, this));
         }
 
         bool
         ready() const {
-            check_state();
-            return m_state->ready();
+            return (static_cast<bool>(m_result) || m_exception != std::exception_ptr());
         }
 
+        template<class F>
         void
-        set_default_executor(const executor_t& executor) {
-            m_executor = executor;
-        }
-
-    protected:
-        typedef std::shared_ptr<shared_state<Args...>> state_type;
-
-        explicit future_base(state_type state = state_type(),
-                             executor_t executor = executor_t()):
-            m_state(state),
-            m_executor(executor)
-        {
-            // pass
-        }
-
-        future_base(future_base&& other) :
-            m_state(std::move(other.m_state)),
-            m_executor(std::move(other.m_executor))
-        {
-            // pass
-        }
-
-        void
-        operator=(future_base&& other) {
-            m_state = std::move(other.m_state);
-            m_executor = std::move(other.m_executor);
-        }
-
-        void
-        invalidate() {
-            m_state.reset();
-        }
-
-        void
-        check_state() const {
-            if (!valid()) {
-                throw future_error(future_errc::no_state);
+        set_callback(F&& callback) {
+            std::unique_lock<std::mutex> lock(m_ready_mutex);
+            if (this->ready()) {
+                lock.unlock();
+                callback();
+            } else {
+                m_callback = std::forward<F>(callback);
             }
         }
 
-    protected:
-        state_type m_state;
-        executor_t m_executor;
+    private:
+        void
+        make_ready(std::unique_lock<std::mutex>& lock) {
+            m_ready.notify_all();
+            lock.unlock();
+            if (m_callback) {
+                m_callback();
+                m_callback = std::function<void()>();
+            }
+        }
+
+    private:
+        std::unique_ptr<value_type> m_result; // instead of boost::optional that can not into move semantic
+        std::exception_ptr m_exception;
+        std::function<void()> m_callback;
+        std::mutex m_ready_mutex;
+        std::condition_variable m_ready;
     };
 
     // helper to get content of shared_state
@@ -343,63 +222,16 @@ namespace detail { namespace future {
         }
     };
 
-    template<class... Args>
-    struct yet_another_future_base :
-        public future_base<Args...>
-    {
-        yet_another_future_base() {
-            // pass
-        }
-
-        yet_another_future_base(yet_another_future_base&& other) :
-            future_base<Args...>(std::move(other))
-        {
-            // pass
-        }
-
-        typename detail::future::getter<Args...>::result_type
-        get() {
-            this->check_state();
-            auto state = this->m_state;
-            this->invalidate();
-            return detail::future::getter<Args...>::get(*state);
-        }
-    protected:
-        explicit yet_another_future_base(typename future_base<Args...>::state_type state,
-                                         const executor_t& executor = executor_t()) :
-            future_base<Args...>(state, executor)
-        {
-            // pass
-        }
-    };
-
     template<>
-    struct yet_another_future_base<void> :
-        public future_base<void>
-    {
-        yet_another_future_base() {
-            // pass
-        }
+    struct getter<void> {
+        typedef void result_type;
 
-        yet_another_future_base(yet_another_future_base&& other) :
-            future_base<void>(std::move(other))
-        {
-            // pass
-        }
-
-        void
-        get() {
-            this->check_state();
-            auto state = this->m_state;
-            this->invalidate();
-            state->get();
-        }
-    protected:
-        explicit yet_another_future_base(future_base<void>::state_type state,
-                                         const executor_t& executor) :
-            future_base<void>(state, executor)
-        {
-            // pass
+        template<class State>
+        static
+        inline
+        result_type
+        get(State& state) {
+            state.get();
         }
     };
 
@@ -656,39 +488,87 @@ namespace detail { namespace future {
 }} // namespace detail::future
 
 template<class... Args>
-class future :
-    public detail::future::yet_another_future_base<Args...>
-{
+class future {
+    COCAINE_DECLARE_NONCOPYABLE(future)
+
+    typedef std::shared_ptr<detail::future::shared_state<Args...>> state_type;
+
     friend future<Args...>
            detail::future::future_from_state<Args...>(
-               std::shared_ptr<shared_state<Args...>>& state,
+               state_type& state,
                executor_t executor
            );
 
-    explicit future(typename detail::future::future_base<Args...>::state_type state,
+    explicit future(state_type state,
                     const executor_t& executor) :
-        detail::future::yet_another_future_base<Args...>(state, executor)
+        m_state(state),
+        m_executor(executor)
     {
         // pass
     }
 
 public:
-    future() {
-        // pass
-    }
-
-    future(future&& other) :
-        detail::future::yet_another_future_base<Args...>(std::move(other))
+    future()
     {
         // pass
     }
 
-    future(const future&) = delete;
+    future(future&& other) :
+        m_state(std::move(other.m_state)),
+        m_executor(std::move(other.m_executor))
+    {
+        // pass
+    }
 
     future&
     operator=(future&& other) {
-        detail::future::future_base<Args...>::operator=(std::move(other));
+        m_state = std::move(other.m_state);
+        m_executor = std::move(other.m_executor);
         return *this;
+    }
+
+    bool
+    valid() const {
+        return static_cast<bool>(m_state);
+    }
+
+    void
+    wait() const {
+        check_state();
+        m_state->wait();
+    }
+
+    template<class Rep, class Period>
+    void
+    wait_for(const std::chrono::duration<Rep, Period>& rel_time) const {
+        check_state();
+        m_state->wait(rel_time);
+    }
+
+    template<class Clock, class Duration>
+    void
+    wait_until(const std::chrono::time_point<Clock, Duration>& timeout_time) const {
+        check_state();
+        m_state->wait(timeout_time);
+    }
+
+    bool
+    ready() const {
+        check_state();
+        return m_state->ready();
+    }
+
+    void
+    set_default_executor(const executor_t& executor) {
+        m_executor = executor;
+    }
+
+    typename detail::future::getter<Args...>::result_type
+    get() {
+        this->check_state();
+        auto state = this->m_state;
+        this->invalidate();
+        return detail::future::getter<Args...>::get(*state);
     }
 
     typename detail::future::unwrapper<future<Args...>>::unwrapped_type
@@ -706,6 +586,23 @@ public:
     then(F&& callback) {
         return this->then(this->m_executor, std::forward<F>(callback));
     }
+
+private:
+    void
+    invalidate() {
+        m_state.reset();
+    }
+
+    void
+    check_state() const {
+        if (!valid()) {
+            throw future_error(future_errc::no_state);
+        }
+    }
+
+private:
+    state_type m_state;
+    executor_t m_executor;
 };
 
 template<class... Args>
@@ -764,39 +661,6 @@ struct promise :
     set_value(Args2&&... args) {
         if (this->m_state) {
             this->m_state->set_value(std::forward<Args2>(args)...);
-        } else {
-            throw future_error(future_errc::no_state);
-        }
-    }
-};
-
-template<>
-struct promise<void> :
-    public detail::future::promise_base<void>
-{
-    typedef future<void> future_type;
-
-    promise()
-    {
-        // pass
-    }
-
-    promise(promise&& other) :
-        detail::future::promise_base<void>(std::move(other))
-    {
-        // pass
-    }
-
-    promise&
-    operator=(promise&& other) {
-        detail::future::promise_base<void>::operator=(std::move(other));
-        return *this;
-    }
-
-    void
-    set_value() {
-        if (this->m_state) {
-            this->m_state->set_value();
         } else {
             throw future_error(future_errc::no_state);
         }

@@ -19,7 +19,7 @@ struct logging_service_t :
         service_t(connection),
         m_source(source)
     {
-        m_priority = call<cocaine::io::logging::verbosity>().get();
+        m_priority = call<cocaine::io::logging::verbosity>().next();
     }
 
     void

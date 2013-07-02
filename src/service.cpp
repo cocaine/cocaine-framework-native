@@ -174,7 +174,7 @@ service_connection_t::connect() {
 std::shared_ptr<service_connection_t>
 service_connection_t::on_resolved(service_traits<cocaine::io::locator::resolve>::future_type& f) {
     try {
-        auto service_info = f.get();
+        auto service_info = f.next();
         std::string hostname;
         uint16_t port;
 

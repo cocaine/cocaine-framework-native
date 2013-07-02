@@ -23,7 +23,7 @@ namespace detail { namespace stream {
 
         friend class close_callback<Args...>;
 
-        typedef std::tuple<Args...> value_type;
+        typedef typename detail::future::tuple_type<Args...>::type value_type;
 
         shared_stream_state() :
             m_is_closed(false)
