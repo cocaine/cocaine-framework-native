@@ -3,24 +3,26 @@
 
 #include <cocaine/framework/service.hpp>
 
+#include <cocaine/traits/literal.hpp>
+
 namespace cocaine { namespace framework {
 
 struct application_client_t :
-    public service_stub_t
+    public service_t
 {
     static const unsigned int version = cocaine::io::protocol<cocaine::io::app_tag>::version::value;
 
-    application_client_t(std::shared_ptr<service_t> service) :
-        service_stub_t(service)
+    application_client_t(std::shared_ptr<service_connection_t> connection) :
+        service_t(connection)
     {
         // pass
     }
 
-    service_t::handler<cocaine::io::app::enqueue>::future
+    service_traits<cocaine::io::app::enqueue>::future_type
     enqueue(const std::string& event,
             const std::string& chunk)
     {
-        return backend()->call<cocaine::io::app::enqueue>(event, chunk);
+        return call<cocaine::io::app::enqueue>(event, chunk);
     }
 };
 

@@ -1,7 +1,6 @@
 #ifndef COCAINE_FRAMEWORK_SERVICE_HPP
 #define COCAINE_FRAMEWORK_SERVICE_HPP
 
-#include <cocaine/framework/future.hpp>
 #include <cocaine/framework/stream.hpp>
 #include <cocaine/framework/logging.hpp>
 #include <cocaine/framework/service_error.hpp>
@@ -9,11 +8,8 @@
 #include <cocaine/rpc/channel.hpp>
 #include <cocaine/rpc/message.hpp>
 #include <cocaine/rpc/protocol.hpp>
-#include <cocaine/traits/enum.hpp>
-#include <cocaine/traits/literal.hpp>
 #include <cocaine/traits/typelist.hpp>
 #include <cocaine/traits/tuple.hpp>
-#include <cocaine/traits/literal.hpp>
 #include <cocaine/messages.hpp>
 #include <cocaine/asio/socket.hpp>
 #include <cocaine/asio/tcp.hpp>
@@ -234,58 +230,28 @@ namespace detail { namespace service {
 
 }} // detail::service
 
-class service_t :
-    public std::enable_shared_from_this<service_t>
+template<class Event>
+struct service_traits {
+    typedef typename detail::service::service_handler<Event>::future_type
+            future_type;
+};
+
+class service_connection_t :
+    public std::enable_shared_from_this<service_connection_t>
 {
-    COCAINE_DECLARE_NONCOPYABLE(service_t)
+    COCAINE_DECLARE_NONCOPYABLE(service_connection_t)
 
     friend class service_manager_t;
-
-    typedef cocaine::io::channel<cocaine::io::socket<cocaine::io::tcp>>
-            iochannel_t;
-
-    typedef cocaine::io::tcp::endpoint
-            endpoint_t;
-
-    typedef uint64_t session_id_t;
-
-    typedef std::map<session_id_t, std::shared_ptr<detail::service::service_handler_concept_t>>
-            handlers_map_t;
+    friend class service_t;
 
 public:
-    template<class Event>
-    struct handler {
-        typedef detail::service::service_handler<Event>
-                type;
-
-        typedef typename detail::service::service_handler<Event>::future_type
-                future;
-
-        typedef typename detail::service::service_handler<Event>::promise_type
-                promise;
-    };
-
-    enum class status {
+    enum class status_t {
         disconnected,
         connecting,
         connected
     };
 
-public:
-    void
-    reconnect();
-
-    future<std::shared_ptr<service_t>>
-    reconnect_async();
-
-    void
-    throw_when_reconnecting(bool t) {
-        m_throw_when_reconnecting = t;
-    }
-
-    template<class Event, typename... Args>
-    typename handler<Event>::future
-    call(Args&&... args);
+    ~service_connection_t();
 
     std::string
     name() const {
@@ -301,14 +267,35 @@ public:
         return m_version;
     }
 
-private:
-    service_t(const std::string& name,
-              std::shared_ptr<service_manager_t> manager,
-              unsigned int version);
+    status_t
+    status() const {
+        return m_connection_status;
+    }
 
-    service_t(const endpoint_t& endpoint,
-              std::shared_ptr<service_manager_t> manager,
-              unsigned int version);
+    void
+    throw_when_reconnecting(bool t) {
+        m_throw_when_reconnecting = t;
+    }
+
+    template<class Event, typename... Args>
+    typename service_traits<Event>::future_type
+    call(Args&&... args);
+
+    future<std::shared_ptr<service_connection_t>>
+    reconnect();
+
+private:
+    typedef cocaine::io::tcp::endpoint
+            endpoint_t;
+
+private:
+    service_connection_t(const std::string& name,
+                         std::shared_ptr<service_manager_t> manager,
+                         unsigned int version);
+
+    service_connection_t(const endpoint_t& endpoint,
+                         std::shared_ptr<service_manager_t> manager,
+                         unsigned int version);
 
     std::shared_ptr<service_manager_t>
     manager() {
@@ -321,19 +308,36 @@ private:
     }
 
     void
-    on_message(const cocaine::io::message_t& message);
+    use_default_executor(bool use) {
+        m_use_default_executor = use;
+    }
 
-    void
-    on_error(const std::error_code&);
-
-    std::shared_ptr<service_t>
-    on_resolved(service_t::handler<cocaine::io::locator::resolve>::future&);
+    future<std::shared_ptr<service_connection_t>>
+    connect();
 
     void
     connect_to_endpoint();
 
     void
     reset_sessions();
+
+    std::shared_ptr<service_connection_t>
+    on_resolved(service_traits<cocaine::io::locator::resolve>::future_type&);
+
+    void
+    on_message(const cocaine::io::message_t& message);
+
+    void
+    on_error(const std::error_code&);
+
+private:
+    typedef cocaine::io::channel<cocaine::io::socket<cocaine::io::tcp>>
+            iochannel_t;
+
+    typedef uint64_t session_id_t;
+
+    typedef std::map<session_id_t, std::shared_ptr<detail::service::service_handler_concept_t>>
+            handlers_map_t;
 
 private:
     boost::optional<std::string> m_name;
@@ -343,7 +347,9 @@ private:
     std::weak_ptr<service_manager_t> m_manager;
     std::unique_ptr<iochannel_t> m_channel;
     bool m_throw_when_reconnecting;
-    status m_connection_status;
+    status_t m_connection_status;
+    // resolver must not use default executor, that posts handlers to main event loop
+    bool m_use_default_executor;
 
     std::atomic<session_id_t> m_session_counter;
     handlers_map_t m_handlers;
@@ -355,23 +361,10 @@ class service_manager_t :
 {
     COCAINE_DECLARE_NONCOPYABLE(service_manager_t)
 
+    friend class service_connection_t;
     friend class service_t;
 
     typedef cocaine::io::tcp::endpoint endpoint_t;
-
-    service_manager_t(endpoint_t resolver_endpoint,
-                      const executor_t& executor) :
-        m_resolver_endpoint(resolver_endpoint),
-        m_default_executor(executor)
-    {
-        // pass
-    }
-
-    void
-    init();
-
-    void
-    init_logger(const std::string& logging_prefix);
 
 public:
     static
@@ -380,7 +373,7 @@ public:
            const std::string& logging_prefix,
            const executor_t& executor = executor_t())
     {
-        auto manager = std::shared_ptr<service_manager_t>(
+        std::shared_ptr<service_manager_t> manager(
             new service_manager_t(resolver_endpoint, executor)
         );
         manager->init();
@@ -394,7 +387,7 @@ public:
            std::shared_ptr<logger_t> logger = std::shared_ptr<logger_t>(),
            const executor_t& executor = executor_t())
     {
-        auto manager = std::shared_ptr<service_manager_t>(
+        std::shared_ptr<service_manager_t> manager(
             new service_manager_t(resolver_endpoint, executor)
         );
         manager->init();
@@ -409,18 +402,12 @@ public:
     get_service(const std::string& name,
                 Args&&... args)
     {
-        std::shared_ptr<service_t> service(new service_t(name, shared_from_this(), Service::version));
-        service->reconnect();
+        std::shared_ptr<service_connection_t> service(
+            new service_connection_t(name, shared_from_this(), Service::version)
+        );
+        service->connect().get();
+        m_connections.insert(service);
         return std::make_shared<Service>(service, std::forward<Args>(args)...);
-    }
-
-    std::shared_ptr<service_t>
-    get_service(const std::string& name,
-                unsigned int version)
-    {
-        std::shared_ptr<service_t> service(new service_t(name, shared_from_this(), version));
-        service->reconnect();
-        return service;
     }
 
     template<class Service, typename... Args>
@@ -428,22 +415,17 @@ public:
     get_service_async(const std::string& name,
                       Args&&... args)
     {
-        std::shared_ptr<service_t> service(new service_t(name, shared_from_this(), Service::version));
-        auto f = service->reconnect_async()
+        std::shared_ptr<service_connection_t> service(
+            new service_connection_t(name, shared_from_this(), Service::version)
+        );
+        auto f = service->connect()
             .then(executor_t(),
                   std::bind(&service_manager_t::make_service_stub,
                             std::placeholders::_1,
                             std::forward<Args>(args)...));
         f.set_default_executor(m_default_executor);
+        m_connections.insert(service);
         return f;
-    }
-
-    future<std::shared_ptr<service_t>>
-    get_service_async(const std::string& name,
-                      unsigned int version)
-    {
-        std::shared_ptr<service_t> service(new service_t(name, shared_from_this(), version));
-        return service->reconnect_async();
     }
 
     std::shared_ptr<logger_t>&
@@ -451,21 +433,39 @@ public:
         return m_logger;
     }
 
-    service_t::handler<cocaine::io::locator::resolve>::future
-    async_resolve(const std::string& name) {
+    service_traits<cocaine::io::locator::resolve>::future_type
+    resolve(const std::string& name) {
         return m_resolver->call<cocaine::io::locator::resolve>(name);
     }
 
-    const std::shared_ptr<service_t>&
-    get_resolver() const {
-        return m_resolver;
+private:
+    service_manager_t(endpoint_t resolver_endpoint,
+                      const executor_t& executor) :
+        m_resolver_endpoint(resolver_endpoint),
+        m_default_executor(executor)
+    {
+        // pass
     }
 
-private:
+    void
+    init();
+
+    void
+    init_logger(const std::string& logging_prefix);
+
+    void
+    register_connection(std::shared_ptr<service_connection_t>& connection);
+
+    void
+    release_connection(std::shared_ptr<service_connection_t>& connection);
+
+    void
+    remove_connection(std::shared_ptr<service_connection_t>& connection);
+
     template<class Service, class... Args>
     static
     std::shared_ptr<Service>
-    make_service_stub(future<std::shared_ptr<service_t>>& f, Args&&... args) {
+    make_service_stub(future<std::shared_ptr<service_connection_t>>& f, Args&&... args) {
         return std::make_shared<Service>(f.get(), std::forward<Args>(args)...);
     }
 
@@ -474,22 +474,28 @@ private:
     std::thread m_working_thread;
     endpoint_t m_resolver_endpoint;
     executor_t m_default_executor;
-    std::shared_ptr<service_t> m_resolver;
+
+    std::set<std::shared_ptr<service_connection_t>> m_connections;
+    std::mutex m_connections_lock;
+
+    std::shared_ptr<service_connection_t> m_resolver;
     std::shared_ptr<logger_t> m_logger;
 };
 
 template<class Event, typename... Args>
-typename service_t::handler<Event>::future
-service_t::call(Args&&... args) {
-    if (m_connection_status == status::disconnected) {
+typename service_traits<Event>::future_type
+service_connection_t::call(Args&&... args) {
+    if (m_connection_status == status_t::disconnected) {
         throw service_error_t(service_errc::not_connected);
-    } else if (m_connection_status == status::connecting && m_throw_when_reconnecting) {
+    } else if (m_connection_status == status_t::connecting && m_throw_when_reconnecting) {
         throw service_error_t(service_errc::wait_for_connection);
     } else {
         // prepare future
-        auto h = std::make_shared<typename service_t::handler<Event>::type>();
+        auto h = std::make_shared<detail::service::service_handler<Event>>();
         auto f = h->get_future();
-        f.set_default_executor(manager()->m_default_executor);
+        if (m_use_default_executor) {
+            f.set_default_executor(manager()->m_default_executor);
+        }
 
         // create session and do call
         session_id_t current_session = m_session_counter++;
@@ -498,46 +504,79 @@ service_t::call(Args&&... args) {
             m_handlers[current_session] = h;
         }
         m_channel->wr->write<Event>(current_session, std::forward<Args>(args)...);
+
         return f;
     }
 }
 
-struct service_stub_t {
-    service_stub_t(std::shared_ptr<service_t> service) :
-        m_service(service)
+struct service_t {
+    COCAINE_DECLARE_NONCOPYABLE(service_t)
+
+    service_t(std::shared_ptr<service_connection_t> connection) :
+        m_connection(connection)
     {
-        // pass
+        auto m = connection->m_manager.lock();
+        if (m) {
+            m->register_connection(connection);
+        }
     }
 
     virtual
-    ~service_stub_t() {
-        // pass
+    ~service_t() {
+        auto c = m_connection.lock();
+        if (c) {
+            auto m = c->m_manager.lock();
+            if (m) {
+                m->release_connection(c);
+            }
+        }
     }
 
-    std::shared_ptr<service_t>
-    backend() const {
-        return m_service;
+    std::string
+    name() {
+        connection()->name();
+    }
+
+    service_connection_t::status_t
+    status() {
+        connection()->status();
+    }
+
+    template<class Event, typename... Args>
+    typename service_traits<Event>::future_type
+    call(Args&&... args) {
+        return connection()->call<Event>(std::forward<Args>(args)...);
     }
 
     void
     reconnect() {
-        m_service->reconnect();
+        connection()->reconnect().get();
     }
 
     future<void>
-    reconnect_async() {
-        return m_service->reconnect_async().then(&service_stub_t::empty);
+    async_reconnect() {
+        return connection()->reconnect().then(&service_t::empty);
     }
 
 private:
+    std::shared_ptr<service_connection_t>
+    connection() {
+        auto c = m_connection.lock();
+        if (c) {
+            return c;
+        } else {
+            throw service_error_t(service_errc::broken_manager);
+        }
+    }
+
     static
     void
-    empty(future<std::shared_ptr<service_t>>&) {
+    empty(future<std::shared_ptr<service_connection_t>>&) {
         // pass
     }
 
 private:
-    std::shared_ptr<service_t> m_service;
+    std::weak_ptr<service_connection_t> m_connection;
 };
 
 }} // namespace cocaine::framework

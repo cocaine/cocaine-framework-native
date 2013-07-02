@@ -6,52 +6,52 @@
 namespace cocaine { namespace framework {
 
 struct storage_service_t :
-    public service_stub_t
+    public service_t
 {
     static const unsigned int version = cocaine::io::protocol<cocaine::io::storage_tag>::version::value;
 
-    storage_service_t(std::shared_ptr<service_t> service) :
-        service_stub_t(service)
+    storage_service_t(std::shared_ptr<service_connection_t> connection) :
+        service_t(connection)
     {
         // pass
     }
 
-    service_t::handler<cocaine::io::storage::read>::future
+    service_traits<cocaine::io::storage::read>::future_type
     read(const std::string& collection,
          const std::string& key)
     {
-        return backend()->call<cocaine::io::storage::read>(collection, key);
+        return call<cocaine::io::storage::read>(collection, key);
     }
 
-    service_t::handler<cocaine::io::storage::write>::future
+    service_traits<cocaine::io::storage::write>::future_type
     write(const std::string& collection,
           const std::string& key,
           const std::string& value)
     {
-        return backend()->call<cocaine::io::storage::write>(collection, key, value);
+        return call<cocaine::io::storage::write>(collection, key, value);
     }
 
-    service_t::handler<cocaine::io::storage::write>::future
+    service_traits<cocaine::io::storage::write>::future_type
     write(const std::string& collection,
           const std::string& key,
           const std::string& value,
           const std::vector<std::string>& tags)
     {
-        return backend()->call<cocaine::io::storage::write>(collection, key, value, tags);
+        return call<cocaine::io::storage::write>(collection, key, value, tags);
     }
 
-    service_t::handler<cocaine::io::storage::remove>::future
+    service_traits<cocaine::io::storage::remove>::future_type
     remove(const std::string& collection,
            const std::string& key)
     {
-        return backend()->call<cocaine::io::storage::remove>(collection, key);
+        return call<cocaine::io::storage::remove>(collection, key);
     }
 
-    service_t::handler<cocaine::io::storage::find>::future
+    service_traits<cocaine::io::storage::find>::future_type
     find(const std::string& collection,
          const std::vector<std::string>& tags)
     {
-        return backend()->call<cocaine::io::storage::find>(collection, tags);
+        return call<cocaine::io::storage::find>(collection, tags);
     }
 };
 

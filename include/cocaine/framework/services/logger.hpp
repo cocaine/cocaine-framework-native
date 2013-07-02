@@ -4,28 +4,29 @@
 #include <cocaine/framework/service.hpp>
 #include <cocaine/framework/logging.hpp>
 
+#include <cocaine/traits/enum.hpp>
+
 namespace cocaine { namespace framework {
 
 struct logging_service_t :
-    public service_stub_t,
+    public service_t,
     public logger_t
 {
     static const unsigned int version = cocaine::io::protocol<cocaine::io::logging_tag>::version::value;
 
-    logging_service_t(std::shared_ptr<service_t> service,
+    logging_service_t(std::shared_ptr<service_connection_t> connection,
                       const std::string& source) :
-        service_stub_t(service),
-        m_source(source),
-        m_priority(backend()->call<cocaine::io::logging::verbosity>().get())
+        service_t(connection),
+        m_source(source)
     {
-        // pass
+        m_priority = call<cocaine::io::logging::verbosity>().get();
     }
 
     void
     emit(cocaine::logging::priorities priority,
          const std::string& message)
     {
-        backend()->call<cocaine::io::logging::emit>(priority, m_source, message);
+        call<cocaine::io::logging::emit>(priority, m_source, message);
     }
 
     cocaine::logging::priorities
