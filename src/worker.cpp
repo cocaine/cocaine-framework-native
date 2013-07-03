@@ -29,10 +29,10 @@ public:
     }
 
     ~worker_upstream_t() {
-       if (!closed()) {
-           close();
-       }
-   }
+        if (!closed()) {
+            close();
+        }
+    }
 
     void
     write(const char * chunk,

@@ -196,6 +196,7 @@ public:
     enum class status_t {
         disconnected,
         connecting,
+        waiting_for_sessions,
         connected
     };
 
@@ -232,6 +233,9 @@ public:
     future<std::shared_ptr<service_connection_t>>
     reconnect();
 
+    void
+    soft_reconnect();
+
 private:
     typedef cocaine::io::tcp::endpoint
             endpoint_t;
@@ -261,7 +265,7 @@ private:
     }
 
     future<std::shared_ptr<service_connection_t>>
-    connect();
+    connect(std::unique_lock<std::recursive_mutex>&);
 
     void
     connect_to_endpoint();
@@ -296,12 +300,13 @@ private:
     std::unique_ptr<iochannel_t> m_channel;
     bool m_throw_when_reconnecting;
     status_t m_connection_status;
+
     // resolver must not use default executor, that posts handlers to main event loop
     bool m_use_default_executor;
 
     std::atomic<session_id_t> m_session_counter;
     handlers_map_t m_handlers;
-    std::mutex m_handlers_lock;
+    std::recursive_mutex m_handlers_lock;
 };
 
 class service_manager_t :
@@ -353,8 +358,8 @@ public:
         std::shared_ptr<service_connection_t> service(
             new service_connection_t(name, shared_from_this(), Service::version)
         );
-        service->connect().get();
-        m_connections.insert(service);
+        std::unique_lock<std::recursive_mutex> lock(service->m_handlers_lock);
+        service->connect(lock).get();
         return std::make_shared<Service>(service, std::forward<Args>(args)...);
     }
 
@@ -366,24 +371,19 @@ public:
         std::shared_ptr<service_connection_t> service(
             new service_connection_t(name, shared_from_this(), Service::version)
         );
-        auto f = service->connect()
+        std::unique_lock<std::recursive_mutex> lock(service->m_handlers_lock);
+        auto f = service->connect(lock)
             .then(executor_t(),
                   std::bind(&service_manager_t::make_service_stub,
                             std::placeholders::_1,
                             std::forward<Args>(args)...));
         f.set_default_executor(m_default_executor);
-        m_connections.insert(service);
         return f;
     }
 
     std::shared_ptr<logger_t>&
     get_system_logger() {
         return m_logger;
-    }
-
-    service_traits<cocaine::io::locator::resolve>::future_type
-    resolve(const std::string& name) {
-        return m_resolver->call<cocaine::io::locator::resolve>(name);
     }
 
 private:
@@ -400,6 +400,11 @@ private:
 
     void
     init_logger(const std::string& logging_prefix);
+
+    service_traits<cocaine::io::locator::resolve>::future_type
+    resolve(const std::string& name) {
+        return m_resolver->call<cocaine::io::locator::resolve>(name);
+    }
 
     void
     register_connection(std::shared_ptr<service_connection_t>& connection);
@@ -433,9 +438,12 @@ private:
 template<class Event, typename... Args>
 typename service_traits<Event>::future_type
 service_connection_t::call(Args&&... args) {
+    std::unique_lock<std::recursive_mutex> lock(m_handlers_lock);
     if (m_connection_status == status_t::disconnected) {
         throw service_error_t(service_errc::not_connected);
     } else if (m_connection_status == status_t::connecting && m_throw_when_reconnecting) {
+        throw service_error_t(service_errc::wait_for_connection);
+    } else if (m_connection_status == status_t::waiting_for_sessions) {
         throw service_error_t(service_errc::wait_for_connection);
     } else {
         // prepare future
@@ -447,10 +455,7 @@ service_connection_t::call(Args&&... args) {
 
         // create session and do call
         session_id_t current_session = m_session_counter++;
-        {
-            std::lock_guard<std::mutex> lock(m_handlers_lock);
-            m_handlers[current_session] = h;
-        }
+        m_handlers[current_session] = h;
         m_channel->wr->write<Event>(current_session, std::forward<Args>(args)...);
 
         return f;
@@ -482,12 +487,12 @@ struct service_t {
 
     std::string
     name() {
-        connection()->name();
+        return connection()->name();
     }
 
     service_connection_t::status_t
     status() {
-        connection()->status();
+        return connection()->status();
     }
 
     template<class Event, typename... Args>
@@ -499,6 +504,11 @@ struct service_t {
     void
     reconnect() {
         connection()->reconnect().get();
+    }
+
+    void
+    soft_reconnect() {
+        connection()->soft_reconnect();
     }
 
     future<void>
@@ -519,8 +529,8 @@ private:
 
     static
     void
-    empty(future<std::shared_ptr<service_connection_t>>&) {
-        // pass
+    empty(future<std::shared_ptr<service_connection_t>>& f) {
+        f.get();
     }
 
 private:

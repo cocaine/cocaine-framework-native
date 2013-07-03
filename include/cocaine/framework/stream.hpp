@@ -193,15 +193,19 @@ namespace detail { namespace stream {
             m_is_closed = true;
 
             std::function<void()> callback;
-            if (m_close_callback) {
-                m_close_callback.swap(callback);
-            } else if (m_once_callback) {
-                m_once_callback.swap(callback);
-            } else {
-                return;
+            if (m_once_callback) {
+                callback = m_once_callback;
+                m_once_callback = std::function<void()>();
             }
-            lock.unlock();
-            callback();
+            if (m_close_callback) {
+                callback = m_close_callback;
+                m_close_callback = std::function<void()>();
+            }
+            m_foreach_callback = std::function<void(cocaine::framework::future<Args...>&)>();
+            if (callback) {
+                lock.unlock();
+                callback();
+            }
         }
 
         template<class... Args2>
@@ -220,8 +224,8 @@ namespace detail { namespace stream {
                 m_ready.notify_all();
                 if (m_once_callback) {
                     lock.unlock();
-                    std::function<void()> callback;
-                    m_once_callback.swap(callback);
+                    std::function<void()> callback = m_once_callback;
+                    m_once_callback = std::function<void()>();
                     callback();
                 }
             }

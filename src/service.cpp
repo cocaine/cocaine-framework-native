@@ -83,7 +83,7 @@ namespace {
     struct emptyf {
         static
         void
-        call(Args... args){
+        call(Args...){
             // pass
         }
     };
@@ -123,10 +123,8 @@ service_connection_t::~service_connection_t() {
 
 void
 service_connection_t::reset_sessions() {
-    std::unique_lock<std::mutex> lock(m_handlers_lock);
     handlers_map_t handlers;
     handlers.swap(m_handlers);
-    lock.unlock();
 
     service_error_t err(service_errc::not_connected);
 
@@ -141,28 +139,54 @@ service_connection_t::reset_sessions() {
 
 future<std::shared_ptr<service_connection_t>>
 service_connection_t::reconnect() {
+    std::unique_lock<std::recursive_mutex> lock(m_handlers_lock);
+
+    if (m_connection_status == status_t::connecting) {
+        throw service_error_t(service_errc::wait_for_connection);
+    }
+
     m_connection_status = status_t::disconnected;
     std::shared_ptr<iochannel_t> channel(std::move(m_channel));
     m_channel.reset(new iochannel_t);
     reset_sessions();
     manager()->m_ioservice.post(std::bind(&emptyf<std::shared_ptr<iochannel_t>>::call, channel));
-    return connect();
+
+    return connect(lock);
+}
+
+void
+service_connection_t::soft_reconnect() {
+    std::unique_lock<std::recursive_mutex> lock(m_handlers_lock);
+
+    if (m_connection_status == status_t::connecting) {
+        throw service_error_t(service_errc::wait_for_connection);
+    } else if (m_connection_status != status_t::waiting_for_sessions) {
+        m_connection_status = status_t::waiting_for_sessions;
+
+        if (m_handlers.empty()) {
+            m_connection_status = status_t::disconnected;
+            std::shared_ptr<iochannel_t> channel(std::move(m_channel));
+            m_channel.reset(new iochannel_t);
+            reset_sessions();
+            manager()->m_ioservice.post(std::bind(&emptyf<std::shared_ptr<iochannel_t>>::call, channel));
+            connect(lock);
+        }
+    }
 }
 
 future<std::shared_ptr<service_connection_t>>
-service_connection_t::connect() {
+service_connection_t::connect(std::unique_lock<std::recursive_mutex>& lock) {
     try {
-        if (m_connection_status == status_t::connecting) {
-            throw service_error_t(service_errc::wait_for_connection);
-        }
         if (m_name) {
             auto m = manager();
             m_connection_status = status_t::connecting;
+            lock.unlock();
             return m->resolve(*m_name).then(std::bind(&service_connection_t::on_resolved,
                                                       this,
                                                       std::placeholders::_1));
         } else {
             m_connection_status = status_t::connecting;
+            lock.unlock();
             connect_to_endpoint();
             return make_ready_future<std::shared_ptr<service_connection_t>>::make(shared_from_this());
         }
@@ -186,6 +210,7 @@ service_connection_t::on_resolved(service_traits<cocaine::io::locator::resolve>:
             throw service_error_t(service_errc::bad_version);
         }
     } catch (...) {
+        std::unique_lock<std::recursive_mutex> lock(m_handlers_lock);
         m_connection_status = status_t::disconnected;
         reset_sessions();
         throw;
@@ -217,6 +242,7 @@ service_connection_t::connect_to_endpoint() {
 
         m_connection_status = status_t::connected;
     } catch (...) {
+        std::unique_lock<std::recursive_mutex> lock(m_handlers_lock);
         m_connection_status = status_t::disconnected;
         reset_sessions();
         throw;
@@ -230,7 +256,7 @@ service_connection_t::on_error(const std::error_code& /* code */) {
 
 void
 service_connection_t::on_message(const cocaine::io::message_t& message) {
-    std::unique_lock<std::mutex> lock(m_handlers_lock);
+    std::unique_lock<std::recursive_mutex> lock(m_handlers_lock);
     handlers_map_t::iterator it = m_handlers.find(message.band());
 
     if (it == m_handlers.end()) {
@@ -247,6 +273,9 @@ service_connection_t::on_message(const cocaine::io::message_t& message) {
             auto h = it->second;
             if (message.id() == io::event_traits<io::rpc::choke>::id) {
                 m_handlers.erase(it);
+            }
+            if (m_connection_status == status_t::waiting_for_sessions && m_handlers.empty()) {
+                reconnect();
             }
             lock.unlock();
             h->handle_message(message);
@@ -283,7 +312,8 @@ service_manager_t::init() {
     );
 
     m_resolver->use_default_executor(false);
-    m_resolver->connect().get();
+    std::unique_lock<std::recursive_mutex> lock(m_resolver->m_handlers_lock);
+    m_resolver->connect(lock).get();
 
     m_working_thread = std::thread(&cocaine::io::reactor_t::run, &m_ioservice);
 }
