@@ -380,7 +380,7 @@ namespace detail { namespace stream {
         operator()(future_type& f) {
             cocaine::framework::packaged_task<Result()> t(
                 m_executor,
-                detail::future::continuation_caller<Result, future_type>(m_callback, f)
+                detail::future::continuation_caller<Result, future_type>(m_callback, std::move(f))
             );
 
             t();
