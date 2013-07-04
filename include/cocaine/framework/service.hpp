@@ -234,7 +234,7 @@ public:
     reconnect();
 
     void
-    soft_reconnect();
+    soft_destroy();
 
 private:
     typedef cocaine::io::tcp::endpoint
@@ -407,13 +407,13 @@ private:
     }
 
     void
-    register_connection(std::shared_ptr<service_connection_t>& connection);
+    register_connection(std::shared_ptr<service_connection_t> connection);
 
     void
-    release_connection(std::shared_ptr<service_connection_t>& connection);
+    release_connection(std::shared_ptr<service_connection_t> connection);
 
     void
-    remove_connection(std::shared_ptr<service_connection_t>& connection);
+    remove_connection(std::shared_ptr<service_connection_t> connection);
 
     template<class Service, class... Args>
     static
@@ -506,14 +506,15 @@ struct service_t {
         connection()->reconnect().get();
     }
 
-    void
-    soft_reconnect() {
-        connection()->soft_reconnect();
-    }
-
     future<void>
     async_reconnect() {
         return connection()->reconnect().then(&service_t::empty);
+    }
+
+    void
+    soft_destroy() {
+        connection()->soft_destroy();
+        m_connection.reset();
     }
 
 private:

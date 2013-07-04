@@ -155,7 +155,7 @@ service_connection_t::reconnect() {
 }
 
 void
-service_connection_t::soft_reconnect() {
+service_connection_t::soft_destroy() {
     std::unique_lock<std::recursive_mutex> lock(m_handlers_lock);
 
     if (m_connection_status == status_t::connecting) {
@@ -164,12 +164,10 @@ service_connection_t::soft_reconnect() {
         m_connection_status = status_t::waiting_for_sessions;
 
         if (m_handlers.empty()) {
-            m_connection_status = status_t::disconnected;
-            std::shared_ptr<iochannel_t> channel(std::move(m_channel));
-            m_channel.reset(new iochannel_t);
-            reset_sessions();
-            manager()->m_ioservice.post(std::bind(&emptyf<std::shared_ptr<iochannel_t>>::call, channel));
-            connect(lock);
+            auto m = m_manager.lock();
+            if (m) {
+                m->release_connection(shared_from_this());
+            }
         }
     }
 }
@@ -275,7 +273,10 @@ service_connection_t::on_message(const cocaine::io::message_t& message) {
                 m_handlers.erase(it);
             }
             if (m_connection_status == status_t::waiting_for_sessions && m_handlers.empty()) {
-                reconnect();
+                auto m = m_manager.lock();
+                if (m) {
+                    m->release_connection(shared_from_this());
+                }
             }
             lock.unlock();
             h->handle_message(message);
@@ -324,18 +325,18 @@ service_manager_t::init_logger(const std::string& logging_prefix) {
 }
 
 void
-service_manager_t::register_connection(std::shared_ptr<service_connection_t>& connection) {
+service_manager_t::register_connection(std::shared_ptr<service_connection_t> connection) {
     std::unique_lock<std::mutex> lock(m_connections_lock);
     m_connections.insert(connection);
 }
 
 void
-service_manager_t::release_connection(std::shared_ptr<service_connection_t>& connection) {
+service_manager_t::release_connection(std::shared_ptr<service_connection_t> connection) {
     m_ioservice.post(std::bind(&service_manager_t::remove_connection, this, connection));
 }
 
 void
-service_manager_t::remove_connection(std::shared_ptr<service_connection_t>& connection) {
+service_manager_t::remove_connection(std::shared_ptr<service_connection_t> connection) {
     std::unique_lock<std::mutex> lock(m_connections_lock);
     m_connections.erase(connection);
 }
