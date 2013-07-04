@@ -26,7 +26,7 @@ basic_application_t::invoke(const std::string& event,
         return new_handler;
     } else {
         throw std::runtime_error(
-            cocaine::format("Unrecognized event %s has been accepted.", event)
+            cocaine::format("Unrecognized event '%s' has been accepted.", event)
         );
     }
 }

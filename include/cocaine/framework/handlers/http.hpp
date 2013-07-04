@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <iostream>
 
 #include <boost/optional.hpp>
 
@@ -257,6 +258,8 @@ http_handler<App>::send_response(const http_response& r) {
         }
 
         response()->close();
+    } else {
+        std::cerr << "response already closed!" << std::endl;
     }
 }
 

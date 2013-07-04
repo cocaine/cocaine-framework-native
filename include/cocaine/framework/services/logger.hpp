@@ -8,26 +8,18 @@
 
 namespace cocaine { namespace framework {
 
-class logging_service_t :
-    public std::enable_shared_from_this<logging_service_t>,
+struct logging_service_t :
     public service_t,
     public logger_t
 {
-public:
-    logging_service_t(const std::string& name,
-                      cocaine::io::reactor_t& service,
-                      const cocaine::io::tcp::endpoint& resolver,
-                      std::shared_ptr<logger_t> logger, // not so much OMG
+    static const unsigned int version = cocaine::io::protocol<cocaine::io::logging_tag>::version::value;
+
+    logging_service_t(std::shared_ptr<service_connection_t> connection,
                       const std::string& source) :
-        service_t(name,
-                  service,
-                  resolver,
-                  logger,
-                  cocaine::io::protocol<cocaine::io::logging_tag>::version::value),
-        m_priority(cocaine::logging::priorities::warning),
+        service_t(connection),
         m_source(source)
     {
-        // pass
+        m_priority = call<cocaine::io::logging::verbosity>().next();
     }
 
     void
@@ -42,17 +34,9 @@ public:
         return m_priority;
     }
 
-    void
-    initialize();
-
-protected:
-    void
-    on_verbosity_response(cocaine::io::reactor_t *ioservice,
-                          const cocaine::io::message_t& message);
-
 private:
-    cocaine::logging::priorities m_priority;
     std::string m_source;
+    cocaine::logging::priorities m_priority;
 };
 
 }} // cocaine::framework

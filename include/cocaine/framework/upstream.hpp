@@ -1,7 +1,8 @@
-#ifndef COCAINE_FRAMEWORK_STREAM_HPP
-#define COCAINE_FRAMEWORK_STREAM_HPP
+#ifndef COCAINE_FRAMEWORK_UPSTREAM_HPP
+#define COCAINE_FRAMEWORK_UPSTREAM_HPP
 
 #include <cocaine/api/stream.hpp>
+#include <cocaine/traits.hpp>
 
 namespace cocaine { namespace framework {
 
@@ -25,12 +26,16 @@ public:
 
     using cocaine::api::stream_t::write;
 
+    template<class T>
     void
-    write(const std::string& chunk) {
-        write(chunk.data(), chunk.size());
+    write(const T& obj) {
+        msgpack::sbuffer buffer;
+        msgpack::packer<msgpack::sbuffer> packer(buffer);
+        cocaine::io::type_traits<T>::pack(packer, obj);
+        write(buffer.data(), buffer.size());
     }
 };
 
 }} // namespace cocaine::framework
 
-#endif // COCAINE_FRAMEWORK_STREAM_HPP
+#endif // COCAINE_FRAMEWORK_UPSTREAM_HPP

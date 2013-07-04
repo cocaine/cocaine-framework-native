@@ -29,10 +29,10 @@ public:
     }
 
     ~worker_upstream_t() {
-       if (!closed()) {
-           close();
-       }
-   }
+        if (!closed()) {
+            close();
+        }
+    }
 
     void
     write(const char * chunk,
@@ -104,6 +104,28 @@ public:
     }
 };
 
+struct ioservice_executor_t {
+    ioservice_executor_t(cocaine::io::reactor_t& ioservice) :
+        m_ioservice(ioservice)
+    {
+        // pass
+    }
+
+    ioservice_executor_t(const ioservice_executor_t& other) :
+        m_ioservice(other.m_ioservice)
+    {
+        // pass
+    }
+
+    void
+    operator()(const std::function<void()>& f) {
+        m_ioservice.post(f);
+    }
+
+private:
+    cocaine::io::reactor_t& m_ioservice;
+};
+
 } // namespace
 
 worker_t::worker_t(const std::string& name,
@@ -115,11 +137,6 @@ worker_t::worker_t(const std::string& name,
     m_disown_timer(m_ioservice.native()),
     m_app_name(name)
 {
-    m_service_manager.reset(
-        new service_manager_t(m_ioservice, cocaine::format("app/%s", name), resolver_port)
-    );
-    m_log = m_service_manager->get_system_logger();
-
     auto socket = std::make_shared<io::socket<io::local>>(io::local::endpoint(endpoint));
     m_channel.reset(new io::channel<io::socket<io::local>>(m_ioservice, socket));
     m_channel->rd->bind(std::bind(&worker_t::on_message, this, std::placeholders::_1),
@@ -136,6 +153,13 @@ worker_t::worker_t(const std::string& name,
 
     // Set the lowest priority for the disown timer.
     m_disown_timer.priority = EV_MINPRI;
+
+    m_service_manager = service_manager_t::create(
+        cocaine::io::tcp::endpoint("127.0.0.1", resolver_port),
+        cocaine::format("app/%s", name),
+        ioservice_executor_t(m_ioservice)
+    );
+    m_log = m_service_manager->get_system_logger();
 }
 
 worker_t::~worker_t() {
@@ -156,7 +180,7 @@ worker_t::on_message(const io::message_t& message) {
             message.as<io::rpc::invoke>(event);
 
             COCAINE_LOG_DEBUG(m_log,
-                              "worker %s invoking session %s with event '%s'",
+                              "worker %s invoking session %d with event '%s'",
                               m_id,
                               message.band(),
                               event);

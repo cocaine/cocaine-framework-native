@@ -1,7 +1,7 @@
 #ifndef COCAINE_FRAMEWORK_BASIC_APPLICATION_HPP
 #define COCAINE_FRAMEWORK_BASIC_APPLICATION_HPP
 
-#include <cocaine/framework/service_manager.hpp>
+#include <cocaine/framework/service.hpp>
 
 #include <cocaine/framework/upstream.hpp>
 
