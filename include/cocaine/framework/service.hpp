@@ -39,76 +39,14 @@ namespace detail { namespace service {
         void
         handle_message(const cocaine::io::message_t&) = 0;
 
-<<<<<<< HEAD
-    template<class Result>
-    struct message_handler {
-        typedef std::function<void(const Result&)> type;
-
-        struct empty_handler {
-            void
-            operator()(const Result&)
-            {
-                // pass
-            }
-        };
-
-        template<class F>
-        static inline
-=======
         virtual
->>>>>>> new_futures
         void
         error(std::exception_ptr e) = 0;
     };
 
-<<<<<<< HEAD
-    template<class... Args>
-    struct message_handler<std::tuple<Args...>>
-    {
-        typedef std::function<void(const typename std::decay<Args>::type&...)>
-                type;
-
-        struct empty_handler {
-            void
-            operator()(const typename std::decay<Args>::type&...) {
-                // pass
-            }
-        };
-
-        template<int Size, int... Positions>
-        struct apply_impl :
-            public apply_impl<Size + 1, Positions..., Size>
-        {
-            // pass
-        };
-
-        template<int... Positions>
-        struct apply_impl<sizeof...(Args), Positions...> {
-            static
-            inline
-            void
-            invoke(const type& f,
-                   const std::tuple<Args...>& t)
-            {
-                f(std::get<Positions>(t)...);
-            }
-        };
-
-        template<class F>
-        static inline
-        void
-        apply(const F& fun,
-              const msgpack::object& message)
-        {
-            std::tuple<Args...> args;
-            cocaine::io::type_traits<std::tuple<Args...>>::unpack(message, args);
-            apply_impl<0>::invoke(fun, args);
-        }
-=======
     template<template<class...> class Wrapper, class... Args>
     struct wrapper_traits {
         typedef Wrapper<Args...> type;
->>>>>>> new_futures
     };
 
     template<template<class...> class Wrapper, class... Args>
@@ -501,6 +439,7 @@ template<class Event, typename... Args>
 typename service_traits<Event>::future_type
 service_connection_t::call(Args&&... args) {
     std::unique_lock<std::recursive_mutex> lock(m_handlers_lock);
+    typename service_traits<Event>::future_type f;
     if (m_connection_status == status_t::disconnected) {
         throw service_error_t(service_errc::not_connected);
     } else if (m_connection_status == status_t::connecting && m_throw_when_reconnecting) {
@@ -510,7 +449,7 @@ service_connection_t::call(Args&&... args) {
     } else {
         // prepare future
         auto h = std::make_shared<detail::service::service_handler<Event>>();
-        auto f = h->get_future();
+        f = h->get_future();
         if (m_use_default_executor) {
             f.set_default_executor(manager()->m_default_executor);
         }
@@ -519,9 +458,8 @@ service_connection_t::call(Args&&... args) {
         session_id_t current_session = m_session_counter++;
         m_handlers[current_session] = h;
         m_channel->wr->write<Event>(current_session, std::forward<Args>(args)...);
-
-        return f;
     }
+    return f;
 }
 
 struct service_t {
