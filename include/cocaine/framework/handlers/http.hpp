@@ -254,7 +254,9 @@ http_handler<App>::send_response(const http_response& r) {
         response()->write(buffer.data(), buffer.size());
 
         if (r.body()) {
-            response()->write(r.body()->data(), r.body()->size());
+            buffer.clear();
+            pk << r.body().get();
+            response()->write(buffer->data(), buffer->size());
         }
 
         response()->close();
