@@ -1,7 +1,7 @@
 #ifndef COCAINE_FRAMEWORK_HANDLERS_HTTP_HPP
 #define COCAINE_FRAMEWORK_HANDLERS_HTTP_HPP
 
-#include <cocaine/framework/application.hpp>
+#include <cocaine/framework/handler.hpp>
 
 #include <msgpack.hpp>
 
@@ -203,7 +203,7 @@ template<class App>
 struct http_handler :
     public cocaine::framework::handler<App>
 {
-    http_handler(std::shared_ptr<App> a) :
+    http_handler(App *a) :
         cocaine::framework::handler<App>(a)
     {
         // pass

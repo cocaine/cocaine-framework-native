@@ -34,9 +34,8 @@ LINK_DIRECTORIES(
     ${LIBCOCAINE_LIBRARY_DIRS})
 
 ADD_LIBRARY(cocaine-framework SHARED
-    src/basic_application
     src/service
-    src/worker
+    src/dispatcher
     src/future
     src/handlers/functional
     src/handlers/http)

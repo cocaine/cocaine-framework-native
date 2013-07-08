@@ -7,16 +7,19 @@
 
 namespace cocaine { namespace framework {
 
-class socket_error_t :
-    public std::runtime_error
-{
-public:
-    explicit socket_error_t(const std::string& what) :
-        std::runtime_error(what)
-    {
-        // pass
+template<class Exception>
+std::exception_ptr
+make_exception_ptr(const Exception& e) {
+    try {
+        throw e;
+    } catch (...) {
+        return std::current_exception();
     }
-};
+}
+
+template<class T>
+T&&
+declval();
 
 template<class T>
 void

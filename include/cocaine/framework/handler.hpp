@@ -12,22 +12,11 @@
 
 namespace cocaine { namespace framework {
 
-class bad_factory_exception_t :
+class factory_error_t :
     public std::runtime_error
 {
 public:
-    explicit bad_factory_exception_t(const std::string& what) :
-        runtime_error(what)
-    {
-        // pass
-    }
-};
-
-class handler_error_t :
-    public std::runtime_error
-{
-public:
-    explicit handler_error_t(const std::string& what) :
+    explicit factory_error_t(const std::string& what) :
         runtime_error(what)
     {
         // pass
@@ -37,8 +26,7 @@ public:
 class basic_handler_t {
     COCAINE_DECLARE_NONCOPYABLE(basic_handler_t)
 
-    friend class basic_application_t;
-    friend class worker_t;
+    friend class dispatcher_t;
 
 public:
 
@@ -66,7 +54,9 @@ public:
 
     virtual
     void
-    on_error(int /* code */, const std::string& /* message */) {
+    on_error(int /* code */,
+             const std::string& /* message */)
+    {
         // pass
     }
 
@@ -109,40 +99,54 @@ public:
     make_handler() = 0;
 };
 
-class basic_application_t
-{
-    typedef std::map<std::string, std::shared_ptr<basic_factory_t>>
-            handlers_map;
-public:
-    basic_application_t(std::shared_ptr<service_manager_t> service_manager);
 
-    virtual
-    ~basic_application_t() {
+template<class App>
+struct handler :
+    public basic_handler_t
+{
+    typedef App application_type;
+
+    handler(application_type *app) :
+        m_app(app)
+    {
         // pass
     }
 
-    virtual
-    std::shared_ptr<basic_handler_t>
-    invoke(const std::string& event,
-           std::shared_ptr<upstream_t> response);
-
-    std::shared_ptr<service_manager_t>
-    service_manager() const {
-        return m_service_manager;
+protected:
+    application_type*
+    app() const {
+        return m_app;
     }
 
-    void
-    on(const std::string& event,
-       std::shared_ptr<basic_factory_t> factory);
+private:
+    application_type *m_app;
+};
 
-    void
-    on_unregistered(std::shared_ptr<basic_factory_t> factory);
+template<class Handler>
+class handler_factory :
+    public basic_factory_t
+{
+    typedef typename Handler::application_type application_type;
+
+public:
+    handler_factory(application_type *app) :
+        m_app(app)
+    {
+        // pass
+    }
+
+    std::shared_ptr<basic_handler_t>
+    make_handler();
 
 private:
-    std::shared_ptr<service_manager_t> m_service_manager;
-    handlers_map m_handlers;
-    std::shared_ptr<basic_factory_t> m_default_handler;
+    application_type *m_app;
 };
+
+template<class Handler>
+std::shared_ptr<basic_handler_t>
+handler_factory<Handler>::make_handler() {
+    return std::make_shared<Handler>(m_app);
+}
 
 }} // namespace cocaine::framework
 

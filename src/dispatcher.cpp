@@ -1,4 +1,4 @@
-#include <cocaine/framework/worker.hpp>
+#include <cocaine/framework/dispatcher.hpp>
 
 #include <cocaine/messages.hpp>
 
@@ -7,11 +7,8 @@
 #include <iostream>
 #include <boost/program_options.hpp>
 
-using namespace cocaine;
-using namespace cocaine::framework;
-
-namespace {
-class worker_upstream_t:
+namespace cocaine { namespace framework { namespace detail {
+class dispatcher_upstream_t:
     public upstream_t
 {
     enum class state_t: int {
@@ -19,16 +16,16 @@ class worker_upstream_t:
         closed
     };
 public:
-    worker_upstream_t(uint64_t id,
-                      worker_t * const worker):
+    dispatcher_upstream_t(uint64_t id,
+                          dispatcher_t * const dispatcher):
         m_id(id),
-        m_worker(worker),
+        m_dispatcher(dispatcher),
         m_state(state_t::open)
     {
         // pass
     }
 
-    ~worker_upstream_t() {
+    ~dispatcher_upstream_t() {
         if (!closed()) {
             close();
         }
@@ -40,7 +37,7 @@ public:
     {
         std::lock_guard<std::mutex> lock(m_closed_lock);
         if (m_state == state_t::closed) {
-            throw std::runtime_error("The stream has been closed.");
+            throw std::runtime_error("The stream has been closed");
         } else {
             send<io::rpc::chunk>(std::string(chunk, size));
         }
@@ -52,7 +49,7 @@ public:
     {
         std::lock_guard<std::mutex> lock(m_closed_lock);
         if (m_state == state_t::closed) {
-            throw std::runtime_error("The stream has been closed.");
+            throw std::runtime_error("The stream has been closed");
         } else {
             m_state = state_t::closed;
             send<io::rpc::error>(code, message);
@@ -80,29 +77,28 @@ private:
     template<class Event, typename... Args>
     void
     send(Args&&... args) {
-        m_worker->send<Event>(m_id, std::forward<Args>(args)...);
+        m_dispatcher->send<Event>(m_id, std::forward<Args>(args)...);
     }
 
 private:
     const uint64_t m_id;
-    worker_t * const m_worker;
+    dispatcher_t * const m_dispatcher;
     state_t m_state;
 
     std::mutex m_closed_lock;
 };
 
-class killer_t {
-public:
-    killer_t()
-    {
-        // pass
-    }
+}}} // namespace cocaine::framework::detail
 
-    void
-    operator()(const std::error_code& code) {
-        throw socket_error_t(cocaine::format("socket error with code %d in worker", code));
-    }
-};
+using namespace cocaine;
+using namespace cocaine::framework;
+
+namespace {
+
+void
+on_socket_error(const std::error_code& code) {
+    throw std::system_error(code);
+}
 
 struct ioservice_executor_t {
     ioservice_executor_t(cocaine::io::reactor_t& ioservice) :
@@ -128,28 +124,28 @@ private:
 
 } // namespace
 
-worker_t::worker_t(const std::string& name,
-                   const std::string& uuid,
-                   const std::string& endpoint,
-                   uint16_t resolver_port):
+dispatcher_t::dispatcher_t(const std::string& name,
+                           const std::string& uuid,
+                           const std::string& endpoint,
+                           uint16_t resolver_port):
     m_id(uuid),
+    m_app_name(name),
     m_heartbeat_timer(m_ioservice.native()),
-    m_disown_timer(m_ioservice.native()),
-    m_app_name(name)
+    m_disown_timer(m_ioservice.native())
 {
     auto socket = std::make_shared<io::socket<io::local>>(io::local::endpoint(endpoint));
     m_channel.reset(new io::channel<io::socket<io::local>>(m_ioservice, socket));
-    m_channel->rd->bind(std::bind(&worker_t::on_message, this, std::placeholders::_1),
-                        killer_t());
-    m_channel->wr->bind(killer_t());
+    m_channel->rd->bind(std::bind(&dispatcher_t::on_message, this, std::placeholders::_1),
+                        &on_socket_error);
+    m_channel->wr->bind(&on_socket_error);
 
     // Greet the engine!
     send<io::rpc::handshake>(0ul, m_id);
 
-    m_heartbeat_timer.set<worker_t, &worker_t::on_heartbeat>(this);
+    m_heartbeat_timer.set<dispatcher_t, &dispatcher_t::on_heartbeat>(this);
     m_heartbeat_timer.start(0.0f, 5.0f);
 
-    m_disown_timer.set<worker_t, &worker_t::on_disown>(this);
+    m_disown_timer.set<dispatcher_t, &dispatcher_t::on_disown>(this);
 
     // Set the lowest priority for the disown timer.
     m_disown_timer.priority = EV_MINPRI;
@@ -159,16 +155,13 @@ worker_t::worker_t(const std::string& name,
         cocaine::format("app/%s", name),
         ioservice_executor_t(m_ioservice)
     );
-    m_log = m_service_manager->get_system_logger();
-}
-
-worker_t::~worker_t() {
-    // pass
 }
 
 void
-worker_t::on_message(const io::message_t& message) {
-    COCAINE_LOG_DEBUG(m_log, "worker %s received type %d message", m_id, message.id());
+dispatcher_t::on_message(const io::message_t& message) {
+    COCAINE_LOG_DEBUG(service_manager()->get_system_logger(),
+                      "worker %s received type %d message",
+                      m_id, message.id());
 
     switch(message.id()) {
         case io::event_traits<io::rpc::heartbeat>::id: {
@@ -179,23 +172,19 @@ worker_t::on_message(const io::message_t& message) {
             std::string event;
             message.as<io::rpc::invoke>(event);
 
-            COCAINE_LOG_DEBUG(m_log,
+            COCAINE_LOG_DEBUG(service_manager()->get_system_logger(),
                               "worker %s invoking session %d with event '%s'",
                               m_id,
                               message.band(),
                               event);
 
-            std::shared_ptr<worker_upstream_t> upstream(
-                std::make_shared<worker_upstream_t>(message.band(), this)
+            std::shared_ptr<detail::dispatcher_upstream_t> upstream(
+                std::make_shared<detail::dispatcher_upstream_t>(message.band(), this)
             );
 
             try {
-                io_pair_t io = {
-                    upstream,
-                    m_application->invoke(event, upstream)
-                };
-
-                m_streams.insert(std::make_pair(message.band(), io));
+                io_pair_t session = {upstream, invoke(event, upstream)};
+                m_sessions.insert(std::make_pair(message.band(), session));
             } catch(const std::exception& e) {
                 upstream->error(invocation_error, e.what());
             } catch(...) {
@@ -208,30 +197,30 @@ worker_t::on_message(const io::message_t& message) {
             std::string chunk;
             message.as<io::rpc::chunk>(chunk);
 
-            stream_map_t::iterator it(m_streams.find(message.band()));
+            stream_map_t::iterator it = m_sessions.find(message.band());
 
             // NOTE: This may be a chunk for a failed invocation, in which case there
             // will be no active stream, so drop the message.
-            if(it != m_streams.end()) {
+            if(it != m_sessions.end()) {
                 try {
                     it->second.handler->on_chunk(chunk.data(), chunk.size());
                 } catch(const std::exception& e) {
                     it->second.upstream->error(invocation_error, e.what());
-                    m_streams.erase(it);
+                    m_sessions.erase(it);
                 } catch(...) {
                     it->second.upstream->error(invocation_error, "unexpected exception");
-                    m_streams.erase(it);
+                    m_sessions.erase(it);
                 }
             }
 
             break;
         }
         case io::event_traits<io::rpc::choke>::id: {
-            stream_map_t::iterator it = m_streams.find(message.band());
+            stream_map_t::iterator it = m_sessions.find(message.band());
 
             // NOTE: This may be a choke for a failed invocation, in which case there
             // will be no active stream, so drop the message.
-            if(it != m_streams.end()) {
+            if(it != m_sessions.end()) {
                 try {
                     it->second.handler->on_close();
                 } catch(const std::exception& e) {
@@ -240,7 +229,7 @@ worker_t::on_message(const io::message_t& message) {
                     it->second.upstream->error(invocation_error, "unexpected exception");
                 }
 
-                m_streams.erase(it);
+                m_sessions.erase(it);
             }
 
             break;
@@ -250,19 +239,19 @@ worker_t::on_message(const io::message_t& message) {
             std::string error_message;
             message.as<io::rpc::error>(ec, error_message);
 
-            stream_map_t::iterator it(m_streams.find(message.band()));
+            stream_map_t::iterator it = m_sessions.find(message.band());
 
             // NOTE: This may be a chunk for a failed invocation, in which case there
             // will be no active stream, so drop the message.
-            if(it != m_streams.end()) {
+            if(it != m_sessions.end()) {
                 try {
                     it->second.handler->on_error(ec, error_message);
                 } catch(const std::exception& e) {
                     it->second.upstream->error(invocation_error, e.what());
-                    m_streams.erase(it);
+                    m_sessions.erase(it);
                 } catch(...) {
                     it->second.upstream->error(invocation_error, "unexpected exception");
-                    m_streams.erase(it);
+                    m_sessions.erase(it);
                 }
             }
 
@@ -273,7 +262,7 @@ worker_t::on_message(const io::message_t& message) {
             break;
         }
         default: {
-            COCAINE_LOG_WARNING(m_log,
+            COCAINE_LOG_WARNING(service_manager()->get_system_logger(),
                                 "worker %s dropping unknown type %d message",
                                 m_id,
                                 message.id());
@@ -282,7 +271,7 @@ worker_t::on_message(const io::message_t& message) {
 }
 
 void
-worker_t::on_heartbeat(ev::timer&,
+dispatcher_t::on_heartbeat(ev::timer&,
                        int)
 {
     send<io::rpc::heartbeat>(0ul);
@@ -290,37 +279,66 @@ worker_t::on_heartbeat(ev::timer&,
 }
 
 void
-worker_t::on_disown(ev::timer&,
+dispatcher_t::on_disown(ev::timer&,
                     int)
 {
-    COCAINE_LOG_ERROR(m_log, "worker %s has lost the controlling engine", m_id);
+    COCAINE_LOG_ERROR(service_manager()->get_system_logger(),
+                      "worker %s has lost the controlling engine",
+                      m_id);
     m_ioservice.native().unloop(ev::ALL);
 }
 
 void
-worker_t::terminate(int code,
+dispatcher_t::terminate(int code,
                     const std::string& reason)
 {
     send<io::rpc::terminate>(0ul, static_cast<io::rpc::terminate::code>(code), reason);
     m_ioservice.native().unloop(ev::ALL);
 }
 
-int
-worker_t::run() {
-    if (m_application) {
-        m_ioservice.run();
-        return 0;
-    }
-    else {
-        terminate(cocaine::io::rpc::terminate::abnormal,
-                  "Application object has not been created.");
-        return 1;
+void
+dispatcher_t::run() {
+    m_ioservice.run();
+    m_service_manager->stop();
+    m_sessions.clear();
+}
+
+void
+dispatcher_t::on(const std::string& event,
+                 std::shared_ptr<basic_factory_t> factory)
+{
+    m_handlers[event] = factory;
+}
+
+void
+dispatcher_t::on_unregistered(std::shared_ptr<basic_factory_t> factory) {
+    m_default_handler = factory;
+}
+
+std::shared_ptr<basic_handler_t>
+dispatcher_t::invoke(const std::string& event,
+                     std::shared_ptr<upstream_t> response)
+{
+    auto it = m_handlers.find(event);
+
+    if (it != m_handlers.end()) {
+        std::shared_ptr<basic_handler_t> new_handler = it->second->make_handler();
+        new_handler->invoke(event, response);
+        return new_handler;
+    } else if (m_default_handler) {
+        std::shared_ptr<basic_handler_t> new_handler = m_default_handler->make_handler();
+        new_handler->invoke(event, response);
+        return new_handler;
+    } else {
+        throw std::runtime_error(
+            cocaine::format("Unrecognized event '%s' has been accepted", event)
+        );
     }
 }
 
-std::shared_ptr<worker_t>
-worker_t::create(int argc,
-                 char *argv[])
+std::shared_ptr<dispatcher_t>
+dispatcher_t::create(int argc,
+                     char *argv[])
 {
     using namespace boost::program_options;
 
@@ -333,16 +351,11 @@ worker_t::create(int argc,
         ("endpoint", value<std::string>())
         ("locator", value<uint16_t>());
 
-    try {
-        command_line_parser parser(argc, argv);
-        parser.options(options);
-        parser.allow_unregistered();
-        store(parser.run(), vm);
-        notify(vm);
-    } catch(const std::exception& e) {
-        std::cerr << "ERROR: " << e.what() << std::endl;
-        throw 1;
-    }
+    command_line_parser parser(argc, argv);
+    parser.options(options);
+    parser.allow_unregistered();
+    store(parser.run(), vm);
+    notify(vm);
 
     if (vm.count("app") == 0 ||
         vm.count("uuid") == 0 ||
@@ -350,25 +363,17 @@ worker_t::create(int argc,
         vm.count("locator") == 0)
     {
         std::cerr << "This is an application for Cocaine Engine. You can not run it like an ordinary application. Upload it in Cocaine." << std::endl;
-        throw 1;
+        throw std::runtime_error("Invalid command line options");
     }
 
     // Block the deprecated signals.
-
     sigset_t signals;
-
     sigemptyset(&signals);
     sigaddset(&signals, SIGPIPE);
-
     ::sigprocmask(SIG_BLOCK, &signals, nullptr);
 
-    try {
-        return std::shared_ptr<worker_t>(new worker_t(vm["app"].as<std::string>(),
-                                                      vm["uuid"].as<std::string>(),
-                                                      vm["endpoint"].as<std::string>(),
-                                                      vm["locator"].as<uint16_t>()));
-    } catch(const std::exception& e) {
-        std::cerr << cocaine::format("ERROR: unable to start the worker - %s", e.what()) << std::endl;
-        throw 1;
-    }
+    return std::shared_ptr<dispatcher_t>(new dispatcher_t(vm["app"].as<std::string>(),
+                                                          vm["uuid"].as<std::string>(),
+                                                          vm["endpoint"].as<std::string>(),
+                                                          vm["locator"].as<uint16_t>()));
 }
