@@ -1,11 +1,10 @@
 #ifndef COCAINE_FRAMEWORK_FUTURE_HPP
 #define COCAINE_FRAMEWORK_FUTURE_HPP
 
-#include <cocaine/framework/future_error.hpp>
-#include <cocaine/framework/common.hpp>
-
 #include <cocaine/common.hpp>
-#include <cocaine/detail/atomic.hpp>
+
+#include <cocaine/framework/common.hpp>
+#include <cocaine/framework/future_error.hpp>
 
 #include <functional>
 #include <memory>

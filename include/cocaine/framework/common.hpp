@@ -1,9 +1,18 @@
 #ifndef COCAINE_FRAMEWORK_COMMON_HPP
 #define COCAINE_FRAMEWORK_COMMON_HPP
 
-#include <msgpack.hpp>
+#include "cocaine/platform.hpp"
+
+#if defined(__clang__) || defined(HAVE_GCC46)
+    #include <atomic>
+#else
+    #include <cstdatomic>
+#endif
+
 #include <stdexcept>
 #include <exception>
+
+#include <msgpack.hpp>
 
 namespace cocaine { namespace framework {
 
