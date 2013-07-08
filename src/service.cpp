@@ -130,7 +130,7 @@ service_connection_t::reset_sessions() {
 
     for (auto it = handlers.begin(); it != handlers.end(); ++it) {
         try {
-            it->second->error(detail::future::make_exception_ptr(err));
+            it->second->error(cocaine::framework::make_exception_ptr(err));
         } catch (...) {
             // optimize it
         }
@@ -294,7 +294,8 @@ service_connection_t::on_message(const cocaine::io::message_t& message) {
     }
 }
 
-service_manager_t::~service_manager_t() {
+void
+service_manager_t::stop() {
     if (m_working_thread.joinable()) {
         m_ioservice.post(std::bind(&cocaine::io::reactor_t::stop, &m_ioservice));
         m_working_thread.join();

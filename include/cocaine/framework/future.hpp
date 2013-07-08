@@ -2,14 +2,10 @@
 #define COCAINE_FRAMEWORK_FUTURE_HPP
 
 #include <cocaine/framework/future_error.hpp>
+#include <cocaine/framework/common.hpp>
 
 #include <cocaine/common.hpp>
-
-#if defined(__GNUC__) && __GNUC__ == 4 && __GNUC_MINOR__ == 4
-    #include <cstdatomic>
-#else
-    #include <atomic>
-#endif
+#include <cocaine/detail/atomic.hpp>
 
 #include <functional>
 #include <memory>
@@ -21,10 +17,6 @@
 #include <condition_variable>
 #include <utility>
 #include <exception>
-
-#if !defined(HAVE_GCC46) && !defined(nullptr)
-#define nullptr ((void*)0)
-#endif
 
 namespace cocaine { namespace framework {
 
@@ -38,20 +30,6 @@ template<class ... Args>
 struct future;
 
 namespace detail { namespace future {
-
-    template<class Exception>
-    std::exception_ptr
-    make_exception_ptr(const Exception& e) {
-        try {
-            throw e;
-        } catch (...) {
-            return std::current_exception();
-        }
-    }
-
-    template<class T>
-    T&&
-    declval();
 
     template<class ... Args>
     struct promise_base;
@@ -268,7 +246,7 @@ namespace detail { namespace future {
         ~promise_base() {
             if (m_state) {
                 m_state->try_set_exception(
-                    cocaine::framework::detail::future::make_exception_ptr(future_error(future_errc::broken_promise))
+                    cocaine::framework::make_exception_ptr(future_error(future_errc::broken_promise))
                 );
             }
         }
@@ -293,7 +271,7 @@ namespace detail { namespace future {
         set_exception(const Exception& e) {
             if (m_state) {
                 m_state->set_exception(
-                    cocaine::framework::detail::future::make_exception_ptr(e)
+                    cocaine::framework::make_exception_ptr(e)
                 );
             } else {
                 throw future_error(future_errc::no_state);
@@ -405,8 +383,10 @@ namespace detail { namespace future {
     // written directly in signature of function.
     template<class F, class... Args>
     struct unwrapped_result {
-        typedef decltype(declval<F>()(declval<Args>()...)) result_type;
-        typedef typename unwrapper<cocaine::framework::future<result_type>>::unwrapped_type type;
+        typedef decltype(cocaine::framework::declval<F>()(cocaine::framework::declval<Args>()...))
+                result_type;
+        typedef typename unwrapper<cocaine::framework::future<result_type>>::unwrapped_type
+                type;
     };
 
     // helper to call packed task

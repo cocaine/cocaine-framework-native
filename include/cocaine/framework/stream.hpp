@@ -595,7 +595,7 @@ generator<Args...>::map(executor_t executor,
 
     auto old_state = this->m_state;
 
-    typedef decltype(callback(detail::future::declval<future<Args...>&>())) result_type;
+    typedef decltype(callback(cocaine::framework::declval<future<Args...>&>())) result_type;
 
     auto task = detail::stream::map_callback<result_type, Args...>(executor,
                                                                    std::forward<F>(callback),
@@ -665,7 +665,7 @@ struct stream {
     set_exception(const Exception& e) {
         if (m_state) {
             m_state->set_exception(
-                detail::future::make_exception_ptr(e)
+                cocaine::framework::make_exception_ptr(e)
             );
         } else {
             throw future_error(future_errc::no_state);

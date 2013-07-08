@@ -348,7 +348,12 @@ public:
         return manager;
     }
 
-    ~service_manager_t();
+    void
+    stop();
+
+    ~service_manager_t() {
+        stop();
+    }
 
     template<class Service, typename... Args>
     std::shared_ptr<Service>

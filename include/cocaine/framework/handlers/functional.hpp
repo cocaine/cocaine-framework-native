@@ -1,7 +1,7 @@
 #ifndef COCAINE_FRAMEWORK_HANDLERS_FUNCTIONAL_HPP
 #define COCAINE_FRAMEWORK_HANDLERS_FUNCTIONAL_HPP
 
-#include <cocaine/framework/basic_application.hpp>
+#include <cocaine/framework/handler.hpp>
 
 #include <string>
 #include <vector>
