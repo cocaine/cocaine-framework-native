@@ -1,5 +1,4 @@
-#include <cocaine/framework/worker.hpp>
-#include <cocaine/framework/application.hpp>
+#include <cocaine/framework/dispatcher.hpp>
 #include <cocaine/framework/services/storage.hpp>
 
 #include <iostream>
@@ -8,14 +7,12 @@
 #include <vector>
 #include <cstdlib>
 
-class App1 :
-    public cocaine::framework::application<App1>
-{
+class App1 {
     struct on_event1 :
         public cocaine::framework::handler<App1>,
         public std::enable_shared_from_this<on_event1>
     {
-        on_event1(std::shared_ptr<App1> a) :
+        on_event1(App1 *a) :
             cocaine::framework::handler<App1>(a)
         {
             // pass
@@ -25,59 +22,38 @@ class App1 :
         on_chunk(const char *chunk,
                  size_t size)
         {
-            std::cout << "request: " << std::string(chunk, size) << std::endl;
-
-            auto error_handler = std::bind(&on_event1::on_error,
-                                           shared_from_this(),
-                                           std::placeholders::_1,
-                                           std::placeholders::_2);
-
-            app()->m_storage->read("testtest", "testkey")
-                .on_message(std::bind(&on_event1::on_read, shared_from_this(), std::placeholders::_1))
-                .on_error(error_handler);
+            auto generator = app()->m_storage->read(
+                "namespace",
+                "key." + cocaine::framework::unpack<std::string>(chunk, size)
+            );
+            generator.then(std::bind(&on_event1::send_resp, shared_from_this(), std::placeholders::_1));
         }
 
         void
-        on_error(int code,
-                 const std::string& message)
-        {
-            std::cerr << "ERROR: " << code << ", " << message << std::endl;
-            COCAINE_LOG_ERROR(app()->m_log, "ERROR: %d: %s", code, message);
-        }
-
-        void
-        on_read(const std::string& value) {
-            std::cout << "on_read: " << value << std::endl;
-            response()->write(value);
+        send_resp(cocaine::framework::generator<std::string>& g) {
+            response()->write(g.next());
             response()->close();
         }
     };
     friend class on_event1;
 
 public:
-    App1(std::shared_ptr<cocaine::framework::service_manager_t> service_manager) :
-        cocaine::framework::application<App1>(service_manager)
-    {
-        // pass
-    }
-
     void
-    initialize() {
-        m_log = service_manager()->get_system_logger();
-        create_service(m_storage, "storage");
+    init(cocaine::framework::dispatcher_t *d) {
+        m_log = d->service_manager()->get_system_logger();
+        m_storage = d->service_manager()->get_service<cocaine::framework::storage_service_t>("storage");
 
-        on<on_event1>("event1");
-        on("event2", &App1::on_event2);
+        d->on<on_event1>("event1", this);
+        d->on("event2", this, &App1::on_event2);
 
         COCAINE_LOG_WARNING(m_log, "test log");
     }
 
     void
     on_event2(const std::string& event,
-              const std::vector<std::string>& request,
+              const std::vector<std::string>& /*request*/,
               cocaine::framework::response_ptr response)
     {
-        std::cout << "on_event2:" + event << std::endl;
         response->write("on_event2:" + event);
     }
 
@@ -90,5 +66,5 @@ int
 main(int argc,
      char *argv[])
 {
-    return cocaine::framework::worker_t::run<App1>(argc, argv);
+    return cocaine::framework::run<App1>(argc, argv);
 }
