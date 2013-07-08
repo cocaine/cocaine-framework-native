@@ -35,7 +35,7 @@ LINK_DIRECTORIES(
 
 ADD_LIBRARY(cocaine-framework SHARED
     src/service
-    src/dispatcher
+    src/dispatch
     src/future
     src/handlers/functional
     src/handlers/http)

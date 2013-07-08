@@ -1,5 +1,5 @@
-#ifndef COCAINE_FRAMEWORK_DISPATCHER_HPP
-#define COCAINE_FRAMEWORK_DISPATCHER_HPP
+#ifndef COCAINE_FRAMEWORK_DISPATCH_HPP
+#define COCAINE_FRAMEWORK_DISPATCH_HPP
 
 #include <cocaine/framework/common.hpp>
 #include <cocaine/framework/service.hpp>
@@ -22,7 +22,7 @@
 namespace cocaine { namespace framework {
 
 namespace detail {
-    class dispatcher_upstream_t;
+    class dispatch_upstream_t;
 
     namespace cf = cocaine::framework;
 
@@ -38,10 +38,10 @@ namespace detail {
     };
 }
 
-class dispatcher_t {
-    COCAINE_DECLARE_NONCOPYABLE(dispatcher_t)
+class dispatch_t {
+    COCAINE_DECLARE_NONCOPYABLE(dispatch_t)
 
-    friend class detail::dispatcher_upstream_t;
+    friend class detail::dispatch_upstream_t;
 
     template<class App, typename... Args>
     friend int run(int argc, char *argv[], Args&&... args);
@@ -56,10 +56,6 @@ public:
     id() const {
         return m_id;
     }
-
-    void
-    on(const std::string& event,
-       std::shared_ptr<basic_factory_t> factory);
 
     template<class Pointer, class T>
     void
@@ -76,29 +72,16 @@ public:
     on(const std::string& event, Args&&... args);
 
     void
-    on_unregistered(std::shared_ptr<basic_factory_t> factory);
-
-    template<class Pointer, class T>
-    void
-    on_unregistered(Pointer obj,
-                    void(T::*method)(const std::string&, const std::vector<std::string>&, response_ptr));
-
-    template<class Handler, class App>
-    typename std::enable_if<std::is_base_of<handler<App>, Handler>::value>::type
-    on_unregistered(App *app);
-
-    template<class Factory, class... Args>
-    typename std::enable_if<std::is_base_of<basic_factory_t, Factory>::value>::type
-    on_unregistered(Args&&... args);
+    forget(const std::string& event);
 
 private:
-    dispatcher_t(const std::string& name,
-                 const std::string& uuid,
-                 const std::string& endpoint,
-                 uint16_t resolver_port);
+    dispatch_t(const std::string& name,
+               const std::string& uuid,
+               const std::string& endpoint,
+               uint16_t resolver_port);
 
     static
-    std::shared_ptr<dispatcher_t>
+    std::shared_ptr<dispatch_t>
     create(int argc, char *argv[]);
 
     void
@@ -107,6 +90,10 @@ private:
     template<class Event, typename... Args>
     void
     send(Args&&... args);
+
+    void
+    on(const std::string& event,
+       std::shared_ptr<basic_factory_t> factory);
 
     std::shared_ptr<basic_handler_t>
     invoke(const std::string& event,
@@ -153,21 +140,19 @@ private:
     std::shared_ptr<service_manager_t> m_service_manager;
 
     handlers_map m_handlers;
-    std::shared_ptr<basic_factory_t> m_default_handler;
-
     stream_map_t m_sessions;
 };
 
 template<class Event, typename... Args>
 void
-dispatcher_t::send(Args&&... args) {
+dispatch_t::send(Args&&... args) {
     std::lock_guard<std::mutex> lock(m_send_lock);
     m_channel->wr->write<Event>(std::forward<Args>(args)...);
 }
 
 template<class Pointer, class T>
 void
-dispatcher_t::on(
+dispatch_t::on(
     const std::string& event,
     Pointer obj,
     void(T::*method)(const std::string&, const std::vector<std::string>&, response_ptr)
@@ -182,45 +167,18 @@ dispatcher_t::on(
 
 template<class Handler, class App>
 typename std::enable_if<std::is_base_of<handler<App>, Handler>::value>::type
-dispatcher_t::on(const std::string& event,
-                 App *app)
+dispatch_t::on(const std::string& event,
+               App *app)
 {
     this->on<handler_factory<Handler>>(event, app);
 }
 
 template<class Factory, class... Args>
 typename std::enable_if<std::is_base_of<basic_factory_t, Factory>::value>::type
-dispatcher_t::on(const std::string& event,
-                 Args&&... args)
+dispatch_t::on(const std::string& event,
+               Args&&... args)
 {
     this->on(event, std::make_shared<Factory>(std::forward<Args>(args)...));
-}
-
-template<class Pointer, class T>
-void
-dispatcher_t::on_unregistered(
-    Pointer obj,
-    void(T::*method)(const std::string&, const std::vector<std::string>&, response_ptr)
-)
-{
-    namespace ph = std::placeholders;
-    this->on_unregistered<function_factory_t>(
-        std::bind(method, obj, ph::_1, ph::_2, ph::_3)
-    );
-}
-
-template<class Handler, class App>
-typename std::enable_if<std::is_base_of<handler<App>, Handler>::value>::type
-dispatcher_t::on_unregistered(App *app)
-{
-    this->on_unregistered<handler_factory<Handler>>(app);
-}
-
-template<class Factory, class... Args>
-typename std::enable_if<std::is_base_of<basic_factory_t, Factory>::value>::type
-dispatcher_t::on_unregistered(Args&&... args)
-{
-    this->on_unregistered(std::make_shared<Factory>(std::forward<Args>(args)...));
 }
 
 template<class App, typename... Args>
@@ -229,9 +187,9 @@ run(int argc,
     char *argv[],
     Args&&... args)
 {
-    std::shared_ptr<dispatcher_t> dispatcher;
+    std::shared_ptr<dispatch_t> dispatch;
     try {
-        dispatcher = dispatcher_t::create(argc, argv);
+        dispatch = dispatch_t::create(argc, argv);
     } catch (const std::exception& e) {
         std::cerr << "ERROR: " << e.what() << std::endl;
         return 1;
@@ -243,15 +201,15 @@ run(int argc,
     std::shared_ptr<App> app;
     try {
         app = std::make_shared<App>(std::forward<Args>(args)...);
-        app->init(dispatcher.get());
+        app->initialize(dispatch.get());
     } catch (const std::exception& e) {
-        dispatcher->terminate(
+        dispatch->terminate(
             cocaine::io::rpc::terminate::abnormal,
             cocaine::format("Error has occurred while initializing the application: %s", e.what())
         );
         throw;
     } catch (...) {
-        dispatcher->terminate(
+        dispatch->terminate(
             cocaine::io::rpc::terminate::abnormal,
             "Unknown error has occurred while initializing the application"
         );
@@ -259,7 +217,7 @@ run(int argc,
     }
 
     try {
-        dispatcher->run();
+        dispatch->run();
         return 0;
     } catch (const std::exception& e) {
         std::cerr << "ERROR: " << e.what() << std::endl;
@@ -269,4 +227,4 @@ run(int argc,
 
 }} // namespace cocaine::framework
 
-#endif // COCAINE_FRAMEWORK_DISPATCHER_HPP
+#endif // COCAINE_FRAMEWORK_DISPATCH_HPP

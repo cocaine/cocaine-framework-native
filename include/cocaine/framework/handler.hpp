@@ -26,7 +26,7 @@ public:
 class basic_handler_t {
     COCAINE_DECLARE_NONCOPYABLE(basic_handler_t)
 
-    friend class dispatcher_t;
+    friend class dispatch_t;
 
 public:
 

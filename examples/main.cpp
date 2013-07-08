@@ -1,4 +1,4 @@
-#include <cocaine/framework/dispatcher.hpp>
+#include <cocaine/framework/dispatch.hpp>
 #include <cocaine/framework/services/storage.hpp>
 
 #include <iostream>
@@ -39,7 +39,7 @@ class App1 {
 
 public:
     void
-    init(cocaine::framework::dispatcher_t *d) {
+    initialize(cocaine::framework::dispatch_t *d) {
         m_log = d->service_manager()->get_system_logger();
         m_storage = d->service_manager()->get_service<cocaine::framework::storage_service_t>("storage");
 

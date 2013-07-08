@@ -1,4 +1,4 @@
-#include <cocaine/framework/dispatcher.hpp>
+#include <cocaine/framework/dispatch.hpp>
 
 #include <cocaine/messages.hpp>
 
@@ -8,7 +8,7 @@
 #include <boost/program_options.hpp>
 
 namespace cocaine { namespace framework { namespace detail {
-class dispatcher_upstream_t:
+class dispatch_upstream_t:
     public upstream_t
 {
     enum class state_t: int {
@@ -16,16 +16,16 @@ class dispatcher_upstream_t:
         closed
     };
 public:
-    dispatcher_upstream_t(uint64_t id,
-                          dispatcher_t * const dispatcher):
+    dispatch_upstream_t(uint64_t id,
+                        dispatch_t * const dispatch):
         m_id(id),
-        m_dispatcher(dispatcher),
+        m_dispatch(dispatch),
         m_state(state_t::open)
     {
         // pass
     }
 
-    ~dispatcher_upstream_t() {
+    ~dispatch_upstream_t() {
         if (!closed()) {
             close();
         }
@@ -77,12 +77,12 @@ private:
     template<class Event, typename... Args>
     void
     send(Args&&... args) {
-        m_dispatcher->send<Event>(m_id, std::forward<Args>(args)...);
+        m_dispatch->send<Event>(m_id, std::forward<Args>(args)...);
     }
 
 private:
     const uint64_t m_id;
-    dispatcher_t * const m_dispatcher;
+    dispatch_t * const m_dispatch;
     state_t m_state;
 
     std::mutex m_closed_lock;
@@ -124,10 +124,10 @@ private:
 
 } // namespace
 
-dispatcher_t::dispatcher_t(const std::string& name,
-                           const std::string& uuid,
-                           const std::string& endpoint,
-                           uint16_t resolver_port):
+dispatch_t::dispatch_t(const std::string& name,
+                       const std::string& uuid,
+                       const std::string& endpoint,
+                       uint16_t resolver_port):
     m_id(uuid),
     m_app_name(name),
     m_heartbeat_timer(m_ioservice.native()),
@@ -135,17 +135,17 @@ dispatcher_t::dispatcher_t(const std::string& name,
 {
     auto socket = std::make_shared<io::socket<io::local>>(io::local::endpoint(endpoint));
     m_channel.reset(new io::channel<io::socket<io::local>>(m_ioservice, socket));
-    m_channel->rd->bind(std::bind(&dispatcher_t::on_message, this, std::placeholders::_1),
+    m_channel->rd->bind(std::bind(&dispatch_t::on_message, this, std::placeholders::_1),
                         &on_socket_error);
     m_channel->wr->bind(&on_socket_error);
 
     // Greet the engine!
     send<io::rpc::handshake>(0ul, m_id);
 
-    m_heartbeat_timer.set<dispatcher_t, &dispatcher_t::on_heartbeat>(this);
+    m_heartbeat_timer.set<dispatch_t, &dispatch_t::on_heartbeat>(this);
     m_heartbeat_timer.start(0.0f, 5.0f);
 
-    m_disown_timer.set<dispatcher_t, &dispatcher_t::on_disown>(this);
+    m_disown_timer.set<dispatch_t, &dispatch_t::on_disown>(this);
 
     // Set the lowest priority for the disown timer.
     m_disown_timer.priority = EV_MINPRI;
@@ -158,7 +158,7 @@ dispatcher_t::dispatcher_t(const std::string& name,
 }
 
 void
-dispatcher_t::on_message(const io::message_t& message) {
+dispatch_t::on_message(const io::message_t& message) {
     COCAINE_LOG_DEBUG(service_manager()->get_system_logger(),
                       "worker %s received type %d message",
                       m_id, message.id());
@@ -178,8 +178,8 @@ dispatcher_t::on_message(const io::message_t& message) {
                               message.band(),
                               event);
 
-            std::shared_ptr<detail::dispatcher_upstream_t> upstream(
-                std::make_shared<detail::dispatcher_upstream_t>(message.band(), this)
+            std::shared_ptr<detail::dispatch_upstream_t> upstream(
+                std::make_shared<detail::dispatch_upstream_t>(message.band(), this)
             );
 
             try {
@@ -271,16 +271,16 @@ dispatcher_t::on_message(const io::message_t& message) {
 }
 
 void
-dispatcher_t::on_heartbeat(ev::timer&,
-                       int)
+dispatch_t::on_heartbeat(ev::timer&,
+                         int)
 {
     send<io::rpc::heartbeat>(0ul);
     m_disown_timer.start(60.0f);
 }
 
 void
-dispatcher_t::on_disown(ev::timer&,
-                    int)
+dispatch_t::on_disown(ev::timer&,
+                      int)
 {
     COCAINE_LOG_ERROR(service_manager()->get_system_logger(),
                       "worker %s has lost the controlling engine",
@@ -289,44 +289,40 @@ dispatcher_t::on_disown(ev::timer&,
 }
 
 void
-dispatcher_t::terminate(int code,
-                    const std::string& reason)
+dispatch_t::terminate(int code,
+                      const std::string& reason)
 {
     send<io::rpc::terminate>(0ul, static_cast<io::rpc::terminate::code>(code), reason);
     m_ioservice.native().unloop(ev::ALL);
 }
 
 void
-dispatcher_t::run() {
+dispatch_t::run() {
     m_ioservice.run();
     m_service_manager->stop();
     m_sessions.clear();
 }
 
 void
-dispatcher_t::on(const std::string& event,
-                 std::shared_ptr<basic_factory_t> factory)
+dispatch_t::on(const std::string& event,
+               std::shared_ptr<basic_factory_t> factory)
 {
     m_handlers[event] = factory;
 }
 
 void
-dispatcher_t::on_unregistered(std::shared_ptr<basic_factory_t> factory) {
-    m_default_handler = factory;
+dispatch_t::forget(const std::string& event) {
+    m_handlers.erase(event);
 }
 
 std::shared_ptr<basic_handler_t>
-dispatcher_t::invoke(const std::string& event,
-                     std::shared_ptr<upstream_t> response)
+dispatch_t::invoke(const std::string& event,
+                   std::shared_ptr<upstream_t> response)
 {
     auto it = m_handlers.find(event);
 
     if (it != m_handlers.end()) {
         std::shared_ptr<basic_handler_t> new_handler = it->second->make_handler();
-        new_handler->invoke(event, response);
-        return new_handler;
-    } else if (m_default_handler) {
-        std::shared_ptr<basic_handler_t> new_handler = m_default_handler->make_handler();
         new_handler->invoke(event, response);
         return new_handler;
     } else {
@@ -336,9 +332,9 @@ dispatcher_t::invoke(const std::string& event,
     }
 }
 
-std::shared_ptr<dispatcher_t>
-dispatcher_t::create(int argc,
-                     char *argv[])
+std::shared_ptr<dispatch_t>
+dispatch_t::create(int argc,
+                   char *argv[])
 {
     using namespace boost::program_options;
 
@@ -372,8 +368,8 @@ dispatcher_t::create(int argc,
     sigaddset(&signals, SIGPIPE);
     ::sigprocmask(SIG_BLOCK, &signals, nullptr);
 
-    return std::shared_ptr<dispatcher_t>(new dispatcher_t(vm["app"].as<std::string>(),
-                                                          vm["uuid"].as<std::string>(),
-                                                          vm["endpoint"].as<std::string>(),
-                                                          vm["locator"].as<uint16_t>()));
+    return std::shared_ptr<dispatch_t>(new dispatch_t(vm["app"].as<std::string>(),
+                                                      vm["uuid"].as<std::string>(),
+                                                      vm["endpoint"].as<std::string>(),
+                                                      vm["locator"].as<uint16_t>()));
 }
