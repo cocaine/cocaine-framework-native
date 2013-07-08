@@ -259,7 +259,7 @@ http_handler<App>::send_response(const http_response& r) {
 
         response()->close();
     } else {
-        std::cerr << "response already closed!" << std::endl;
+        throw std::logic_error("Http response has been already sent");
     }
 }
 
