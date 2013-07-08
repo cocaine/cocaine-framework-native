@@ -1,4 +1,4 @@
-#include <cocaine/framework/services/application.hpp>
+#include <cocaine/framework/services/app.hpp>
 #include <cocaine/framework/services/storage.hpp>
 
 #include <iostream>
@@ -22,7 +22,7 @@ main(int argc,
     auto manager = cf::service_manager_t::create(cocaine::io::tcp::endpoint("127.0.0.1", 10053));
 
     // call application
-    auto app = manager->get_service<cf::application_client_t>("app1");
+    auto app = manager->get_service<cf::app_service_t>("app1");
     auto g = app->enqueue("event5", "test"); // get generator
 
     g.map(&handler); // call handler for each chunk

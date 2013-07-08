@@ -1,5 +1,5 @@
-#ifndef COCAINE_FRAMEWORK_SERVICES_APPLICATION_HPP
-#define COCAINE_FRAMEWORK_SERVICES_APPLICATION_HPP
+#ifndef COCAINE_FRAMEWORK_SERVICES_APP_HPP
+#define COCAINE_FRAMEWORK_SERVICES_APP_HPP
 
 #include <cocaine/framework/service.hpp>
 
@@ -7,12 +7,12 @@
 
 namespace cocaine { namespace framework {
 
-struct application_client_t :
+struct app_service_t :
     public service_t
 {
     static const unsigned int version = cocaine::io::protocol<cocaine::io::app_tag>::version::value;
 
-    application_client_t(std::shared_ptr<service_connection_t> connection) :
+    app_service_t(std::shared_ptr<service_connection_t> connection) :
         service_t(connection)
     {
         // pass
@@ -28,4 +28,4 @@ struct application_client_t :
 
 }} // namespace cocaine::framework
 
-#endif // COCAINE_FRAMEWORK_SERVICES_APPLICATION_HPP
+#endif // COCAINE_FRAMEWORK_SERVICES_APP_HPP
