@@ -1,3 +1,14 @@
+cocaine-framework-native (0.10.5-0) unstable; urgency=low
+
+  * Release 10.5.
+  * New API for Services - based on streams and futures.
+  * Workerless Client API - you can now use services from any C++ code.
+  * All the base classes for apps are gone, just pass whatever class type you
+    want, the only requirement is the initialize() method.
+  * Services are now handled in a separate thread, allowing blocking calls.
+
+ -- Andrey Sibiryov <kobolog@yandex-team.ru>  Mon, 08 Jul 2013 23:17:59 +0400
+
 cocaine-framework-native (0.10.4-2) unstable; urgency=low
 
   * Compatibility release.
