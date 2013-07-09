@@ -370,7 +370,7 @@ namespace detail { namespace future {
         unwrapped_type
         unwrap(cocaine::framework::future<cocaine::framework::future<Args...>>&& fut) {
             auto new_state = std::make_shared<shared_state<Args...>>();
-            auto executor = fut.m_executor;
+            executor_t executor = fut.get_default_executor();
             fut.then(helper1(new_state));
             return future_from_state<Args...>(new_state, executor);
         }
@@ -540,6 +540,11 @@ public:
     void
     set_default_executor(const executor_t& executor) {
         m_executor = executor;
+    }
+
+    const executor_t&
+    get_default_executor() {
+        return m_executor;
     }
 
     typename detail::future::getter<Args...>::result_type
@@ -753,26 +758,6 @@ struct make_ready_future {
     typename promise<Args...>::future_type
     error(Args2&&... args) {
         promise<Args...> p;
-        p.set_exception(std::forward<Args2>(args)...);
-        return p.get_future();
-    }
-};
-
-template<>
-struct make_ready_future<void> {
-    static
-    promise<void>::future_type
-    make() {
-        promise<void> p;
-        p.set_value();
-        return p.get_future();
-    }
-
-    template<class... Args2>
-    static
-    typename promise<void>::future_type
-    error(Args2&&... args) {
-        promise<void> p;
         p.set_exception(std::forward<Args2>(args)...);
         return p.get_future();
     }

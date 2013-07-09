@@ -106,20 +106,20 @@ struct handler :
 {
     typedef App application_type;
 
-    handler(application_type *app) :
+    handler(application_type &app) :
         m_app(app)
     {
         // pass
     }
 
 protected:
-    application_type*
+    application_type&
     app() const {
         return m_app;
     }
 
 private:
-    application_type *m_app;
+    application_type &m_app;
 };
 
 template<class Handler>
@@ -129,7 +129,7 @@ class handler_factory :
     typedef typename Handler::application_type application_type;
 
 public:
-    handler_factory(application_type *app) :
+    handler_factory(application_type &app) :
         m_app(app)
     {
         // pass
@@ -139,7 +139,7 @@ public:
     make_handler();
 
 private:
-    application_type *m_app;
+    application_type &m_app;
 };
 
 template<class Handler>

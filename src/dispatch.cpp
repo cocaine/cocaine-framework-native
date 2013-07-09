@@ -129,7 +129,6 @@ dispatch_t::dispatch_t(const std::string& name,
                        const std::string& endpoint,
                        uint16_t resolver_port):
     m_id(uuid),
-    m_app_name(name),
     m_heartbeat_timer(m_ioservice.native()),
     m_disown_timer(m_ioservice.native())
 {
@@ -310,11 +309,6 @@ dispatch_t::on(const std::string& event,
     m_handlers[event] = factory;
 }
 
-void
-dispatch_t::forget(const std::string& event) {
-    m_handlers.erase(event);
-}
-
 std::shared_ptr<basic_handler_t>
 dispatch_t::invoke(const std::string& event,
                    std::shared_ptr<upstream_t> response)
@@ -332,7 +326,7 @@ dispatch_t::invoke(const std::string& event,
     }
 }
 
-std::shared_ptr<dispatch_t>
+std::unique_ptr<dispatch_t>
 dispatch_t::create(int argc,
                    char *argv[])
 {
@@ -368,7 +362,7 @@ dispatch_t::create(int argc,
     sigaddset(&signals, SIGPIPE);
     ::sigprocmask(SIG_BLOCK, &signals, nullptr);
 
-    return std::shared_ptr<dispatch_t>(new dispatch_t(vm["app"].as<std::string>(),
+    return std::unique_ptr<dispatch_t>(new dispatch_t(vm["app"].as<std::string>(),
                                                       vm["uuid"].as<std::string>(),
                                                       vm["endpoint"].as<std::string>(),
                                                       vm["locator"].as<uint16_t>()));

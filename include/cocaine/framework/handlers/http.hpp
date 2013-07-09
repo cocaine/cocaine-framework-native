@@ -203,7 +203,7 @@ template<class App>
 struct http_handler :
     public cocaine::framework::handler<App>
 {
-    http_handler(App *a) :
+    http_handler(App &a) :
         cocaine::framework::handler<App>(a)
     {
         // pass

@@ -341,6 +341,35 @@ namespace detail { namespace stream {
         std::shared_ptr<promise_type> m_promise;
     };
 
+    template<>
+    struct close_callback<void> {
+            typedef promise<void> promise_type;
+
+        close_callback(std::shared_ptr<shared_stream_state<void>> state) :
+            m_state(state)
+        {
+            m_promise.reset(new promise_type());
+        }
+
+        void
+        operator()() {
+            if (m_state->m_exception != std::exception_ptr()) {
+                m_promise->set_exception(m_state->m_exception);
+            } else {
+                m_promise->set_value();
+            }
+        }
+
+        promise_type::future_type
+        get_future() const {
+            return m_promise->get_future();
+        }
+
+    private:
+        std::shared_ptr<shared_stream_state<void>> m_state;
+        std::shared_ptr<promise_type> m_promise;
+    };
+
     template<class Result, class... Args>
     struct map_callback {
         typedef cocaine::framework::generator<Args...>
@@ -349,7 +378,10 @@ namespace detail { namespace stream {
         typedef cocaine::framework::future<Args...>
                 future_type;
 
-        typedef std::function<Result(future_type&)>
+        typedef decltype(future_type().unwrap())
+                unwrapped_type;
+
+        typedef std::function<Result(unwrapped_type&)>
                 task_type;
 
         typedef decltype(cocaine::framework::future<Result>().unwrap())
@@ -378,13 +410,8 @@ namespace detail { namespace stream {
 
         void
         operator()(future_type& f) {
-            cocaine::framework::packaged_task<Result()> t(
-                m_executor,
-                detail::future::continuation_caller<Result, future_type>(m_callback, std::move(f))
-            );
-
-            t();
-            m_consumer->try_push(t.get_future());
+            f.set_default_executor(m_executor);
+            m_consumer->try_push(f.unwrap().then(m_callback));
         }
 
     private:
@@ -409,6 +436,16 @@ namespace detail { namespace stream {
 
     private:
         std::shared_ptr<State> m_state;
+    };
+
+    template<class F, class Future>
+    struct unwrapped_result {
+        typedef decltype(Future().unwrap())
+                arg_type;
+        typedef decltype(cocaine::framework::declval<F>()(cocaine::framework::declval<arg_type&>()))
+                result_type;
+        typedef decltype(cocaine::framework::future<result_type>().unwrap())
+                type;
     };
 
 }} // namespace detail::stream
@@ -488,6 +525,11 @@ struct generator {
         m_executor = executor;
     }
 
+    const executor_t&
+    get_default_executor() {
+        return m_executor;
+    }
+
     // calls callback with the generator when next item will be ready
     // calls callback only once (for first available item)
     // invalidates current generator
@@ -505,12 +547,12 @@ struct generator {
     // calls callback for each item or exception
     // returns new generator of futures - results of callbacks
     template<class F>
-    generator<typename detail::future::unwrapped_result<F, future<Args...>&>::type>
+    generator<typename detail::stream::unwrapped_result<F, future<Args...>>::type>
     map(executor_t executor,
         F&& callback);
 
     template<class F>
-    generator<typename detail::future::unwrapped_result<F, future<Args...>&>::type>
+    generator<typename detail::stream::unwrapped_result<F, future<Args...>>::type>
     map(F&& callback) {
         return map(m_executor, std::forward<F>(callback));
     }
@@ -518,7 +560,8 @@ struct generator {
     // returns future that becomes ready when stream is closed
     // invalidates generator
     // if Args... is T& then result is future<vector<reference_wrapper<T>>>
-    future<std::vector<typename detail::stream::storable_type<Args...>::type>>
+    // if Args... is void then result is future<void>
+    typename detail::stream::close_callback<Args...>::promise_type::future_type
     gather() {
         check_state();
 
@@ -587,7 +630,7 @@ generator<Args...>::then(executor_t executor,
 
 template<class... Args>
 template<class F>
-generator<typename detail::future::unwrapped_result<F, future<Args...>&>::type>
+generator<typename detail::stream::unwrapped_result<F, future<Args...>>::type>
 generator<Args...>::map(executor_t executor,
                         F&& callback)
 {
@@ -595,7 +638,8 @@ generator<Args...>::map(executor_t executor,
 
     auto old_state = this->m_state;
 
-    typedef decltype(callback(cocaine::framework::declval<future<Args...>&>())) result_type;
+    typedef decltype(future<Args...>().unwrap()) fut_type;
+    typedef decltype(callback(cocaine::framework::declval<fut_type&>())) result_type;
 
     auto task = detail::stream::map_callback<result_type, Args...>(executor,
                                                                    std::forward<F>(callback),

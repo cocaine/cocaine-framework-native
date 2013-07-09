@@ -65,14 +65,11 @@ public:
 
     template<class Handler, class App>
     typename std::enable_if<std::is_base_of<handler<App>, Handler>::value>::type
-    on(const std::string& event, App *app);
+    on(const std::string& event, App &app);
 
     template<class Factory, class... Args>
     typename std::enable_if<std::is_base_of<basic_factory_t, Factory>::value>::type
     on(const std::string& event, Args&&... args);
-
-    void
-    forget(const std::string& event);
 
 private:
     dispatch_t(const std::string& name,
@@ -81,7 +78,7 @@ private:
                uint16_t resolver_port);
 
     static
-    std::shared_ptr<dispatch_t>
+    std::unique_ptr<dispatch_t>
     create(int argc, char *argv[]);
 
     void
@@ -113,9 +110,6 @@ private:
               const std::string& reason);
 
 private:
-    typedef std::map<std::string, std::shared_ptr<basic_factory_t>>
-            handlers_map;
-
     struct io_pair_t {
         std::shared_ptr<upstream_t> upstream;
         std::shared_ptr<basic_handler_t> handler;
@@ -124,9 +118,11 @@ private:
     typedef std::map<uint64_t, io_pair_t>
             stream_map_t;
 
+    typedef std::map<std::string, std::shared_ptr<basic_factory_t>>
+            handlers_map;
+
 private:
     const std::string m_id;
-    const std::string m_app_name;
 
     cocaine::io::reactor_t m_ioservice;
     ev::timer m_heartbeat_timer,
@@ -168,7 +164,7 @@ dispatch_t::on(
 template<class Handler, class App>
 typename std::enable_if<std::is_base_of<handler<App>, Handler>::value>::type
 dispatch_t::on(const std::string& event,
-               App *app)
+               App &app)
 {
     this->on<handler_factory<Handler>>(event, app);
 }
@@ -187,7 +183,8 @@ run(int argc,
     char *argv[],
     Args&&... args)
 {
-    std::shared_ptr<dispatch_t> dispatch;
+    // i'm not self-assured
+    std::unique_ptr<dispatch_t> dispatch;
     try {
         dispatch = dispatch_t::create(argc, argv);
     } catch (const std::exception& e) {
@@ -198,10 +195,17 @@ run(int argc,
         return 1;
     }
 
-    std::shared_ptr<App> app;
     try {
-        app = std::make_shared<App>(std::forward<Args>(args)...);
-        app->initialize(dispatch.get());
+
+        App app(*dispatch.get(), std::forward<Args>(args)...);
+
+        try {
+            dispatch->run();
+            return 0;
+        } catch (const std::exception& e) {
+            std::cerr << "ERROR: " << e.what() << std::endl;
+            return 1;
+        }
     } catch (const std::exception& e) {
         dispatch->terminate(
             cocaine::io::rpc::terminate::abnormal,
@@ -214,14 +218,6 @@ run(int argc,
             "Unknown error has occurred while initializing the application"
         );
         throw;
-    }
-
-    try {
-        dispatch->run();
-        return 0;
-    } catch (const std::exception& e) {
-        std::cerr << "ERROR: " << e.what() << std::endl;
-        return 1;
     }
 }
 

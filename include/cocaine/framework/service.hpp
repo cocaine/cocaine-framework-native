@@ -121,6 +121,7 @@ namespace detail { namespace service {
                const cocaine::io::message_t& message)
         {
             if (message.id() == io::event_traits<io::rpc::choke>::id) {
+                p.push_value();
                 p.close();
             } else if (message.id() == io::event_traits<io::rpc::error>::id) {
                 int code;
@@ -221,11 +222,6 @@ public:
         return m_connection_status;
     }
 
-    void
-    throw_when_reconnecting(bool t) {
-        m_throw_when_reconnecting = t;
-    }
-
     template<class Event, typename... Args>
     typename service_traits<Event>::future_type
     call(Args&&... args);
@@ -298,7 +294,6 @@ private:
 
     std::weak_ptr<service_manager_t> m_manager;
     std::unique_ptr<iochannel_t> m_channel;
-    bool m_throw_when_reconnecting;
     status_t m_connection_status;
 
     // resolver must not use default executor, that posts handlers to main event loop
@@ -369,7 +364,7 @@ public:
     }
 
     template<class Service, typename... Args>
-    future<std::shared_ptr<Service>>
+    std::shared_ptr<Service>
     get_service_async(const std::string& name,
                       Args&&... args)
     {
@@ -377,13 +372,8 @@ public:
             new service_connection_t(name, shared_from_this(), Service::version)
         );
         std::unique_lock<std::recursive_mutex> lock(service->m_handlers_lock);
-        auto f = service->connect(lock)
-            .then(executor_t(),
-                  std::bind(&service_manager_t::make_service_stub,
-                            std::placeholders::_1,
-                            std::forward<Args>(args)...));
-        f.set_default_executor(m_default_executor);
-        return f;
+        service->connect(lock);
+        return std::make_shared<Service>(service, std::forward<Args>(args)...);
     }
 
     std::shared_ptr<logger_t>&
@@ -447,8 +437,6 @@ service_connection_t::call(Args&&... args) {
     typename service_traits<Event>::future_type f;
     if (m_connection_status == status_t::disconnected) {
         throw service_error_t(service_errc::not_connected);
-    } else if (m_connection_status == status_t::connecting && m_throw_when_reconnecting) {
-        throw service_error_t(service_errc::wait_for_connection);
     } else if (m_connection_status == status_t::waiting_for_sessions) {
         throw service_error_t(service_errc::wait_for_connection);
     } else {
