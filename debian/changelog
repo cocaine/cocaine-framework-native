@@ -1,3 +1,12 @@
+cocaine-framework-native (0.10.5-1) unstable; urgency=low
+
+  * Constructor of application is now used instead of 'initialize' method.
+  * Application class no longer can be derived from enable_shared_from_this.
+  * Some objects are now passed to user by reference, not a pointer.
+  * 'map' method of generator unwraps argument of a callback. For example, for generator<future<int>> 'map' passes future<int> to a callback.
+
+ -- Andrey Goryachev <bugsbunny@yandex-team.ru>  Wed, 10 Jul 2013 19:17:09 +0400
+
 cocaine-framework-native (0.10.5-0) unstable; urgency=low
 
   * Release 10.5.
