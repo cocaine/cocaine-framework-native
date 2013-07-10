@@ -22,16 +22,16 @@ namespace cocaine { namespace framework {
 typedef std::function<void(std::function<void()>)> executor_t;
 
 template<class ... Args>
-struct promise;
+class promise;
 template<class F>
-struct packaged_task;
+class packaged_task;
 template<class ... Args>
-struct future;
+class future;
 
 namespace detail { namespace future {
 
     template<class ... Args>
-    struct promise_base;
+    class promise_base;
 
     template<class... Args>
     struct tuple_type {
@@ -46,9 +46,10 @@ namespace detail { namespace future {
     // shared state of promise-future
     // it's a "core" of futures, while "future" and "promise" are just wrappers to access shared state
     template<class... Args>
-    struct shared_state {
+    class shared_state {
         typedef typename tuple_type<Args...>::type value_type;
 
+    public:
         void
         set_exception(std::exception_ptr e) {
             std::unique_lock<std::mutex> lock(m_ready_mutex);
@@ -225,9 +226,10 @@ namespace detail { namespace future {
     // promise basic type
     // packaged_task also inherits it
     template<class... Args>
-    struct promise_base {
+    class promise_base {
         COCAINE_DECLARE_NONCOPYABLE(promise_base)
 
+    public:
         promise_base() :
             m_state(new shared_state<Args...>()),
             m_future(future_from_state<Args...>(m_state))
@@ -618,9 +620,10 @@ future<Args...>::then(executor_t executor,
 }
 
 template<class... Args>
-struct promise :
+class promise :
     public detail::future::promise_base<Args...>
 {
+public:
     typedef future<Args...> future_type;
 
     promise()
@@ -652,12 +655,13 @@ struct promise :
 };
 
 template<class T>
-struct packaged_task;
+class packaged_task;
 
 template<class R, class... Args>
-struct packaged_task<R(Args...)> :
+class packaged_task<R(Args...)> :
     public detail::future::promise_base<R>
 {
+public:
     packaged_task() :
         detail::future::promise_base<R>(std::shared_ptr<detail::future::shared_state<R>>())
     {

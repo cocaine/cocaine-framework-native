@@ -8,10 +8,10 @@
 namespace cocaine { namespace framework {
 
 template<class... Args>
-struct generator;
+class generator;
 
 template<class... Args>
-struct stream;
+class stream;
 
 namespace detail { namespace stream {
 
@@ -19,12 +19,13 @@ namespace detail { namespace stream {
     struct close_callback;
 
     template<class... Args>
-    struct shared_stream_state {
+    class shared_stream_state {
 
-        friend class close_callback<Args...>;
+        friend struct close_callback<Args...>;
 
         typedef typename detail::future::tuple_type<Args...>::type value_type;
 
+    public:
         shared_stream_state() :
             m_is_closed(false)
         {
@@ -451,15 +452,16 @@ namespace detail { namespace stream {
 }} // namespace detail::stream
 
 template<class... Args>
-struct generator {
+class generator {
     COCAINE_DECLARE_NONCOPYABLE(generator)
 
     friend generator<Args...>
            detail::stream::generator_from_state<Args...>(
-               std::shared_ptr<shared_stream_state<Args...>>& state,
+               std::shared_ptr<detail::stream::shared_stream_state<Args...>>& state,
                executor_t executor
            );
 
+public:
     generator() {
         // pass
     }
@@ -656,9 +658,10 @@ generator<Args...>::map(executor_t executor,
 }
 
 template<class... Args>
-struct stream {
+class stream {
     COCAINE_DECLARE_NONCOPYABLE(stream)
 
+public:
     stream() :
         m_state(new detail::stream::shared_stream_state<Args...>()),
         m_generator(detail::stream::generator_from_state<Args...>(m_state))

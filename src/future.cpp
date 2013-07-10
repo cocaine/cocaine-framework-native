@@ -6,12 +6,12 @@ namespace {
         public std::error_category
     {
         const char*
-        name() const {
+        name() const throw() {
             return "future";
         }
 
         std::string
-        message(int error_value) const {
+        message(int error_value) const throw() {
             switch (error_value) {
                 case static_cast<int>(cocaine::framework::future_errc::broken_promise):
                     return "The promise is broken";

@@ -10,12 +10,12 @@ namespace {
         public std::error_category
     {
         const char*
-        name() const {
+        name() const throw() {
             return "service client";
         }
 
         std::string
-        message(int error_value) const {
+        message(int error_value) const throw() {
             switch (error_value) {
                 case static_cast<int>(cocaine::framework::service_errc::bad_version):
                     return "Bad version of service";
@@ -39,12 +39,12 @@ namespace {
         public std::error_category
     {
         const char*
-        name() const {
+        name() const throw() {
             return "service response";
         }
 
         std::string
-        message(int /* error_value */) const {
+        message(int /* error_value */) const throw() {
             return "Error from service";
         }
     };

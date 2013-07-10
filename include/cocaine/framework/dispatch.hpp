@@ -28,9 +28,10 @@ namespace detail {
 
     template<class Pointer, class Method>
     struct method_handler_traits {
-        typedef decltype(cf::declval<Pointer>()->cf::declval<Method>()(std::string(),
-                                                                       std::vector<std::string>(),
-                                                                       response_ptr()))
+        typedef decltype(cf::template declval<Pointer>()
+                         ->cf::template declval<Method>()(std::string(),
+                                                          std::vector<std::string>(),
+                                                          response_ptr()))
                 result_type;
 
         typedef typename std::enable_if<std::is_same<void, result_type>::value>::type

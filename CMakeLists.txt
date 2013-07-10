@@ -45,7 +45,8 @@ ADD_LIBRARY(cocaine-framework SHARED
 TARGET_LINK_LIBRARIES(cocaine-framework
     boost_program_options-mt
     ev
-    msgpack)
+    msgpack
+    cocaine-core)
 
 SET_TARGET_PROPERTIES(cocaine-framework PROPERTIES
     VERSION 1
