@@ -1,3 +1,9 @@
+cocaine-framework-native (0.10.5-2) unstable; urgency=low
+
+  * Always pack App Service chunks.
+
+ -- Andrey Sibiryov <kobolog@yandex-team.ru>  Thu, 11 Jul 2013 21:07:55 +0400
+
 cocaine-framework-native (0.10.5-1) unstable; urgency=low
 
   * Constructor of application is now used instead of 'initialize' method.
