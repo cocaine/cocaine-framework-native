@@ -4,63 +4,71 @@
 
 using namespace cocaine::framework;
 
-http_request::http_request(const char *chunk,
-                           size_t size)
-{
-    msgpack::unpacked msg;
-    msgpack::unpack(&msg, chunk, size);
+std::vector<std::string>
+http_headers_t::headers(const std::string& key) {
+    std::vector<std::string> result;
 
-    msgpack::object_kv* req_it = msg.get().via.map.ptr;
-    msgpack::object_kv* const pend = req_it + msg.get().via.map.size;
-
-    for (; req_it < pend; ++req_it) {
-        std::string key;
-        req_it->key.convert(&key);
-
-        if(key.compare("body") == 0) {
-            req_it->val.convert(&m_body);
-        } else if (key.compare("request") == 0) {
-            msgpack::object_kv* it = req_it->val.via.map.ptr;
-            msgpack::object_kv* const pend = it + req_it->val.via.map.size;
-
-            for (; it < pend; ++it) {
-                if (it->val.type == msgpack::type::RAW) {
-                    m_request[it->key.as<std::string>()].push_back(it->val.as<std::string>());
-                } else if (it->val.type == msgpack::type::ARRAY) {
-                    m_request[it->key.as<std::string>()] = it->val.as<std::vector<std::string>>();
-                }
-            }
-        } else if (key.compare("meta") == 0) {
-            msgpack::object_kv* meta_it = req_it->val.via.map.ptr;
-            msgpack::object_kv* const pend = meta_it + req_it->val.via.map.size;
-
-            for (; meta_it < pend; ++meta_it) {
-                std::string key;
-                meta_it->key.convert(&key);
-
-                if(key.compare("headers") == 0) {
-                    meta_it->val.convert(&m_headers);
-                } else if (key.compare("cookies") == 0) {
-                    meta_it->val.convert(&m_cookies);
-                } else if (key.compare("secure") == 0) {
-                    meta_it->val.convert(&m_secure);
-                } else if (meta_it->val.type == msgpack::type::RAW) {
-                    m_meta[key] = meta_it->val.as<std::string>();
-                }
-            }
+    for (auto it = m_headers.begin(); it != m_headers.end(); ++it) {
+        if (boost::iequals(it->first, key)) {
+            result.push_back(it->second);
         }
     }
+
+    return result;
+}
+
+boost::optional<std::string>
+http_headers_t::header(const std::string& key) {
+    for (auto it = m_headers.begin(); it != m_headers.end(); ++it) {
+        if (boost::iequals(it->first, key)) {
+            return boost::optional<std::string>(it->second);
+        }
+    }
+
+    return boost::optional<std::string>();
 }
 
 void
-http_response::set_content_type(const std::string& type) {
-    for (auto header = m_headers.begin(); header != m_headers.end(); ++header) {
-        if (boost::iequals(header->first, "Content-Type")) {
-            header->second = type;
-            return;
-        }
-    }
-    // else
-    add_header("Content-Type", type);
+http_headers_t::add_header(const std::string& key,
+                           const std::string& value)
+{
+    m_headers.emplace_back(key, value);
 }
 
+void
+http_headers_t::reset_header(const std::string& key,
+                             const std::vector<std::string>& values)
+{
+    headers_vector_t new_headers;
+    new_headers.reserve(m_headers.size() + values.size());
+
+    for (auto header = m_headers.begin(); header != m_headers.end(); ++header) {
+        if (!boost::iequals(header->first, key)) {
+            new_headers.push_back(*header);
+        }
+    }
+
+    for (auto value = values.begin(); value != values.end(); ++value) {
+        new_headers.emplace_back(key, *value);
+    }
+
+    m_headers.swap(new_headers);
+}
+
+void
+http_headers_t::reset_header(const std::string& key,
+                             const std::string& value)
+{
+    headers_vector_t new_headers;
+    new_headers.reserve(m_headers.size() + 1);
+
+    for (auto header = m_headers.begin(); header != m_headers.end(); ++header) {
+        if (!boost::iequals(header->first, key)) {
+            new_headers.push_back(*header);
+        }
+    }
+
+    m_headers.swap(new_headers);
+
+    add_header(key, value);
+}
