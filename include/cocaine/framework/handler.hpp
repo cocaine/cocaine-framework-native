@@ -106,20 +106,20 @@ struct handler :
 {
     typedef App application_type;
 
-    handler(application_type &app) :
-        m_app(app)
+    handler(application_type &parent) :
+        m_parent(parent)
     {
         // pass
     }
 
 protected:
     application_type&
-    app() const {
-        return m_app;
+    parent() const {
+        return m_parent;
     }
 
 private:
-    application_type &m_app;
+    application_type &m_parent;
 };
 
 template<class Handler>
@@ -129,8 +129,8 @@ class handler_factory :
     typedef typename Handler::application_type application_type;
 
 public:
-    handler_factory(application_type &app) :
-        m_app(app)
+    handler_factory(application_type &parent) :
+        m_parent(parent)
     {
         // pass
     }
@@ -139,13 +139,13 @@ public:
     make_handler();
 
 private:
-    application_type &m_app;
+    application_type &m_parent;
 };
 
 template<class Handler>
 std::shared_ptr<basic_handler_t>
 handler_factory<Handler>::make_handler() {
-    return std::make_shared<Handler>(m_app);
+    return std::make_shared<Handler>(m_parent);
 }
 
 }} // namespace cocaine::framework

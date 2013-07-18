@@ -2,175 +2,141 @@
 #define COCAINE_FRAMEWORK_HANDLERS_HTTP_HPP
 
 #include <cocaine/framework/handler.hpp>
+#include <cocaine/framework/common.hpp>
 
-#include <msgpack.hpp>
+#include <cocaine/traits.hpp>
+#include <cocaine/traits/typelist.hpp>
 
 #include <string>
 #include <vector>
 #include <memory>
-#include <iostream>
-
-#include <boost/optional.hpp>
 
 namespace cocaine { namespace framework {
 
-class http_request {
-public:
-    explicit http_request(const char *chunk,
-                          size_t size);
-
-    const std::string&
-    body() const {
-        return m_body;
-    }
-
-    const std::map<std::string, std::vector<std::string>>&
-    request() const {
-        return m_request;
-    }
-
-    boost::optional<std::string>
-    arg(const std::string& key) const {
-        auto it = m_request.find(key);
-        if (it != m_request.end()) {
-            return boost::make_optional(it->second[0]);
-        } else {
-            return boost::optional<std::string>();
-        }
-    }
-
-    void
-    arg(const std::string& key,
-        boost::optional<std::vector<std::string>>& result) const
-    {
-        auto it = m_request.find(key);
-        if (it != m_request.end()) {
-            result.reset(it->second);
-        } else {
-            result.reset();
-        }
-    }
-
-    const std::map<std::string, std::string>&
-    headers() const {
-        return m_headers;
-    }
-
-    boost::optional<std::string>
-    header(const std::string& key) const {
-        auto it = m_headers.find(key);
-        if (it != m_headers.end()) {
-            return boost::make_optional(it->second);
-        } else {
-            return boost::optional<std::string>();
-        }
-    }
-
-    const std::map<std::string, std::string>&
-    cookies() const {
-        return m_cookies;
-    }
-
-    boost::optional<std::string>
-    cookie(const std::string& key) const {
-        auto it = m_cookies.find(key);
-        if (it != m_cookies.end()) {
-            return boost::make_optional(it->second);
-        } else {
-            return boost::optional<std::string>();
-        }
-    }
-
-    const std::map<std::string, std::string>&
-    meta() const {
-        return m_meta;
-    }
-
-    const std::string&
-    meta(const std::string& key) const {
-        return m_meta.at(key);
-    }
-
-    bool
-    secure() const {
-        return  m_secure;
-    }
-
-    const std::string&
-    method() const {
-        return meta("method");
-    }
-
-    const std::string&
-    url() const {
-        return meta("url");
-    }
-
-    const std::string&
-    host() const {
-        return meta("host");
-    }
-
-    const std::string&
-    path() const {
-        return meta("script_name");
-    }
-
-    const std::string&
-    remote_address() const {
-        return meta("remote_addr");
-    }
-
-    const std::string&
-    server_address() const {
-        return meta("server_addr");
-    }
-
-private:
-    std::string m_body;
-    std::map<std::string, std::vector<std::string>> m_request;
-    std::map<std::string, std::string> m_meta;
-    std::map<std::string, std::string> m_headers;
-    std::map<std::string, std::string> m_cookies;
-    bool m_secure;
-};
-
-class http_response {
-public:
-    typedef std::vector<std::pair<std::string, std::string>> headers_t;
+class http_headers_t {
+    typedef std::vector<std::pair<std::string, std::string>>
+            headers_vector_t;
 
 public:
-    explicit http_response(int code = 200, // i'm optimistic
-                           const headers_t& headers = headers_t()) :
-        m_code(code),
+    explicit
+    http_headers_t(const headers_vector_t& headers = headers_vector_t()) :
         m_headers(headers)
     {
         // pass
     }
 
-    http_response(int code,
-                  const headers_t& headers,
-                  const std::string& body) :
-        m_code(code),
+    http_headers_t(headers_vector_t&& headers) :
+        m_headers(std::move(headers))
+    {
+        // pass
+    }
+
+    http_headers_t(const http_headers_t& other) :
+        m_headers(other.m_headers)
+    {
+        // pass
+    }
+
+    http_headers_t(http_headers_t&& other) :
+        m_headers(std::move(other.m_headers))
+    {
+        // pass
+    }
+
+    const headers_vector_t&
+    data() const {
+        return m_headers;
+    }
+
+    std::vector<std::string>
+    headers(const std::string& key);
+
+    boost::optional<std::string>
+    header(const std::string& key);
+
+    // add new entry
+    void
+    add_header(const std::string& key,
+               const std::string& value);
+
+    // remove all previous 'key' entries and add new ones
+    void
+    reset_header(const std::string& key,
+                 const std::vector<std::string>& values);
+
+    // same as reset_header(key, std::vector<std::string> {value})
+    void
+    reset_header(const std::string& key,
+                 const std::string& value);
+
+private:
+    headers_vector_t m_headers;
+};
+
+struct http_request_t {
+    friend struct cocaine::io::type_traits<http_request_t>;
+
+    http_request_t() {
+        // pass
+    }
+
+    http_request_t(const std::string& method,
+                   const std::string& uri,
+                   const std::string& http_version,
+                   const http_headers_t& headers,
+                   const std::string& body) :
+        m_method(method),
+        m_uri(uri),
+        m_version(http_version),
         m_headers(headers),
         m_body(body)
     {
         // pass
     }
 
-    void
-    add_header(const std::string& header,
-               const std::string& value)
-    {
-        m_headers.push_back(std::make_pair(header, value));
+    const std::string&
+    method() const {
+        return m_method;
     }
 
     void
-    set_content_type(const std::string& type);
+    set_method(const std::string& method) {
+        m_method = method;
+    }
+
+    const std::string&
+    uri() const {
+        return m_uri;
+    }
 
     void
-    set_code(int code) {
-        m_code = code;
+    set_uri(const std::string& uri) {
+        m_uri = uri;
+    }
+
+    const std::string&
+    http_version() const {
+        return m_version;
+    }
+
+    void
+    set_http_version(const std::string& version) {
+        m_version = version;
+    }
+
+    const http_headers_t&
+    headers() const {
+        return m_headers;
+    }
+
+    void
+    set_headers(const http_headers_t& headers) {
+        m_headers = headers;
+    }
+
+    const std::string&
+    body() const {
+        return m_body;
     }
 
     void
@@ -178,90 +144,150 @@ public:
         m_body = body;
     }
 
-    int
-    code() const {
-        return m_code;
+private:
+    std::string m_method;
+    std::string m_uri;
+    std::string m_version;
+    http_headers_t m_headers;
+    std::string m_body;
+};
+
+}} // namespace cocaine::framework
+
+namespace cocaine { namespace io {
+
+template<>
+struct type_traits<cocaine::framework::http_headers_t> {
+    template<class Stream>
+    static inline
+    void
+    pack(msgpack::packer<Stream>& packer, const cocaine::framework::http_headers_t& source) {
+        packer << source.data();
     }
 
-    const headers_t&
-    headers() const {
-        return m_headers;
+    static inline
+    void
+    unpack(const msgpack::object& unpacked, cocaine::framework::http_headers_t& target) {
+        std::vector<std::pair<std::string, std::string>> headers;
+        unpacked >> headers;
+        target = cocaine::framework::http_headers_t(std::move(headers));
+    }
+};
+
+template<>
+struct type_traits<cocaine::framework::http_request_t> {
+    template<class Stream>
+    static inline
+    void
+    pack(msgpack::packer<Stream>& packer, const cocaine::framework::http_request_t& source) {
+        type_traits<boost::mpl::list<std::string,
+                                     std::string,
+                                     std::string,
+                                     cocaine::framework::http_headers_t,
+                                     std::string>>
+        ::pack(packer, source.m_method, source.m_uri, source.m_version, source.m_headers, source.m_body);
     }
 
-    const boost::optional<std::string>&
-    body() const {
-        return m_body;
+    static inline
+    void
+    unpack(const msgpack::object& unpacked, cocaine::framework::http_request_t& target) {
+        type_traits<boost::mpl::list<std::string,
+                                     std::string,
+                                     std::string,
+                                     cocaine::framework::http_headers_t,
+                                     std::string>>
+        ::unpack(unpacked, target.m_method, target.m_uri, target.m_version, target.m_headers, target.m_body);
+    }
+};
+
+}} // namespace cocaine::io
+
+namespace cocaine { namespace framework {
+
+struct http_upstream_t :
+    public upstream_t
+{
+    http_upstream_t(std::shared_ptr<upstream_t> s) :
+        m_stream(s)
+    {
+        // pass
+    }
+
+    ~http_upstream_t() {
+        if (!closed()) {
+            close();
+        }
+    }
+
+    void
+    write_headers(int code,
+                  const http_headers_t& headers)
+    {
+        m_stream->write(std::make_tuple(code, headers));
+    }
+
+    void
+    write(const char* chunk,
+          size_t size)
+    {
+        m_stream->write(chunk, size);
+    }
+
+    void
+    close() {
+        m_stream->close();
+    }
+
+    bool
+    closed() const {
+        return m_stream->closed();
+    }
+
+    using upstream_t::write;
+
+private:
+    void
+    error(int, const std::string&) {
+        throw std::logic_error(":o)))");
     }
 
 private:
-    int m_code;
-    headers_t m_headers;
-    boost::optional<std::string> m_body;
+    std::shared_ptr<upstream_t> m_stream;
 };
 
 template<class App>
 struct http_handler :
-    public cocaine::framework::handler<App>
+    public handler<App>
 {
     http_handler(App &a) :
-        cocaine::framework::handler<App>(a)
+        handler<App>(a)
     {
         // pass
     }
 
     virtual
     void
-    on_request(const http_request&) = 0;
+    on_request(const http_request_t&) = 0;
 
     void
-    on_chunk(const char *chunk, size_t size) {
-        on_request(http_request(chunk, size));
+    on_chunk(const char *chunk,
+             size_t size)
+    {
+        m_upstream = std::make_shared<http_upstream_t>(handler<App>::response());
+        on_request(unpack<http_request_t>(chunk, size));
     }
 
-    void
-    send_response(const http_response& r);
-
-    void
-    send_response(int code,
-                  const std::vector<std::pair<std::string, std::string>>& headers,
-                  const std::string& body)
-    {
-        send_response(http_response(code, headers, body));
-    }
-
-    void
-    send_response(int code,
-                  const http_response::headers_t& headers = http_response::headers_t())
-    {
-        send_response(http_response(code, headers));
+    std::shared_ptr<http_upstream_t>
+    response() {
+        return m_upstream;
     }
 
 private:
     using cocaine::framework::handler<App>::response;
+
+private:
+    std::shared_ptr<http_upstream_t> m_upstream;
 };
-
-template<class App>
-void
-http_handler<App>::send_response(const http_response& r) {
-    if (!response()->closed()) {
-        msgpack::sbuffer buffer;
-        msgpack::packer<msgpack::sbuffer> pk(&buffer);
-        pk.pack_map(2);
-        pk.pack(std::string("code"));
-        pk.pack(r.code());
-        pk.pack(std::string("headers"));
-        pk.pack(r.headers());
-        response()->write(buffer.data(), buffer.size());
-
-        if (r.body()) {
-            response()->write(r.body().get());
-        }
-
-        response()->close();
-    } else {
-        throw std::logic_error("Http response has been already sent");
-    }
-}
 
 }} // namespace cocaine::framework
 
