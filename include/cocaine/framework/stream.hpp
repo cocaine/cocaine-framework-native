@@ -94,6 +94,11 @@ namespace detail { namespace stream {
         }
 
         bool
+        empty() const {
+            return m_result.empty() && (m_exception == std::exception_ptr());
+        }
+
+        bool
         ready() const {
             return closed() || !m_result.empty();
         }
@@ -192,6 +197,8 @@ namespace detail { namespace stream {
         void
         close(std::unique_lock<std::mutex>& lock) {
             m_is_closed = true;
+
+            m_ready.notify_all();
 
             std::function<void()> callback;
             if (m_once_callback) {
@@ -519,7 +526,7 @@ public:
     bool
     closed() const {
         check_state();
-        return m_state->closed();
+        return m_state->empty() && m_state->closed();
     }
 
     void
