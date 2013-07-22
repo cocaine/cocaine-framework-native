@@ -122,6 +122,7 @@ service_connection_t::connect(std::unique_lock<std::recursive_mutex>& lock) {
             return make_ready_future<std::shared_ptr<service_connection_t>>::make(shared_from_this());
         }
     } catch (...) {
+        m_connection_status = service_status::disconnected;
         return make_ready_future<std::shared_ptr<service_connection_t>>::error(std::current_exception());
     }
 }
