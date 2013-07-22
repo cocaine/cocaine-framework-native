@@ -15,7 +15,7 @@ Description: Cocaine - Native Framework
 
 Package: cocaine-framework-native-dev
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, cocaine-framework-native (= ${binary:Version})
+Depends: ${shlibs:Depends}, ${misc:Depends}, libcocaine-dev (>= 0.10.5), cocaine-framework-native (= ${binary:Version})
 Description: Cocaine - Native Framework Development Headers
  Cocaine Native Framework development headers.
 
