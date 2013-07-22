@@ -128,6 +128,7 @@ namespace detail { namespace stream {
         value_type
         get() {
             while (true) {
+                std::unique_lock<std::mutex> lock(m_ready_mutex);
                 if (!m_result.empty()) {
                     value_type result = std::move(m_result.front());
                     m_result.pop();
@@ -139,6 +140,7 @@ namespace detail { namespace stream {
                 } else if (closed()) {
                     throw future_error(future_errc::stream_closed);
                 }
+                lock.unlock();
                 this->wait();
             }
         }
