@@ -76,6 +76,11 @@ service_connection_t::create_session(
 )
 {
     std::unique_lock<std::recursive_mutex> lock(m_handlers_lock);
+
+    if (m_connection_status == service_status::disconnected) {
+        connect();
+    }
+
     if (m_connection_status == service_status::disconnected) {
         throw service_error_t(service_errc::not_connected);
     } else if (m_connection_status == service_status::waiting_for_sessions) {
@@ -102,22 +107,20 @@ service_connection_t::reconnect() {
     reset_sessions();
     manager()->m_ioservice.post(std::bind(&emptyf<std::shared_ptr<iochannel_t>>::call, channel));
 
-    return connect(lock);
+    return connect();
 }
 
 future<std::shared_ptr<service_connection_t>>
-service_connection_t::connect(std::unique_lock<std::recursive_mutex>& lock) {
+service_connection_t::connect() {
     try {
         if (m_name) {
             auto m = manager();
             m_connection_status = service_status::connecting;
-            lock.unlock();
             return m->resolve(*m_name).then(std::bind(&service_connection_t::on_resolved,
                                                       this,
                                                       std::placeholders::_1));
         } else {
             m_connection_status = service_status::connecting;
-            lock.unlock();
             connect_to_endpoint();
             return make_ready_future<std::shared_ptr<service_connection_t>>::make(shared_from_this());
         }

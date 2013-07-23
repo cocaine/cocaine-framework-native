@@ -174,6 +174,9 @@ template<class Event>
 struct service_traits {
     typedef typename detail::service::service_handler<Event>::future_type
             future_type;
+
+    typedef typename detail::service::service_handler<Event>::promise_type
+            promise_type;
 };
 
 enum class service_status {

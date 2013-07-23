@@ -14,7 +14,7 @@ service_manager_t::create(endpoint_t resolver_endpoint,
         new service_manager_t(resolver_endpoint, executor)
     );
     manager->init();
-    manager->m_logger = manager->get_service<logging_service_t>("logging", logging_prefix);
+    manager->m_logger = manager->get_service_async<logging_service_t>("logging", logging_prefix);
     return manager;
 }
 
@@ -54,8 +54,7 @@ service_manager_t::init() {
     );
 
     m_resolver->use_default_executor(false);
-    std::unique_lock<std::recursive_mutex> lock(m_resolver->m_handlers_lock);
-    m_resolver->connect(lock).get();
+    m_resolver->connect();
 
     m_working_thread = std::thread(&cocaine::io::reactor_t::run, &m_ioservice);
 }
@@ -105,8 +104,7 @@ service_manager_t::get_connection(const std::string& name,
     std::shared_ptr<service_connection_t> service(
         new service_connection_t(name, shared_from_this(), version)
     );
-    std::unique_lock<std::recursive_mutex> lock(service->m_handlers_lock);
-    service->connect(lock).get();
+    service->connect().get();
     return service;
 }
 
@@ -117,7 +115,6 @@ service_manager_t::get_connection_async(const std::string& name,
     std::shared_ptr<service_connection_t> service(
         new service_connection_t(name, shared_from_this(), version)
     );
-    std::unique_lock<std::recursive_mutex> lock(service->m_handlers_lock);
-    service->connect(lock);
+    service->connect();
     return service;
 }

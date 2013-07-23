@@ -85,7 +85,7 @@ private:
     }
 
     future<std::shared_ptr<service_connection_t>>
-    connect(std::unique_lock<std::recursive_mutex>&);
+    connect();
 
     void
     connect_to_endpoint();
@@ -134,7 +134,14 @@ service_connection_t::call(Args&&... args) {
 
     // create session
     std::shared_ptr<iochannel_t> channel;
-    session_id_t current_session = this->create_session(h, channel);
+    session_id_t current_session;
+    try {
+        current_session = this->create_session(h, channel);
+    } catch (...) {
+        typename service_traits<Event>::promise_type p;
+        p.set_exception(std::current_exception());
+        return p.get_generator();
+    }
 
     // send the request
     channel->wr->write<Event>(current_session, std::forward<Args>(args)...);

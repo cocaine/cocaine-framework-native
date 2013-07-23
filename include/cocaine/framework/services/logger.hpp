@@ -19,13 +19,25 @@ struct logging_service_t :
         service_t(connection),
         m_source(source)
     {
-        m_priority = call<cocaine::io::logging::verbosity>().next();
+        try {
+            m_priority = call<cocaine::io::logging::verbosity>().next();
+        } catch (...) {
+            m_priority = cocaine::logging::debug;
+        }
     }
 
     void
     emit(cocaine::logging::priorities priority,
          const std::string& message)
     {
+        if (status() == service_status::disconnected) {
+            try {
+                m_priority = call<cocaine::io::logging::verbosity>().next();
+            } catch (...) {
+                m_priority = cocaine::logging::debug;
+            }
+        }
+
         call<cocaine::io::logging::emit>(priority, m_source, message);
     }
 
