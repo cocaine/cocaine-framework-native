@@ -9,6 +9,7 @@
 namespace cocaine { namespace framework {
 
 struct logging_service_t :
+    public std::enable_shared_from_this<logging_service_t>,
     public service_t,
     public logger_t
 {
@@ -31,11 +32,10 @@ struct logging_service_t :
          const std::string& message)
     {
         if (status() == service_status::disconnected) {
-            try {
-                m_priority = call<cocaine::io::logging::verbosity>().next();
-            } catch (...) {
-                m_priority = cocaine::logging::debug;
-            }
+            call<cocaine::io::logging::verbosity>()
+            .then(std::bind(&logging_service_t::set_verbosity,
+                            shared_from_this(),
+                            std::placeholders::_1));
         }
 
         call<cocaine::io::logging::emit>(priority, m_source, message);
@@ -44,6 +44,12 @@ struct logging_service_t :
     cocaine::logging::priorities
     verbosity() const {
         return m_priority;
+    }
+
+private:
+    void
+    set_verbosity(generator<cocaine::logging::priorities>& g) {
+        m_priority = g.next();
     }
 
 private:

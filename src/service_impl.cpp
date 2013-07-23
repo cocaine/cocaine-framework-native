@@ -22,6 +22,7 @@ service_connection_t::service_connection_t(const std::string& name,
     m_version(version),
     m_manager(manager),
     m_connection_status(service_status::disconnected),
+    m_dying(false),
     m_use_default_executor(true),
     m_session_counter(1)
 {
@@ -35,6 +36,7 @@ service_connection_t::service_connection_t(const endpoint_t& endpoint,
     m_version(version),
     m_manager(manager),
     m_connection_status(service_status::disconnected),
+    m_dying(false),
     m_use_default_executor(true),
     m_session_counter(1)
 {
@@ -55,12 +57,10 @@ void
 service_connection_t::soft_destroy() {
     std::unique_lock<std::recursive_mutex> lock(m_handlers_lock);
 
-    if (m_connection_status == service_status::connecting) {
-        throw service_error_t(service_errc::wait_for_connection);
-    } else if (m_connection_status != service_status::waiting_for_sessions) {
-        m_connection_status = service_status::waiting_for_sessions;
+    if (!m_dying) {
+        m_dying = true;
 
-        if (m_handlers.empty()) {
+        if (m_handlers.empty() && m_connection_status != service_status::connecting) {
             auto m = m_manager.lock();
             if (m) {
                 m->release_connection(shared_from_this());
@@ -69,27 +69,21 @@ service_connection_t::soft_destroy() {
     }
 }
 
-service_connection_t::session_id_t
-service_connection_t::create_session(
-    std::shared_ptr<detail::service::service_handler_concept_t> handler,
-    std::shared_ptr<iochannel_t>& channel
-)
-{
+void
+service_connection_t::disconnect() {
     std::unique_lock<std::recursive_mutex> lock(m_handlers_lock);
 
-    if (m_connection_status == service_status::disconnected) {
-        connect();
-    }
+    m_connection_status = service_status::disconnected;
+    std::shared_ptr<iochannel_t> channel(std::move(m_channel));
+    m_channel.reset(new iochannel_t);
+    reset_sessions();
+    manager()->m_ioservice.post(std::bind(&emptyf<std::shared_ptr<iochannel_t>>::call, channel));
 
-    if (m_connection_status == service_status::disconnected) {
-        throw service_error_t(service_errc::not_connected);
-    } else if (m_connection_status == service_status::waiting_for_sessions) {
-        throw service_error_t(service_errc::wait_for_connection);
-    } else {
-        session_id_t current_session = m_session_counter++;
-        m_handlers[current_session] = handler;
-        channel = m_channel;
-        return current_session;
+    if (m_dying) {
+        auto m = m_manager.lock();
+        if (m) {
+            m->release_connection(shared_from_this());
+        }
     }
 }
 
@@ -101,17 +95,19 @@ service_connection_t::reconnect() {
         throw service_error_t(service_errc::wait_for_connection);
     }
 
-    m_connection_status = service_status::disconnected;
-    std::shared_ptr<iochannel_t> channel(std::move(m_channel));
-    m_channel.reset(new iochannel_t);
-    reset_sessions();
-    manager()->m_ioservice.post(std::bind(&emptyf<std::shared_ptr<iochannel_t>>::call, channel));
+    disconnect();
 
     return connect();
 }
 
 future<std::shared_ptr<service_connection_t>>
 service_connection_t::connect() {
+
+    if (m_dying) {
+        return make_ready_future<std::shared_ptr<service_connection_t>>
+               ::error(service_error_t(service_errc::not_connected));
+    }
+
     try {
         if (m_name) {
             auto m = manager();
@@ -125,7 +121,6 @@ service_connection_t::connect() {
             return make_ready_future<std::shared_ptr<service_connection_t>>::make(shared_from_this());
         }
     } catch (...) {
-        m_connection_status = service_status::disconnected;
         return make_ready_future<std::shared_ptr<service_connection_t>>::error(std::current_exception());
     }
 }
@@ -151,9 +146,7 @@ service_connection_t::connect_to_endpoint() {
 
         m_connection_status = service_status::connected;
     } catch (...) {
-        std::unique_lock<std::recursive_mutex> lock(m_handlers_lock);
-        m_connection_status = service_status::disconnected;
-        reset_sessions();
+        disconnect();
         throw;
     }
 }
@@ -174,6 +167,30 @@ service_connection_t::reset_sessions() {
     }
 }
 
+service_connection_t::session_id_t
+service_connection_t::create_session(
+    std::shared_ptr<detail::service::service_handler_concept_t> handler,
+    std::shared_ptr<iochannel_t>& channel
+)
+{
+    std::unique_lock<std::recursive_mutex> lock(m_handlers_lock);
+
+    if (!m_dying && m_connection_status == service_status::disconnected) {
+        reconnect();
+    }
+
+    session_id_t current_session;
+
+    if (m_dying || (m_connection_status == service_status::disconnected)) {
+        throw service_error_t(service_errc::not_connected);
+    } else {
+        current_session = m_session_counter++;
+        m_handlers[current_session] = handler;
+        channel = m_channel;
+    }
+    return current_session;
+}
+
 std::shared_ptr<service_connection_t>
 service_connection_t::on_resolved(service_traits<cocaine::io::locator::resolve>::future_type& f) {
     try {
@@ -189,9 +206,7 @@ service_connection_t::on_resolved(service_traits<cocaine::io::locator::resolve>:
             throw service_error_t(service_errc::bad_version);
         }
     } catch (...) {
-        std::unique_lock<std::recursive_mutex> lock(m_handlers_lock);
-        m_connection_status = service_status::disconnected;
-        reset_sessions();
+        disconnect();
         throw;
     }
 
@@ -202,7 +217,11 @@ service_connection_t::on_resolved(service_traits<cocaine::io::locator::resolve>:
 
 void
 service_connection_t::on_error(const std::error_code& /* code */) {
-    reconnect();
+    try {
+        reconnect();
+    } catch (...) {
+        // pass
+    }
 }
 
 void
@@ -225,11 +244,8 @@ service_connection_t::on_message(const cocaine::io::message_t& message) {
             if (message.id() == io::event_traits<io::rpc::choke>::id) {
                 m_handlers.erase(it);
             }
-            if (m_connection_status == service_status::waiting_for_sessions && m_handlers.empty()) {
-                auto m = m_manager.lock();
-                if (m) {
-                    m->release_connection(shared_from_this());
-                }
+            if (m_dying && m_handlers.empty()) {
+                disconnect();
             }
             lock.unlock();
             h->handle_message(message);

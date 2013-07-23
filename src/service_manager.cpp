@@ -74,9 +74,6 @@ service_manager_t::get_system_logger() const {
 
 service_traits<cocaine::io::locator::resolve>::future_type
 service_manager_t::resolve(const std::string& name) {
-    if (m_resolver->status() == service_status::disconnected) {
-        m_resolver->reconnect();
-    }
     return m_resolver->call<cocaine::io::locator::resolve>(name);
 }
 

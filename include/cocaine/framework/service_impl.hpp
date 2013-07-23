@@ -91,6 +91,9 @@ private:
     connect_to_endpoint();
 
     void
+    disconnect();
+
+    void
     reset_sessions();
 
     std::shared_ptr<service_connection_t>
@@ -113,6 +116,7 @@ private:
     std::weak_ptr<service_manager_t> m_manager;
     std::shared_ptr<iochannel_t> m_channel;
     service_status m_connection_status;
+    bool m_dying;
 
     // resolver must not use default executor, that posts handlers to main event loop
     bool m_use_default_executor;
@@ -138,9 +142,8 @@ service_connection_t::call(Args&&... args) {
     try {
         current_session = this->create_session(h, channel);
     } catch (...) {
-        typename service_traits<Event>::promise_type p;
-        p.set_exception(std::current_exception());
-        return p.get_generator();
+        h->error(std::current_exception());
+        return f;
     }
 
     // send the request

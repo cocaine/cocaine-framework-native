@@ -182,8 +182,7 @@ struct service_traits {
 enum class service_status {
     disconnected,
     connecting,
-    connected,
-    waiting_for_sessions
+    connected
 };
 
 class service_t {
