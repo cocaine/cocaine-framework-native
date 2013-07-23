@@ -1,12 +1,12 @@
 cocaine-framework-native (0.10.5-4) unstable; urgency=low
 
-  * Fixed dependencies of cocaine-framework-native-dev
+  * Fixed dependencies of cocaine-framework-native-dev.
 
  -- Andrey Goryachev <bugsbunny@yandex-team.ru>  Mon, 22 Jul 2013 22:19:30 +0400
 
 cocaine-framework-native (0.10.5-3) unstable; urgency=low
 
-  * New http handler. Format of response and request changed.
+  * New HTTP handler. Format of response and request has changed.
   * Some fixes in stream/generator and services.
 
  -- Andrey Goryachev <bugsbunny@yandex-team.ru>  Mon, 22 Jul 2013 21:34:35 +0400
