@@ -1,3 +1,11 @@
+cocaine-framework-native (0.10.5-5) unstable; urgency=low
+
+  * It's possible to create service manager even if cocaine runtime is down. When the locator appears, service manager will be able to create services and write logs.
+  * Disconnected services automaticaly reconnects before each call. If reconnect fails then exception will be pushed in future returned by 'call'.
+  * Some bugs fixed.
+
+ -- Andrey Goryachev <bugsbunny@yandex-team.ru>  Wed, 24 Jul 2013 22:21:46 +0400
+
 cocaine-framework-native (0.10.5-4) unstable; urgency=low
 
   * Fixed dependencies of cocaine-framework-native-dev.
