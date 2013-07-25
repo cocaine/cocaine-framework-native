@@ -5,7 +5,7 @@
 using namespace cocaine::framework;
 
 std::vector<std::string>
-http_headers_t::headers(const std::string& key) {
+http_headers_t::headers(const std::string& key) const {
     std::vector<std::string> result;
 
     for (auto it = m_headers.begin(); it != m_headers.end(); ++it) {
@@ -18,7 +18,7 @@ http_headers_t::headers(const std::string& key) {
 }
 
 boost::optional<std::string>
-http_headers_t::header(const std::string& key) {
+http_headers_t::header(const std::string& key) const {
     for (auto it = m_headers.begin(); it != m_headers.end(); ++it) {
         if (boost::iequals(it->first, key)) {
             return boost::optional<std::string>(it->second);

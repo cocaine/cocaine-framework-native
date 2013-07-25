@@ -100,28 +100,6 @@ on_socket_error(const std::error_code& code) {
     throw std::system_error(code);
 }
 
-struct ioservice_executor_t {
-    ioservice_executor_t(cocaine::io::reactor_t& ioservice) :
-        m_ioservice(ioservice)
-    {
-        // pass
-    }
-
-    ioservice_executor_t(const ioservice_executor_t& other) :
-        m_ioservice(other.m_ioservice)
-    {
-        // pass
-    }
-
-    void
-    operator()(const std::function<void()>& f) {
-        m_ioservice.post(f);
-    }
-
-private:
-    cocaine::io::reactor_t& m_ioservice;
-};
-
 } // namespace
 
 dispatch_t::dispatch_t(const std::string& name,
@@ -151,8 +129,7 @@ dispatch_t::dispatch_t(const std::string& name,
 
     m_service_manager = service_manager_t::create(
         cocaine::io::tcp::endpoint("127.0.0.1", resolver_port),
-        cocaine::format("app/%s", name),
-        ioservice_executor_t(m_ioservice)
+        cocaine::format("app/%s", name)
     );
 }
 

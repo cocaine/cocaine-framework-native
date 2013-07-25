@@ -7,11 +7,10 @@ using namespace cocaine::framework;
 
 std::shared_ptr<service_manager_t>
 service_manager_t::create(endpoint_t resolver_endpoint,
-       const std::string& logging_prefix,
-       const executor_t& executor)
+                          const std::string& logging_prefix)
 {
     std::shared_ptr<service_manager_t> manager(
-        new service_manager_t(resolver_endpoint, executor)
+        new service_manager_t(resolver_endpoint, executor_t())
     );
     manager->init();
     manager->m_logger = manager->get_service_async<logging_service_t>("logging", logging_prefix);
@@ -20,11 +19,10 @@ service_manager_t::create(endpoint_t resolver_endpoint,
 
 std::shared_ptr<service_manager_t>
 service_manager_t::create(endpoint_t resolver_endpoint,
-       std::shared_ptr<logger_t> logger,
-       const executor_t& executor)
+                          std::shared_ptr<logger_t> logger)
 {
     std::shared_ptr<service_manager_t> manager(
-        new service_manager_t(resolver_endpoint, executor)
+        new service_manager_t(resolver_endpoint, executor_t())
     );
     manager->init();
     manager->m_logger = logger;

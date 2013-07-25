@@ -49,10 +49,10 @@ public:
     }
 
     std::vector<std::string>
-    headers(const std::string& key);
+    headers(const std::string& key) const;
 
     boost::optional<std::string>
-    header(const std::string& key);
+    header(const std::string& key) const;
 
     // add new entry
     void

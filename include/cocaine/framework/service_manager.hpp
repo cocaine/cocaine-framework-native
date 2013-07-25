@@ -29,14 +29,12 @@ public:
     static
     std::shared_ptr<service_manager_t>
     create(endpoint_t resolver_endpoint,
-           const std::string& logging_prefix,
-           const executor_t& executor = executor_t());
+           const std::string& logging_prefix);
 
     static
     std::shared_ptr<service_manager_t>
     create(endpoint_t resolver_endpoint,
-           std::shared_ptr<logger_t> logger = std::shared_ptr<logger_t>(),
-           const executor_t& executor = executor_t());
+           std::shared_ptr<logger_t> logger = std::shared_ptr<logger_t>());
 
     ~service_manager_t();
 
