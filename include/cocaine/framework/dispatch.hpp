@@ -197,7 +197,6 @@ run(int argc,
     }
 
     try {
-
         App app(*dispatch.get(), std::forward<Args>(args)...);
 
         try {
@@ -206,19 +205,28 @@ run(int argc,
         } catch (const std::exception& e) {
             std::cerr << "ERROR: " << e.what() << std::endl;
             return 1;
+        } catch (...) {
+            std::cerr << "ERROR: Unknown error!" << std::endl;
+            return 1;
         }
     } catch (const std::exception& e) {
         dispatch->terminate(
             cocaine::io::rpc::terminate::abnormal,
             cocaine::format("Error has occurred while initializing the application: %s", e.what())
         );
-        throw;
+
+        std::cerr << "ERROR: " << e.what() << std::endl;
+
+        return 1;
     } catch (...) {
         dispatch->terminate(
             cocaine::io::rpc::terminate::abnormal,
             "Unknown error has occurred while initializing the application"
         );
-        throw;
+
+        std::cerr << "ERROR: Unknown error!" << std::endl;
+
+        return 1;
     }
 }
 
