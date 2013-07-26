@@ -26,9 +26,7 @@ public:
     typedef uint64_t session_id_t;
 
 public:
-    ~service_connection_t() {
-        reset_sessions();
-    }
+    ~service_connection_t();
 
     std::string
     name() const {
@@ -91,7 +89,7 @@ private:
     connect_to_endpoint();
 
     void
-    disconnect();
+    disconnect(service_status status = service_status::disconnected);
 
     void
     reset_sessions();

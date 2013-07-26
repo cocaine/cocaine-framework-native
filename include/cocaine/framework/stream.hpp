@@ -233,9 +233,9 @@ namespace detail { namespace stream {
                 m_result.emplace(std::forward<Args2>(args)...);
                 m_ready.notify_all();
                 if (m_once_callback) {
-                    lock.unlock();
                     std::function<void()> callback = m_once_callback;
                     m_once_callback = std::function<void()>();
+                    lock.unlock();
                     callback();
                 }
             }

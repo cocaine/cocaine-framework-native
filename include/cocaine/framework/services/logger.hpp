@@ -18,10 +18,12 @@ struct logging_service_t :
     logging_service_t(std::shared_ptr<service_connection_t> connection,
                       const std::string& source) :
         service_t(connection),
-        m_source(source)
+        m_source(source),
+        m_priority_updated(false)
     {
         try {
             m_priority = call<cocaine::io::logging::verbosity>().next();
+            m_priority_updated = true;
         } catch (...) {
             m_priority = cocaine::logging::debug;
         }
@@ -31,7 +33,13 @@ struct logging_service_t :
     emit(cocaine::logging::priorities priority,
          const std::string& message)
     {
-        if (status() == service_status::disconnected) {
+        if (status() != service_status::connected &&
+            status() != service_status::connecting)
+        {
+            m_priority_updated = false;
+        }
+
+        if (!m_priority_updated) {
             call<cocaine::io::logging::verbosity>()
             .then(std::bind(&logging_service_t::set_verbosity,
                             shared_from_this(),
@@ -50,11 +58,13 @@ private:
     void
     set_verbosity(generator<cocaine::logging::priorities>& g) {
         m_priority = g.next();
+        m_priority_updated = true;
     }
 
 private:
     std::string m_source;
     cocaine::logging::priorities m_priority;
+    bool m_priority_updated;
 };
 
 }} // cocaine::framework

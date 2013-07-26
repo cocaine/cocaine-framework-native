@@ -43,6 +43,10 @@ service_connection_t::service_connection_t(const endpoint_t& endpoint,
     m_channel.reset(new iochannel_t);
 }
 
+service_connection_t::~service_connection_t() {
+    reset_sessions();
+}
+
 std::shared_ptr<service_manager_t>
 service_connection_t::manager() {
     auto m = m_manager.lock();
@@ -70,18 +74,22 @@ service_connection_t::soft_destroy() {
 }
 
 void
-service_connection_t::disconnect() {
+service_connection_t::disconnect(service_status status) {
     std::unique_lock<std::recursive_mutex> lock(m_handlers_lock);
 
-    m_connection_status = service_status::disconnected;
-    std::shared_ptr<iochannel_t> channel(std::move(m_channel));
-    m_channel.reset(new iochannel_t);
+    m_connection_status = status;
+    std::shared_ptr<iochannel_t> channel(m_channel);
+    m_channel.reset();
     reset_sessions();
-    manager()->m_ioservice.post(std::bind(&emptyf<std::shared_ptr<iochannel_t>>::call, channel));
+    auto m = m_manager.lock();
+    if (m) {
+        m->m_ioservice.post(
+            std::bind(&emptyf<std::shared_ptr<iochannel_t>, std::shared_ptr<service_connection_t>>::call,
+                      channel,
+                      shared_from_this())
+        );
 
-    if (m_dying) {
-        auto m = m_manager.lock();
-        if (m) {
+        if (m_dying) {
             m->release_connection(shared_from_this());
         }
     }
@@ -111,11 +119,15 @@ service_connection_t::connect() {
     try {
         if (m_name) {
             auto m = manager();
+            std::unique_lock<std::recursive_mutex> lock(m_handlers_lock);
+            m_channel.reset(new iochannel_t);
             m_connection_status = service_status::connecting;
             return m->resolve(*m_name).then(std::bind(&service_connection_t::on_resolved,
-                                                      this,
+                                                      shared_from_this(),
                                                       std::placeholders::_1));
         } else {
+            std::unique_lock<std::recursive_mutex> lock(m_handlers_lock);
+            m_channel.reset(new iochannel_t);
             m_connection_status = service_status::connecting;
             connect_to_endpoint();
             return make_ready_future<std::shared_ptr<service_connection_t>>::make(shared_from_this());
@@ -125,26 +137,62 @@ service_connection_t::connect() {
     }
 }
 
+std::shared_ptr<service_connection_t>
+service_connection_t::on_resolved(service_traits<cocaine::io::locator::resolve>::future_type& f) {
+    try {
+        auto service_info = f.next();
+        std::string hostname;
+        uint16_t port;
+
+        std::tie(hostname, port) = std::get<0>(service_info);
+
+        m_endpoint = cocaine::io::resolver<cocaine::io::tcp>::query(hostname, port);
+
+        if (m_version != std::get<1>(service_info)) {
+            throw service_error_t(service_errc::bad_version);
+        }
+    } catch (const service_error_t& e) {
+        if (e.code().category() == service_response_category()) {
+            disconnect(service_status::not_found);
+            throw service_error_t(service_errc::not_found);
+        } else {
+            disconnect();
+            throw;
+        }
+    } catch (...) {
+        disconnect();
+        throw;
+    }
+
+    connect_to_endpoint();
+
+    return shared_from_this();
+}
+
 void
 service_connection_t::connect_to_endpoint() {
     try {
-        auto m = manager();
+        std::unique_lock<std::recursive_mutex> lock(m_handlers_lock);
 
-        auto socket = std::make_shared<cocaine::io::socket<cocaine::io::tcp>>(m_endpoint);
+        if (m_connection_status == service_status::connecting) {
+            auto m = manager();
 
-        m_channel->attach(m->m_ioservice, socket);
-        m_channel->rd->bind(std::bind(&service_connection_t::on_message,
-                                      this,
-                                      std::placeholders::_1),
-                            std::bind(&service_connection_t::on_error,
-                                      this,
-                                      std::placeholders::_1));
-        m_channel->wr->bind(std::bind(&service_connection_t::on_error,
-                                      this,
-                                      std::placeholders::_1));
-        m->m_ioservice.post(&emptyf<>::call); // wake up event-loop
+            auto socket = std::make_shared<cocaine::io::socket<cocaine::io::tcp>>(m_endpoint);
 
-        m_connection_status = service_status::connected;
+            m_channel->attach(m->m_ioservice, socket);
+            m_channel->rd->bind(std::bind(&service_connection_t::on_message,
+                                          this,
+                                          std::placeholders::_1),
+                                std::bind(&service_connection_t::on_error,
+                                          this,
+                                          std::placeholders::_1));
+            m_channel->wr->bind(std::bind(&service_connection_t::on_error,
+                                          this,
+                                          std::placeholders::_1));
+            m->m_ioservice.post(&emptyf<>::call); // wake up event-loop
+
+            m_connection_status = service_status::connected;
+        }
     } catch (...) {
         disconnect();
         throw;
@@ -153,10 +201,20 @@ service_connection_t::connect_to_endpoint() {
 
 void
 service_connection_t::reset_sessions() {
+    std::unique_lock<std::recursive_mutex> lock(m_handlers_lock);
+
     handlers_map_t handlers;
     handlers.swap(m_handlers);
 
-    service_error_t err(service_errc::not_connected);
+    service_errc errc;
+
+    if (m_connection_status == service_status::not_found) {
+        errc = service_errc::not_found;
+    } else {
+        errc = service_errc::not_connected;
+    }
+
+    service_error_t err(errc);
 
     for (auto it = handlers.begin(); it != handlers.end(); ++it) {
         try {
@@ -175,7 +233,10 @@ service_connection_t::create_session(
 {
     std::unique_lock<std::recursive_mutex> lock(m_handlers_lock);
 
-    if (!m_dying && m_connection_status == service_status::disconnected) {
+    if (!m_dying &&
+        (m_connection_status == service_status::disconnected ||
+         m_connection_status == service_status::not_found))
+    {
         reconnect();
     }
 
@@ -183,36 +244,14 @@ service_connection_t::create_session(
 
     if (m_dying || (m_connection_status == service_status::disconnected)) {
         throw service_error_t(service_errc::not_connected);
+    } else if (m_connection_status == service_status::not_found) {
+        throw service_error_t(service_errc::not_found);
     } else {
         current_session = m_session_counter++;
         m_handlers[current_session] = handler;
         channel = m_channel;
     }
     return current_session;
-}
-
-std::shared_ptr<service_connection_t>
-service_connection_t::on_resolved(service_traits<cocaine::io::locator::resolve>::future_type& f) {
-    try {
-        auto service_info = f.next();
-        std::string hostname;
-        uint16_t port;
-
-        std::tie(hostname, port) = std::get<0>(service_info);
-
-        m_endpoint = cocaine::io::resolver<cocaine::io::tcp>::query(hostname, port);
-
-        if (m_version != std::get<1>(service_info)) {
-            throw service_error_t(service_errc::bad_version);
-        }
-    } catch (...) {
-        disconnect();
-        throw;
-    }
-
-    connect_to_endpoint();
-
-    return shared_from_this();
 }
 
 void

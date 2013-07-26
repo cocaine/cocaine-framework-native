@@ -11,6 +11,7 @@ namespace cocaine { namespace framework {
 enum class service_errc {
     bad_version,
     not_connected,
+    not_found,
     wait_for_connection,
     broken_manager
 };

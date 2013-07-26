@@ -63,6 +63,13 @@ service_manager_t::stop() {
         m_ioservice.post(std::bind(&cocaine::io::reactor_t::stop, &m_ioservice));
         m_working_thread.join();
     }
+
+    std::unique_lock<std::mutex> lock(m_connections_lock);
+    for (auto it = m_connections.begin(); it != m_connections.end(); ++it) {
+        (*it)->disconnect();
+    }
+
+    m_resolver.reset();
 }
 
 std::shared_ptr<logger_t>

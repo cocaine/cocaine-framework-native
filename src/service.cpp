@@ -23,6 +23,9 @@ namespace {
                 case static_cast<int>(cocaine::framework::service_errc::not_connected):
                     return "There is no connection to service";
 
+                case static_cast<int>(cocaine::framework::service_errc::not_found):
+                    return "Service not found in locator";
+
                 case static_cast<int>(cocaine::framework::service_errc::wait_for_connection):
                     return "Client is reconnecting to service at now";
 
