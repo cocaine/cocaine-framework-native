@@ -20,10 +20,10 @@ service_connection_t::service_connection_t(const std::string& name,
                                            unsigned int version) :
     m_name(name),
     m_version(version),
+    m_session_counter(1),
     m_manager(manager),
     m_connection_status(service_status::disconnected),
-    m_dying(false),
-    m_session_counter(1)
+    m_dying(false)
 {
     m_channel.reset(new iochannel_t);
 }
@@ -33,10 +33,10 @@ service_connection_t::service_connection_t(const endpoint_t& endpoint,
                                            unsigned int version) :
     m_endpoint(endpoint),
     m_version(version),
+    m_session_counter(1),
     m_manager(manager),
     m_connection_status(service_status::disconnected),
-    m_dying(false),
-    m_session_counter(1)
+    m_dying(false)
 {
     m_channel.reset(new iochannel_t);
 }
@@ -46,8 +46,13 @@ service_connection_t::~service_connection_t() {
 }
 
 std::shared_ptr<service_manager_t>
+service_connection_t::get_manager() throw() {
+    return m_manager.lock();
+}
+
+std::shared_ptr<service_manager_t>
 service_connection_t::manager() {
-    auto m = m_manager.lock();
+    auto m = get_manager();
     if (m) {
         return m;
     } else {
@@ -72,7 +77,7 @@ service_connection_t::soft_destroy() {
         m_dying = true;
 
         if (m_handlers.empty() && m_connection_status != service_status::connecting) {
-            auto m = m_manager.lock();
+            auto m = get_manager();
             if (m) {
                 m->release_connection(shared_from_this());
             }
@@ -88,7 +93,7 @@ service_connection_t::disconnect(service_status status) {
     std::shared_ptr<iochannel_t> channel(m_channel);
     m_channel.reset();
     reset_sessions();
-    auto m = m_manager.lock();
+    auto m = get_manager();
     if (m) {
         m->m_ioservice.post(
             std::bind(&emptyf<std::shared_ptr<iochannel_t>, std::shared_ptr<service_connection_t>>::call,
@@ -286,7 +291,7 @@ service_connection_t::on_message(const cocaine::io::message_t& message) {
     handlers_map_t::iterator it = m_handlers.find(message.band());
 
     if (it == m_handlers.end()) {
-        auto m = m_manager.lock();
+        auto m = get_manager();
         if (m && m->get_system_logger()) {
             COCAINE_LOG_DEBUG(
                 m->get_system_logger(),
@@ -306,7 +311,7 @@ service_connection_t::on_message(const cocaine::io::message_t& message) {
             lock.unlock();
             h->handle_message(message);
         } catch (const std::exception& e) {
-            auto m = m_manager.lock();
+            auto m = get_manager();
             if (m && m->get_system_logger()) {
                 COCAINE_LOG_WARNING(
                     m->get_system_logger(),

@@ -17,7 +17,6 @@ class service_connection_t :
     COCAINE_DECLARE_NONCOPYABLE(service_connection_t)
 
     friend class service_manager_t;
-    friend class service_t;
 
 public:
     typedef cocaine::io::channel<cocaine::io::socket<cocaine::io::tcp>>
@@ -45,9 +44,9 @@ public:
         return m_connection_status;
     }
 
-    session_id_t
-    create_session(std::shared_ptr<detail::service::service_handler_concept_t> handler,
-                   std::shared_ptr<iochannel_t>& channel);
+    // returns empty pointer if the manager doesn't exist
+    std::shared_ptr<service_manager_t>
+    get_manager() throw();
 
     template<class Event, typename... Args>
     typename service_traits<Event>::future_type
@@ -68,8 +67,13 @@ private:
                          std::shared_ptr<service_manager_t> manager,
                          unsigned int version);
 
+    // throws if the manager doesn't exist
     std::shared_ptr<service_manager_t>
     manager();
+
+    session_id_t
+    create_session(std::shared_ptr<detail::service::service_handler_concept_t> handler,
+                   std::shared_ptr<iochannel_t>& channel);
 
     future<std::shared_ptr<service_connection_t>>
     connect();
@@ -100,14 +104,15 @@ private:
     endpoint_t m_endpoint;
     unsigned int m_version;
 
-    std::weak_ptr<service_manager_t> m_manager;
-    std::shared_ptr<iochannel_t> m_channel;
-    service_status m_connection_status;
-    bool m_dying;
-
     std::atomic<session_id_t> m_session_counter;
     handlers_map_t m_handlers;
     std::recursive_mutex m_handlers_lock;
+
+    std::weak_ptr<service_manager_t> m_manager;
+    std::shared_ptr<iochannel_t> m_channel;
+
+    service_status m_connection_status;
+    bool m_dying;
 };
 
 template<class Event, typename... Args>

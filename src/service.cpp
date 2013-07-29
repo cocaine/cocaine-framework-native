@@ -86,7 +86,7 @@ using namespace cocaine::framework;
 service_t::service_t(std::shared_ptr<service_connection_t> connection) :
     m_connection(connection)
 {
-    auto m = connection->m_manager.lock();
+    auto m = connection->get_manager();
     if (m) {
         m->register_connection(connection);
     }
@@ -95,7 +95,7 @@ service_t::service_t(std::shared_ptr<service_connection_t> connection) :
 service_t::~service_t() {
     auto c = m_connection.lock();
     if (c) {
-        auto m = c->m_manager.lock();
+        auto m = c->get_manager();
         if (m) {
             m->release_connection(c);
         }
