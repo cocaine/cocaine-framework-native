@@ -62,8 +62,7 @@ public:
     get_system_logger() const;
 
 private:
-    service_manager_t(endpoint_t resolver_endpoint,
-                      const executor_t& executor);
+    service_manager_t(endpoint_t resolver_endpoint);
 
     void
     init();
@@ -92,7 +91,6 @@ private:
     cocaine::io::reactor_t m_ioservice;
     std::thread m_working_thread;
     endpoint_t m_resolver_endpoint;
-    executor_t m_default_executor;
 
     std::set<std::shared_ptr<service_connection_t>> m_connections;
     std::mutex m_connections_lock;

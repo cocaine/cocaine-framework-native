@@ -10,7 +10,7 @@ service_manager_t::create(endpoint_t resolver_endpoint,
                           const std::string& logging_prefix)
 {
     std::shared_ptr<service_manager_t> manager(
-        new service_manager_t(resolver_endpoint, executor_t())
+        new service_manager_t(resolver_endpoint)
     );
     manager->init();
     manager->m_logger = manager->get_service_async<logging_service_t>("logging", logging_prefix);
@@ -22,17 +22,15 @@ service_manager_t::create(endpoint_t resolver_endpoint,
                           std::shared_ptr<logger_t> logger)
 {
     std::shared_ptr<service_manager_t> manager(
-        new service_manager_t(resolver_endpoint, executor_t())
+        new service_manager_t(resolver_endpoint)
     );
     manager->init();
     manager->m_logger = logger;
     return manager;
 }
 
-service_manager_t::service_manager_t(endpoint_t resolver_endpoint,
-                                     const executor_t& executor) :
-    m_resolver_endpoint(resolver_endpoint),
-    m_default_executor(executor)
+service_manager_t::service_manager_t(endpoint_t resolver_endpoint) :
+    m_resolver_endpoint(resolver_endpoint)
 {
     // pass
 }
@@ -61,7 +59,6 @@ service_manager_t::init() {
                                  cocaine::io::protocol<cocaine::io::locator_tag>::version::value)
     );
 
-    m_resolver->use_default_executor(false);
     m_resolver->connect();
 
     m_working_thread = std::thread(&cocaine::io::reactor_t::run, &m_ioservice);

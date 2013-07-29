@@ -23,7 +23,6 @@ service_connection_t::service_connection_t(const std::string& name,
     m_manager(manager),
     m_connection_status(service_status::disconnected),
     m_dying(false),
-    m_use_default_executor(true),
     m_session_counter(1)
 {
     m_channel.reset(new iochannel_t);
@@ -37,7 +36,6 @@ service_connection_t::service_connection_t(const endpoint_t& endpoint,
     m_manager(manager),
     m_connection_status(service_status::disconnected),
     m_dying(false),
-    m_use_default_executor(true),
     m_session_counter(1)
 {
     m_channel.reset(new iochannel_t);

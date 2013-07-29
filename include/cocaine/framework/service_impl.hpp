@@ -71,11 +71,6 @@ private:
     std::shared_ptr<service_manager_t>
     manager();
 
-    void
-    use_default_executor(bool use) {
-        m_use_default_executor = use;
-    }
-
     future<std::shared_ptr<service_connection_t>>
     connect();
 
@@ -110,9 +105,6 @@ private:
     service_status m_connection_status;
     bool m_dying;
 
-    // resolver must not use default executor, that posts handlers to main event loop
-    bool m_use_default_executor;
-
     std::atomic<session_id_t> m_session_counter;
     handlers_map_t m_handlers;
     std::recursive_mutex m_handlers_lock;
@@ -124,9 +116,6 @@ service_connection_t::call(Args&&... args) {
     // prepare future
     auto h = std::make_shared<detail::service::service_handler<Event>>();
     auto f = h->get_future();
-    if (m_use_default_executor) {
-        f.set_default_executor(manager()->m_default_executor);
-    }
 
     // create session
     std::shared_ptr<iochannel_t> channel;
