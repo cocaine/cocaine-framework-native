@@ -23,19 +23,17 @@ public:
     typedef cocaine::io::channel<cocaine::io::socket<cocaine::io::tcp>>
             iochannel_t;
 
-    typedef uint64_t session_id_t;
+    typedef uint64_t
+            session_id_t;
+
+    typedef std::pair<std::string, uint16_t>
+            endpoint_t;
 
 public:
     ~service_connection_t();
 
     std::string
-    name() const {
-        if (m_name) {
-            return *m_name;
-        } else {
-            return cocaine::format("%s:%d", m_endpoint.address(), m_endpoint.port());
-        }
-    }
+    name() const;
 
     int
     version() const {
@@ -60,10 +58,6 @@ public:
 
     void
     soft_destroy();
-
-private:
-    typedef cocaine::io::tcp::endpoint
-            endpoint_t;
 
 private:
     service_connection_t(const std::string& name,

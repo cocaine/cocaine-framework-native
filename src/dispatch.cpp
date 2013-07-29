@@ -128,7 +128,7 @@ dispatch_t::dispatch_t(const std::string& name,
     m_disown_timer.priority = EV_MINPRI;
 
     m_service_manager = service_manager_t::create(
-        cocaine::io::tcp::endpoint("127.0.0.1", resolver_port),
+        service_manager_t::endpoint_t("127.0.0.1", resolver_port),
         cocaine::format("app/%s", name)
     );
 }
@@ -275,7 +275,7 @@ dispatch_t::terminate(int code,
 void
 dispatch_t::run() {
     m_ioservice.run();
-    m_service_manager->stop();
+    m_service_manager.reset();
     m_sessions.clear();
 }
 

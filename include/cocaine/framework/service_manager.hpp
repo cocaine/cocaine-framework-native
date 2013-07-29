@@ -23,7 +23,9 @@ class service_manager_t :
     friend class service_t;
     friend class service_connection_t;
 
-    typedef cocaine::io::tcp::endpoint endpoint_t;
+public:
+    typedef std::pair<std::string, uint16_t>
+            endpoint_t;
 
 public:
     static
@@ -37,9 +39,6 @@ public:
            std::shared_ptr<logger_t> logger = std::shared_ptr<logger_t>());
 
     ~service_manager_t();
-
-    void
-    stop();
 
     template<class Service, typename... Args>
     std::shared_ptr<Service>

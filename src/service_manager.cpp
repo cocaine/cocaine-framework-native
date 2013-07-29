@@ -38,7 +38,17 @@ service_manager_t::service_manager_t(endpoint_t resolver_endpoint,
 }
 
 service_manager_t::~service_manager_t() {
-    stop();
+    if (m_working_thread.joinable()) {
+        m_ioservice.post(std::bind(&cocaine::io::reactor_t::stop, &m_ioservice));
+        m_working_thread.join();
+    }
+
+    std::unique_lock<std::mutex> lock(m_connections_lock);
+    for (auto it = m_connections.begin(); it != m_connections.end(); ++it) {
+        (*it)->disconnect();
+    }
+
+    m_resolver.reset();
 }
 
 void
@@ -55,21 +65,6 @@ service_manager_t::init() {
     m_resolver->connect();
 
     m_working_thread = std::thread(&cocaine::io::reactor_t::run, &m_ioservice);
-}
-
-void
-service_manager_t::stop() {
-    if (m_working_thread.joinable()) {
-        m_ioservice.post(std::bind(&cocaine::io::reactor_t::stop, &m_ioservice));
-        m_working_thread.join();
-    }
-
-    std::unique_lock<std::mutex> lock(m_connections_lock);
-    for (auto it = m_connections.begin(); it != m_connections.end(); ++it) {
-        (*it)->disconnect();
-    }
-
-    m_resolver.reset();
 }
 
 std::shared_ptr<logger_t>
