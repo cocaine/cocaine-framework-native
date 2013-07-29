@@ -1,3 +1,10 @@
+cocaine-framework-native (0.10.6.0) unstable; urgency=low
+
+  * Support of IPv6 in services.
+  * Several bugfixes.
+
+ -- Andrey Goryachev <bugsbunny@yandex-team.ru>  Mon, 29 Jul 2013 18:05:31 +0400
+
 cocaine-framework-native (0.10.5-5) unstable; urgency=low
 
   * It's possible to create service manager even if cocaine runtime is down. When the locator appears, service manager will be able to create services and write logs.
