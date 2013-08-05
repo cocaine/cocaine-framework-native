@@ -1,3 +1,9 @@
+cocaine-framework-native (0.10.6.1) unstable; urgency=low
+
+  * Bump version to build native framework with last libcocaine-dev.
+
+ -- Andrey Goryachev <bugsbunny@yandex-team.ru>  Mon, 05 Aug 2013 11:37:19 +0400
+
 cocaine-framework-native (0.10.6.0) unstable; urgency=low
 
   * Support of IPv6 in services.
