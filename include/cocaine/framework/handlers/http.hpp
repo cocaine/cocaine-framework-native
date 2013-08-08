@@ -204,8 +204,7 @@ struct type_traits<cocaine::framework::http_request_t> {
 
 namespace cocaine { namespace framework {
 
-struct http_upstream_t :
-    public upstream_t
+struct http_upstream_t
 {
     http_upstream_t(std::shared_ptr<upstream_t> s) :
         m_stream(s)
@@ -227,10 +226,9 @@ struct http_upstream_t :
     }
 
     void
-    write(const char* chunk,
-          size_t size)
+    write(const std::string& body)
     {
-        m_stream->write(chunk, size);
+        m_stream->write(body);
     }
 
     void
@@ -241,14 +239,6 @@ struct http_upstream_t :
     bool
     closed() const {
         return m_stream->closed();
-    }
-
-    using upstream_t::write;
-
-private:
-    void
-    error(int, const std::string&) {
-        throw std::logic_error(":o)))");
     }
 
 private:
