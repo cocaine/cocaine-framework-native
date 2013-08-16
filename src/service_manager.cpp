@@ -13,7 +13,7 @@ service_manager_t::create(endpoint_t resolver_endpoint,
         new service_manager_t(resolver_endpoint)
     );
     manager->init();
-    manager->m_logger = manager->get_service_async<logging_service_t>("logging", logging_prefix);
+    manager->m_logger = manager->get_deferred_service<logging_service_t>("logging", logging_prefix);
     return manager;
 }
 
@@ -102,9 +102,19 @@ service_manager_t::get_connection(const std::string& name,
     return service;
 }
 
-std::shared_ptr<service_connection_t>
+future<std::shared_ptr<service_connection_t>>
 service_manager_t::get_connection_async(const std::string& name,
                                         int version)
+{
+    std::shared_ptr<service_connection_t> service(
+        new service_connection_t(name, shared_from_this(), version)
+    );
+    return service->connect();
+}
+
+std::shared_ptr<service_connection_t>
+service_manager_t::get_deferred_connection(const std::string& name,
+                                           int version)
 {
     std::shared_ptr<service_connection_t> service(
         new service_connection_t(name, shared_from_this(), version)
