@@ -63,7 +63,7 @@ private:
                          std::shared_ptr<service_manager_t> manager,
                          unsigned int version);
 
-    service_connection_t(const endpoint_t& endpoint,
+    service_connection_t(const std::vector<endpoint_t>& endpoints,
                          std::shared_ptr<service_manager_t> manager,
                          unsigned int version);
 
@@ -101,7 +101,7 @@ private:
             handlers_map_t;
 
     boost::optional<std::string> m_name;
-    endpoint_t m_endpoint;
+    std::vector<endpoint_t> m_endpoints;
     unsigned int m_version;
 
     std::atomic<session_id_t> m_session_counter;

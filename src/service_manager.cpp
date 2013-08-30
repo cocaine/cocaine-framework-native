@@ -6,11 +6,11 @@
 using namespace cocaine::framework;
 
 std::shared_ptr<service_manager_t>
-service_manager_t::create(endpoint_t resolver_endpoint,
+service_manager_t::create(const std::vector<endpoint_t>& resolver_endpoints,
                           const std::string& logging_prefix)
 {
     std::shared_ptr<service_manager_t> manager(
-        new service_manager_t(resolver_endpoint)
+        new service_manager_t(resolver_endpoints)
     );
     manager->init();
     manager->m_logger = manager->get_deferred_service<logging_service_t>("logging", logging_prefix);
@@ -18,19 +18,19 @@ service_manager_t::create(endpoint_t resolver_endpoint,
 }
 
 std::shared_ptr<service_manager_t>
-service_manager_t::create(endpoint_t resolver_endpoint,
+service_manager_t::create(const std::vector<endpoint_t>& resolver_endpoints,
                           std::shared_ptr<logger_t> logger)
 {
     std::shared_ptr<service_manager_t> manager(
-        new service_manager_t(resolver_endpoint)
+        new service_manager_t(resolver_endpoints)
     );
     manager->init();
     manager->m_logger = logger;
     return manager;
 }
 
-service_manager_t::service_manager_t(endpoint_t resolver_endpoint) :
-    m_resolver_endpoint(resolver_endpoint)
+service_manager_t::service_manager_t(const std::vector<endpoint_t>& resolver_endpoints) :
+    m_resolver_endpoints(resolver_endpoints)
 {
     // pass
 }
@@ -54,7 +54,7 @@ service_manager_t::init() {
     // The order of initialization of objects is important here.
     // reactor_t must have at least one watcher before run (m_resolver is watcher).
     m_resolver.reset(
-        new service_connection_t(m_resolver_endpoint,
+        new service_connection_t(m_resolver_endpoints,
                                  shared_from_this(),
                                  cocaine::io::protocol<cocaine::io::locator_tag>::version::value)
     );

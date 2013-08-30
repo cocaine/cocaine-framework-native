@@ -30,13 +30,24 @@ public:
 public:
     static
     std::shared_ptr<service_manager_t>
-    create(endpoint_t resolver_endpoint,
+    create(const std::vector<endpoint_t>& resolver_endpoints,
            const std::string& logging_prefix);
 
     static
     std::shared_ptr<service_manager_t>
-    create(endpoint_t resolver_endpoint,
+    create(const std::vector<endpoint_t>& resolver_endpoints,
            std::shared_ptr<logger_t> logger = std::shared_ptr<logger_t>());
+
+    template<class Logger>
+    static
+    std::shared_ptr<service_manager_t>
+    create(endpoint_t resolver,
+           Logger&& logger)
+    {
+        std::vector<endpoint_t> r;
+        r.emplace_back(resolver);
+        return create(r, std::forward<Logger>(logger));
+    }
 
     ~service_manager_t();
 
@@ -65,7 +76,7 @@ public:
     get_system_logger() const;
 
 private:
-    service_manager_t(endpoint_t resolver_endpoint);
+    service_manager_t(const std::vector<endpoint_t>& resolver_endpoints);
 
     void
     init();
@@ -115,7 +126,7 @@ private:
 private:
     cocaine::io::reactor_t m_ioservice;
     std::thread m_working_thread;
-    endpoint_t m_resolver_endpoint;
+    std::vector<endpoint_t> m_resolver_endpoints;
 
     std::set<std::shared_ptr<service_connection_t>> m_connections;
     std::mutex m_connections_lock;

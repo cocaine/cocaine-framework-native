@@ -28,10 +28,10 @@ service_connection_t::service_connection_t(const std::string& name,
     m_channel.reset(new iochannel_t);
 }
 
-service_connection_t::service_connection_t(const endpoint_t& endpoint,
+service_connection_t::service_connection_t(const std::vector<endpoint_t>& endpoints,
                                            std::shared_ptr<service_manager_t> manager,
                                            unsigned int version) :
-    m_endpoint(endpoint),
+    m_endpoints(endpoints),
     m_version(version),
     m_session_counter(1),
     m_manager(manager),
@@ -64,8 +64,10 @@ std::string
 service_connection_t::name() const {
     if (m_name) {
         return *m_name;
+    } else if (!m_endpoints.empty()) {
+        return cocaine::format("%s:%d", m_endpoints[0].first, m_endpoints[0].second);
     } else {
-        return cocaine::format("%s:%d", m_endpoint.first, m_endpoint.second);
+        return "<uninitialized>";
     }
 }
 
@@ -160,7 +162,8 @@ service_connection_t::on_resolved(service_traits<cocaine::io::locator::resolve>:
             throw service_error_t(service_errc::bad_version);
         }
 
-        std::tie(m_endpoint.first, m_endpoint.second) = std::get<0>(service_info);
+        m_endpoints.resize(1);
+        std::tie(m_endpoints[0].first, m_endpoints[0].second) = std::get<0>(service_info);
 
         connect_to_endpoint();
     } catch (const service_error_t& e) {
@@ -183,42 +186,49 @@ void
 service_connection_t::connect_to_endpoint() {
     std::unique_lock<std::recursive_mutex> lock(m_handlers_lock);
 
-    if (m_connection_status == service_status::connecting) {
-        auto m = manager();
+    auto m = manager();
 
-        auto endpoints = cocaine::io::resolver<cocaine::io::tcp>::query(m_endpoint.first, m_endpoint.second);
+    // iterate over hosts provided by user or locator
+    for (size_t hostidx = 0;
+        hostidx < m_endpoints.size() && m_connection_status == service_status::connecting;
+        ++hostidx)
+    {
+        try {
+            // resolve hostname
+            auto endpoints = cocaine::io::resolver<cocaine::io::tcp>::query(
+                m_endpoints[hostidx].first,
+                m_endpoints[hostidx].second
+            );
 
-        std::exception_ptr e;
+            // iterate over IP's returned by DNS server
+            for (size_t i = 0; i < endpoints.size(); ++i) {
+                try {
+                    auto socket = std::make_shared<cocaine::io::socket<cocaine::io::tcp>>(endpoints[i]);
 
-        for (size_t i = 0; i < endpoints.size(); ++i) {
-            e = std::exception_ptr();
-            try {
-                auto socket = std::make_shared<cocaine::io::socket<cocaine::io::tcp>>(endpoints[i]);
+                    m_channel->attach(m->m_ioservice, socket);
+                    m_channel->rd->bind(std::bind(&service_connection_t::on_message,
+                                                  this,
+                                                  std::placeholders::_1),
+                                        std::bind(&service_connection_t::on_error,
+                                                  this,
+                                                  std::placeholders::_1));
+                    m_channel->wr->bind(std::bind(&service_connection_t::on_error,
+                                                  this,
+                                                  std::placeholders::_1));
+                    m->m_ioservice.post(&emptyf<>::call); // wake up event-loop
 
-                m_channel->attach(m->m_ioservice, socket);
-                m_channel->rd->bind(std::bind(&service_connection_t::on_message,
-                                              this,
-                                              std::placeholders::_1),
-                                    std::bind(&service_connection_t::on_error,
-                                              this,
-                                              std::placeholders::_1));
-                m_channel->wr->bind(std::bind(&service_connection_t::on_error,
-                                              this,
-                                              std::placeholders::_1));
-                m->m_ioservice.post(&emptyf<>::call); // wake up event-loop
-
-                m_connection_status = service_status::connected;
-            } catch (...) {
-                e = std::current_exception();
-                continue;
+                    m_connection_status = service_status::connected;
+                    return;
+                } catch (...) {
+                    continue;
+                }
             }
-            break;
-        }
-
-        if (e != std::exception_ptr()) {
-            std::rethrow_exception(e);
+        } catch (...) {
+            continue;
         }
     }
+
+    throw service_error_t(service_errc::not_connected);
 }
 
 void
