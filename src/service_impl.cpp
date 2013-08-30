@@ -45,6 +45,11 @@ service_connection_t::~service_connection_t() {
     reset_sessions();
 }
 
+void
+service_connection_t::set_timeout(float timeout) {
+    m_timeout = timeout;
+}
+
 std::shared_ptr<service_manager_t>
 service_connection_t::get_manager() throw() {
     return m_manager.lock();
@@ -250,9 +255,9 @@ service_connection_t::reset_sessions() {
 
     for (auto it = handlers.begin(); it != handlers.end(); ++it) {
         try {
-            it->second->error(cocaine::framework::make_exception_ptr(err));
+            it->second.handler->error(cocaine::framework::make_exception_ptr(err));
         } catch (...) {
-            // optimize it
+            // pass
         }
     }
 }
@@ -280,10 +285,28 @@ service_connection_t::create_session(
         throw service_error_t(service_errc::not_found);
     } else {
         current_session = m_session_counter++;
-        m_handlers[current_session] = handler;
+        auto it = m_handlers.insert(handlers_map_t::value_type(
+            current_session,
+            session_data_t{current_session, handler, std::shared_ptr<ev::timer>(), this}
+        )).first;
+
+        if (m_timeout) {
+            it->second.close_timer.reset(new ev::timer(manager()->m_ioservice.native()));
+            it->second.close_timer->set<session_data_t, &session_data_t::on_timeout>(&(it->second));
+            it->second.close_timer->start(*m_timeout);
+            manager()->m_ioservice.post(&emptyf<>::call); // wake up event-loop
+        }
+
         channel = m_channel;
     }
     return current_session;
+}
+
+void
+service_connection_t::session_data_t::on_timeout(ev::timer&, int) {
+    handler->error(cocaine::framework::make_exception_ptr(service_error_t(service_errc::timeout)));
+    std::unique_lock<std::recursive_mutex> lock(connection->m_handlers_lock);
+    connection->m_handlers.erase(session);
 }
 
 void
@@ -310,8 +333,12 @@ service_connection_t::on_message(const cocaine::io::message_t& message) {
             );
         }
     } else {
+        if (it->second.close_timer) {
+            it->second.close_timer->stop();
+            it->second.close_timer.reset();
+        }
         try {
-            auto h = it->second;
+            auto h = it->second.handler;
             if (message.id() == io::event_traits<io::rpc::choke>::id) {
                 m_handlers.erase(it);
             }

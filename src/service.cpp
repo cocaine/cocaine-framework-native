@@ -32,6 +32,9 @@ namespace {
                 case static_cast<int>(cocaine::framework::service_errc::broken_manager):
                     return "Service manager no longer exists";
 
+                case static_cast<int>(cocaine::framework::service_errc::timeout):
+                    return "Session timed out";
+
                 default:
                     return "Unknown service error o_O";
             }
@@ -100,6 +103,11 @@ service_t::~service_t() {
             m->release_connection(c);
         }
     }
+}
+
+void
+service_t::set_timeout(float timeout) {
+    return connection()->set_timeout(timeout);
 }
 
 std::string

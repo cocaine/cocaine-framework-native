@@ -44,6 +44,9 @@ public:
         return m_connection_status;
     }
 
+    void
+    set_timeout(float timeout);
+
     // returns empty pointer if the manager doesn't exist
     std::shared_ptr<service_manager_t>
     get_manager() throw();
@@ -97,7 +100,18 @@ private:
     on_error(const std::error_code&);
 
 private:
-    typedef std::map<session_id_t, std::shared_ptr<detail::service::service_handler_concept_t>>
+    struct session_data_t {
+        void
+        on_timeout(ev::timer&, int);
+
+        session_id_t session;
+        std::shared_ptr<detail::service::service_handler_concept_t> handler;
+        std::shared_ptr<ev::timer> close_timer;
+        service_connection_t *connection;
+    };
+    friend struct session_data_t;
+
+    typedef std::map<session_id_t, session_data_t>
             handlers_map_t;
 
     boost::optional<std::string> m_name;
@@ -113,6 +127,9 @@ private:
 
     service_status m_connection_status;
     bool m_dying;
+
+    // if service does not respond within m_timeout seconds, the session will be deleted
+    boost::optional<float> m_timeout;
 };
 
 template<class Event, typename... Args>

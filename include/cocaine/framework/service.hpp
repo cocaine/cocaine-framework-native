@@ -201,6 +201,9 @@ public:
     service_status
     status();
 
+    void
+    set_timeout(float timeout);
+
     template<class Event, typename... Args>
     typename service_traits<Event>::future_type
     call(Args&&... args);

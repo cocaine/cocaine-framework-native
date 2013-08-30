@@ -13,7 +13,8 @@ enum class service_errc {
     not_connected,
     not_found,
     wait_for_connection,
-    broken_manager
+    broken_manager,
+    timeout
 };
 
 const std::error_category&
