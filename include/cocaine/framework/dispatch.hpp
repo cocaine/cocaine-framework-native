@@ -76,7 +76,7 @@ private:
     dispatch_t(const std::string& name,
                const std::string& uuid,
                const std::string& endpoint,
-               uint16_t resolver_port);
+               const service_manager_t::endpoint_t& locator_endpoint);
 
     static
     std::unique_ptr<dispatch_t>

@@ -105,7 +105,7 @@ on_socket_error(const std::error_code& code) {
 dispatch_t::dispatch_t(const std::string& name,
                        const std::string& uuid,
                        const std::string& endpoint,
-                       uint16_t resolver_port):
+                       const service_manager_t::endpoint_t& locator_endpoint):
     m_id(uuid),
     m_heartbeat_timer(m_ioservice.native()),
     m_disown_timer(m_ioservice.native())
@@ -127,10 +127,7 @@ dispatch_t::dispatch_t(const std::string& name,
     // Set the lowest priority for the disown timer.
     m_disown_timer.priority = EV_MINPRI;
 
-    m_service_manager = service_manager_t::create(
-        service_manager_t::endpoint_t("127.0.0.1", resolver_port),
-        cocaine::format("app/%s", name)
-    );
+    m_service_manager = service_manager_t::create(locator_endpoint, "app/" + name);
 }
 
 void
@@ -316,7 +313,7 @@ dispatch_t::create(int argc,
         ("app", value<std::string>())
         ("uuid", value<std::string>())
         ("endpoint", value<std::string>())
-        ("locator", value<uint16_t>());
+        ("locator", value<std::string>());
 
     command_line_parser parser(argc, argv);
     parser.options(options);
@@ -333,6 +330,18 @@ dispatch_t::create(int argc,
         throw std::runtime_error("Invalid command line options");
     }
 
+    service_manager_t::endpoint_t locator_endpoint("127.0.0.1", 10053);
+
+    std::string raw_endpoint = vm["locator"].as<std::string>();
+    size_t delim = raw_endpoint.rfind(':');
+
+    if (delim == std::string::npos) {
+        locator_endpoint.second = boost::lexical_cast<uint16_t>(raw_endpoint);
+    } else {
+        locator_endpoint.first = raw_endpoint.substr(0, delim);
+        locator_endpoint.second = boost::lexical_cast<uint16_t>(raw_endpoint.substr(delim + 1));
+    }
+
     // Block the deprecated signals.
     sigset_t signals;
     sigemptyset(&signals);
@@ -342,5 +351,5 @@ dispatch_t::create(int argc,
     return std::unique_ptr<dispatch_t>(new dispatch_t(vm["app"].as<std::string>(),
                                                       vm["uuid"].as<std::string>(),
                                                       vm["endpoint"].as<std::string>(),
-                                                      vm["locator"].as<uint16_t>()));
+                                                      locator_endpoint));
 }
