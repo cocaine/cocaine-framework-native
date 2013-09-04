@@ -1,4 +1,4 @@
-#include <cocaine/framework/future_error.hpp>
+#include <cocaine/framework/future/future_error.hpp>
 
 namespace {
 

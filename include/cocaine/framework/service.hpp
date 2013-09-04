@@ -1,7 +1,7 @@
 #ifndef COCAINE_FRAMEWORK_SERVICE_HPP
 #define COCAINE_FRAMEWORK_SERVICE_HPP
 
-#include <cocaine/framework/stream.hpp>
+#include <cocaine/framework/generator.hpp>
 #include <cocaine/framework/service_error.hpp>
 
 #include <cocaine/rpc/channel.hpp>
@@ -61,7 +61,7 @@ namespace detail { namespace service {
 
             ResultType r;
             cocaine::io::type_traits<ResultType>::unpack(msg.get(), r);
-            p.push_value(std::move(r));
+            p.write(std::move(r));
         }
     };
 
@@ -76,7 +76,7 @@ namespace detail { namespace service {
         unpack(promise_type& p,
                std::string& data)
         {
-            p.push_value(std::move(data));
+            p.write(std::move(data));
         }
     };
 
@@ -96,9 +96,9 @@ namespace detail { namespace service {
                 int code;
                 std::string msg;
                 message.as<cocaine::io::rpc::error>(code, msg);
-                p.set_exception(
+                p.error(cocaine::framework::make_exception_ptr(
                     service_error_t(std::error_code(code, service_response_category()), msg)
-                );
+                ));
             }
         }
     };
@@ -111,16 +111,13 @@ namespace detail { namespace service {
         handle(typename unpacker<Event>::promise_type& p,
                const cocaine::io::message_t& message)
         {
-            if (message.id() == io::event_traits<io::rpc::choke>::id) {
-                p.push_value();
-                p.close();
-            } else if (message.id() == io::event_traits<io::rpc::error>::id) {
+            if (message.id() == io::event_traits<io::rpc::error>::id) {
                 int code;
                 std::string msg;
                 message.as<cocaine::io::rpc::error>(code, msg);
-                p.set_exception(
+                p.error(cocaine::framework::make_exception_ptr(
                     service_error_t(std::error_code(code, service_response_category()), msg)
-                );
+                ));
             }
         }
     };
@@ -161,7 +158,7 @@ namespace detail { namespace service {
 
         void
         error(std::exception_ptr e) {
-            m_promise.set_exception(e);
+            m_promise.error(e);
         }
 
     protected:

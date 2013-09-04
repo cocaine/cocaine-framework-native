@@ -3,6 +3,13 @@
 
 #include <cocaine/platform.hpp>
 #include <cocaine/traits.hpp>
+#include <cocaine/common.hpp>
+
+#include <msgpack.hpp>
+
+#include <stdexcept>
+#include <exception>
+#include <utility>
 
 #if defined(__clang__) || defined(HAVE_GCC46)
     #include <atomic>
@@ -10,18 +17,13 @@
     #include <cstdatomic>
 #endif
 
-#include <stdexcept>
-#include <exception>
-
-#include <msgpack.hpp>
-
 namespace cocaine { namespace framework {
 
 template<class Exception>
 std::exception_ptr
-make_exception_ptr(const Exception& e) {
+make_exception_ptr(Exception&& e) {
     try {
-        throw e;
+        throw std::forward<Exception>(e);
     } catch (...) {
         return std::current_exception();
     }
@@ -68,5 +70,6 @@ unpack(const std::string& data) {
 }
 
 }} // namespace cocaine::framework
+
 
 #endif // COCAINE_FRAMEWORK_COMMON_HPP

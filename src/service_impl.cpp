@@ -148,7 +148,7 @@ service_connection_t::connect() {
             m_channel.reset(new iochannel_t);
             m_connection_status = service_status::connecting;
             connect_to_endpoint();
-            return make_ready_future<std::shared_ptr<service_connection_t>>::make(shared_from_this());
+            return make_ready_future<std::shared_ptr<service_connection_t>>::value(shared_from_this());
         }
     } catch (...) {
         if (m_connection_status == service_status::connecting) {

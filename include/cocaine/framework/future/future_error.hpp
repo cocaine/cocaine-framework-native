@@ -58,4 +58,4 @@ struct is_error_code_enum<cocaine::framework::future_errc> :
 
 } // namespace std
 
-#endif /* COCAINE_FRAMEWORK_FUTURE_ERROR_HPP */
+#endif // COCAINE_FRAMEWORK_FUTURE_ERROR_HPP
