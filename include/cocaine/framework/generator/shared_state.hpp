@@ -23,15 +23,9 @@ class shared_state {
 
 public:
     shared_state() :
-        m_closed(false),
-        m_getter_retrieved(false)
+        m_closed(false)
     {
         // pass
-    }
-
-    bool
-    check_in() {
-        return m_getter_retrieved.exchange(true);
     }
 
     void
@@ -266,8 +260,6 @@ protected:
 
     std::mutex m_access_mutex;
     std::condition_variable m_ready;
-
-    std::atomic<bool> m_getter_retrieved;
 };
 
 template<>
@@ -282,15 +274,9 @@ class shared_state<void> {
 public:
     shared_state() :
         m_closed(false),
-        m_void_retrieved(false),
-        m_getter_retrieved(false)
+        m_void_retrieved(false)
     {
         // pass
-    }
-
-    bool
-    check_in() {
-        return m_getter_retrieved.exchange(true);
     }
 
     void
@@ -480,8 +466,6 @@ protected:
 
     std::mutex m_access_mutex;
     std::condition_variable m_ready;
-
-    std::atomic<bool> m_getter_retrieved;
 };
 
 }}}} // namespace cocaine::framework::detail::generator

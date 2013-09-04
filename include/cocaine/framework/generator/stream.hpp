@@ -5,103 +5,109 @@
 
 namespace cocaine { namespace framework {
 
+namespace detail { namespace generator {
+
+    template<class... Args>
+    class state_handler {
+        COCAINE_DECLARE_NONCOPYABLE(state_handler)
+    public:
+        state_handler() :
+            m_state(new shared_state<Args...>()),
+            m_generator_retrieved(false)
+        {
+            // pass
+        }
+
+        ~state_handler() {
+            m_state->try_close();
+        }
+
+        cocaine::framework::generator<Args...>
+        get_generator() {
+            bool retrieved = m_generator_retrieved.exchange(true);
+            if (!retrieved) {
+                return generator_from_state<Args...>(m_state);
+            } else {
+                throw future_error(future_errc::future_already_retrieved);
+            }
+        }
+
+        std::shared_ptr<shared_state<Args...>>
+        state() const {
+            return m_state;
+        }
+
+    protected:
+        std::shared_ptr<shared_state<Args...>> m_state;
+        std::atomic<bool> m_generator_retrieved;
+    };
+
+}} // namespace detail::generator
+
 template<class... Args>
 class stream :
     public generator_traits<Args...>::stream_type
 {
 public:
     stream() :
-        m_state(new detail::generator::shared_state<Args...>())
+        m_state(new detail::generator::state_handler<Args...>())
     {
         // pass
-    }
-
-    stream(stream&& other) :
-        m_state(std::move(other.m_state))
-    {
-        // pass
-    }
-
-    ~stream() {
-        if (m_state) {
-            m_state->try_close();
-        }
-    }
-
-    void
-    operator=(stream&& other) {
-        m_state = std::move(other.m_state);
     }
 
     void
     write(typename generator_traits<Args...>::single_type&& value) {
-        if (m_state) {
-            m_state->write(std::move(value));
-        } else {
-            throw future_error(future_errc::no_state);
-        }
+        state()->write(std::move(value));
     }
 
     template<class... Args2>
     void
     write(Args2&&... args) {
-        if (m_state) {
-            m_state->write(std::forward<Args2>(args)...);
-        } else {
-            throw future_error(future_errc::no_state);
-        }
+        state()->write(std::forward<Args2>(args)...);
     }
 
     void
     error(const std::exception_ptr& e) {
-        if (m_state) {
-            m_state->error(e);
-        } else {
-            throw future_error(future_errc::no_state);
-        }
+        state()->error(e);
     }
 
     void
     error(const std::system_error& e) {
-        if (m_state) {
-            m_state->error(e);
-        } else {
-            throw future_error(future_errc::no_state);
-        }
+        state()->error(e);
     }
 
     void
     close() {
-        if (m_state) {
-            m_state->close();
-        }
+        state()->close();
     }
 
     bool
     closed() const {
-        if (m_state) {
-            return m_state->closed();
-        } else {
-            return true;
-        }
+        return state()->closed();
     }
 
     generator<Args...>
     get_generator() {
-        if (m_state) {
-            bool retrieved = m_state->check_in();
-            if (!retrieved) {
-                return detail::generator::generator_from_state<Args...>(m_state);
-            } else {
-                throw future_error(future_errc::future_already_retrieved);
-            }
-        } else {
+        check_state();
+        return m_state->get_generator();
+    }
+
+protected:
+    std::shared_ptr<detail::generator::shared_state<Args...>>
+    state() const {
+        check_state();
+        return m_state->state();
+    }
+
+    void
+    check_state() const {
+        if (!m_state) {
             throw future_error(future_errc::no_state);
         }
     }
 
-protected:
-    std::shared_ptr<detail::generator::shared_state<Args...>> m_state;
+private:
+    std::shared_ptr<detail::generator::state_handler<Args...>> m_state;
 };
 
 template<>
@@ -110,78 +116,53 @@ class stream<void> :
 {
 public:
     stream() :
-        m_state(new detail::generator::shared_state<void>())
+        m_state(new detail::generator::state_handler<void>())
     {
         // pass
-    }
-
-    stream(stream&& other) :
-        m_state(std::move(other.m_state))
-    {
-        // pass
-    }
-
-    ~stream() {
-        if (m_state) {
-            m_state->try_close();
-        }
-    }
-
-    void
-    operator=(stream&& other) {
-        m_state = std::move(other.m_state);
     }
 
     void
     error(const std::exception_ptr& e) {
-        if (m_state) {
-            m_state->error(e);
-        } else {
-            throw future_error(future_errc::no_state);
-        }
+        state()->error(e);
     }
 
     void
     error(const std::system_error& e) {
-        if (m_state) {
-            m_state->error(e);
-        } else {
-            throw future_error(future_errc::no_state);
-        }
+        state()->error(e);
     }
 
     void
     close() {
-        if (m_state) {
-            m_state->close();
-        }
+        state()->close();
     }
 
     bool
     closed() const {
-        if (m_state) {
-            return m_state->closed();
-        } else {
-            return true;
-        }
+        return state()->closed();
     }
 
     generator<void>
     get_generator() {
-        if (m_state) {
-            bool retrieved = m_state->check_in();
-            if (!retrieved) {
-                return detail::generator::generator_from_state<void>(m_state);
-            } else {
-                throw future_error(future_errc::future_already_retrieved);
-            }
-        } else {
+        check_state();
+        return m_state->get_generator();
+    }
+
+protected:
+    std::shared_ptr<detail::generator::shared_state<void>>
+    state() const {
+        check_state();
+        return m_state->state();
+    }
+
+    void
+    check_state() const {
+        if (!m_state) {
             throw future_error(future_errc::no_state);
         }
     }
 
-protected:
-    std::shared_ptr<detail::generator::shared_state<void>> m_state;
+private:
+    std::shared_ptr<detail::generator::state_handler<void>> m_state;
 };
 
 }} // namespace cocaine::framework

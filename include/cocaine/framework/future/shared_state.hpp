@@ -33,15 +33,8 @@ class shared_state {
     };
 
 public:
-    shared_state():
-        m_getter_retrieved(false)
-    {
+    shared_state() {
         // pass
-    }
-
-    bool
-    check_in() {
-        return m_getter_retrieved.exchange(true);
     }
 
     void
@@ -154,8 +147,6 @@ private:
 
     std::mutex m_access_mutex;
     std::condition_variable m_ready;
-
-    std::atomic<bool> m_getter_retrieved;
 };
 
 template<class... Args>

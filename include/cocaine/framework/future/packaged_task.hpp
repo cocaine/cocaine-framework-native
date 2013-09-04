@@ -1,7 +1,7 @@
 #ifndef COCAINE_FRAMEWORK_FUTURE_PACKAGED_TASK_HPP
 #define COCAINE_FRAMEWORK_FUTURE_PACKAGED_TASK_HPP
 
-#include <cocaine/framework/future/basic_promise.hpp>
+#include <cocaine/framework/future/promise.hpp>
 
 namespace cocaine { namespace framework {
 
@@ -10,46 +10,28 @@ class packaged_task;
 
 template<class R, class... Args>
 class packaged_task<R(Args...)> :
-    public detail::future::basic_promise<R>
+    public promise<R>
 {
 public:
     packaged_task() :
-        detail::future::basic_promise<R>(std::shared_ptr<detail::future::shared_state<R>>())
+        promise<R>(std::shared_ptr<detail::future::state_handler<R>>())
     {
         // pass
     }
 
-    template<class F>
     explicit
-    packaged_task(F&& f) :
-        m_function(std::forward<F>(f))
+    packaged_task(const std::function<R(Args...)>& f) :
+        m_function(f)
     {
         // pass
     }
 
-    template<class F>
-    packaged_task(executor_t executor,
-                  F&& f) :
-        m_function(std::forward<F>(f)),
+    packaged_task(const executor_t& executor,
+                  const std::function<R(Args...)>& f) :
+        m_function(f),
         m_executor(executor)
     {
         // pass
-    }
-
-    packaged_task(packaged_task&& other) :
-        detail::future::basic_promise<R>(std::move(other)),
-        m_function(std::move(other.m_function)),
-        m_executor(std::move(other.m_executor))
-    {
-        // pass
-    }
-
-    packaged_task&
-    operator=(packaged_task&& other) {
-        m_function = std::move(other.m_function);
-        m_executor = std::move(other.m_executor);
-        detail::future::basic_promise<R>::operator=(std::move(other));
-        return *this;
     }
 
     bool
@@ -59,43 +41,43 @@ public:
 
     void
     reset() {
-        this->m_state.reset(new detail::future::shared_state<R>());
-        this->m_retrieved = false;
+        *this = packaged_task<R(Args...)>();
     }
 
-    typename detail::future::unwrapper<cocaine::framework::future<R>>::unwrapped_type
+    typename detail::future::unwrapper<future<R>>::unwrapped_type
     get_future() {
-        auto f = detail::future::basic_promise<R>::get_future().unwrap();
+        auto f = promise<R>::get_future().unwrap();
         f.set_default_executor(m_executor);
         return f;
     }
 
     template<class... Args2>
     void
-    operator()(Args2&&... args) {
-        if (this->m_state) {
-            if (m_executor) {
-                m_executor(std::bind(detail::future::task_caller<R, Args...>::call,
-                                     this->m_state,
-                                     m_function,
-                                     std::forward<Args2>(args)...));
-            } else {
-                detail::future::task_caller<R, Args...>::call(this->m_state,
-                                                              m_function,
-                                                              std::forward<Args2>(args)...);
-            }
-            this->m_state.reset();
-        } else {
-            throw future_error(future_errc::no_state);
-        }
-    }
+    operator()(Args2&&... args);
 
 private:
-    using detail::future::basic_promise<R>::set_exception;
+    using promise<R>::set_exception;
+    using promise<R>::set_value;
 
     std::function<R(Args...)> m_function;
     executor_t m_executor;
 };
+
+template<class R, class... Args>
+template<class... Args2>
+void
+packaged_task<R(Args...)>::operator()(Args2&&... args) {
+    if (m_executor) {
+        m_executor(std::bind(detail::future::task_caller<R, Args...>::call,
+                             this->state(),
+                             m_function,
+                             std::forward<Args2>(args)...));
+    } else {
+        detail::future::task_caller<R, Args...>::call(this->state(),
+                                                      m_function,
+                                                      std::forward<Args2>(args)...);
+    }
+}
 
 }} // namespace cocaine::framework
 
