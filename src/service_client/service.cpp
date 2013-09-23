@@ -89,66 +89,52 @@ using namespace cocaine::framework;
 service_t::service_t(std::shared_ptr<service_connection_t> connection) :
     m_connection(connection)
 {
-    auto m = connection->get_manager();
-    if (m) {
-        m->register_connection(connection);
-    }
+    // pass
 }
 
 service_t::~service_t() {
-    auto c = m_connection.lock();
-    if (c) {
-        auto m = c->get_manager();
-        if (m) {
-            m->release_connection(c);
-        }
+    auto m = m_connection->get_manager();
+    if (m) {
+        m->execute(std::bind(&service_connection_t::disconnect,
+                             std::move(m_connection),
+                             service_status::disconnected));
     }
 }
 
 void
 service_t::set_timeout(float timeout) {
-    return connection()->set_timeout(timeout);
+    m_timeout = timeout;
 }
 
 std::string
 service_t::name() {
-    return connection()->name();
+    return m_connection->name();
 }
 
 service_status
 service_t::status() {
-    return connection()->status();
-}
-
-void
-service_t::reconnect() {
-    connection()->reconnect().get();
+    return m_connection->status();
 }
 
 namespace {
-    void
-    empty(future<std::shared_ptr<service_connection_t>>& f) {
-        f.get();
-    }
-}
-
-future<void>
-service_t::async_reconnect() {
-    return connection()->reconnect().then(&empty);
+    template<class... Args>
+    struct emptyf {
+        static
+        void
+        call(Args...){
+            // pass
+        }
+    };
 }
 
 void
 service_t::soft_destroy() {
-    connection()->soft_destroy();
-    m_connection.reset();
-}
+    auto m = m_connection->get_manager();
 
-std::shared_ptr<service_connection_t>
-service_t::connection() {
-    auto c = m_connection.lock();
-    if (c) {
-        return c;
+    if (m) {
+        m->execute(std::bind(&emptyf<std::shared_ptr<service_connection_t>>::call,
+                             std::move(m_connection)));
     } else {
-        throw service_error_t(service_errc::broken_manager);
+        m_connection.reset();
     }
 }

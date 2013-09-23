@@ -227,9 +227,9 @@ struct make_ready_future {
     template<class Exception>
     static
     future<Args...>
-    error(Exception&& e) {
+    error(const Exception& e) {
         return detail::future::future_from_state(
-            detail::future::ready_state<Args...>(cocaine::framework::make_exception_ptr(std::forward<Exception>(e)))
+            detail::future::ready_state<Args...>(cocaine::framework::make_exception_ptr(e))
         );
     }
 };

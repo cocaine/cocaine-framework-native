@@ -41,6 +41,8 @@ service_manager_t::~service_manager_t() {
         m_working_thread.join();
     }
 
+    m_resolver->disconnect();
+
     std::unique_lock<std::mutex> lock(m_connections_lock);
     for (auto it = m_connections.begin(); it != m_connections.end(); ++it) {
         (*it)->disconnect();
@@ -53,10 +55,10 @@ void
 service_manager_t::init() {
     // The order of initialization of objects is important here.
     // reactor_t must have at least one watcher before run (m_resolver is watcher).
-    m_resolver.reset(
-        new service_connection_t(m_resolver_endpoints,
-                                 shared_from_this(),
-                                 cocaine::io::protocol<cocaine::io::locator_tag>::version::value)
+    m_resolver = std::make_shared<service_connection_t>(
+        m_resolver_endpoints,
+        shared_from_this(),
+        cocaine::io::protocol<cocaine::io::locator_tag>::version::value
     );
 
     m_resolver->connect();
@@ -71,22 +73,17 @@ service_manager_t::get_system_logger() const {
 
 service_traits<cocaine::io::locator::resolve>::future_type
 service_manager_t::resolve(const std::string& name) {
-    return m_resolver->call<cocaine::io::locator::resolve>(name);
+    return std::move(m_resolver->call<cocaine::io::locator::resolve>(name).downstream());
 }
 
 void
-service_manager_t::register_connection(std::shared_ptr<service_connection_t> connection) {
+service_manager_t::register_connection(service_connection_t *connection) {
     std::unique_lock<std::mutex> lock(m_connections_lock);
     m_connections.insert(connection);
 }
 
 void
-service_manager_t::release_connection(std::shared_ptr<service_connection_t> connection) {
-    m_ioservice.post(std::bind(&service_manager_t::remove_connection, this, connection));
-}
-
-void
-service_manager_t::remove_connection(std::shared_ptr<service_connection_t> connection) {
+service_manager_t::release_connection(service_connection_t *connection) {
     std::unique_lock<std::mutex> lock(m_connections_lock);
     m_connections.erase(connection);
 }
@@ -95,9 +92,7 @@ std::shared_ptr<service_connection_t>
 service_manager_t::get_connection(const std::string& name,
                                   int version)
 {
-    std::shared_ptr<service_connection_t> service(
-        new service_connection_t(name, shared_from_this(), version)
-    );
+    auto service = std::make_shared<service_connection_t>(name, shared_from_this(), version);
     service->connect().get();
     return service;
 }
@@ -106,9 +101,7 @@ future<std::shared_ptr<service_connection_t>>
 service_manager_t::get_connection_async(const std::string& name,
                                         int version)
 {
-    std::shared_ptr<service_connection_t> service(
-        new service_connection_t(name, shared_from_this(), version)
-    );
+    auto service = std::make_shared<service_connection_t>(name, shared_from_this(), version);
     return service->connect();
 }
 
@@ -116,9 +109,12 @@ std::shared_ptr<service_connection_t>
 service_manager_t::get_deferred_connection(const std::string& name,
                                            int version)
 {
-    std::shared_ptr<service_connection_t> service(
-        new service_connection_t(name, shared_from_this(), version)
-    );
+    auto service = std::make_shared<service_connection_t>(name, shared_from_this(), version);
     service->connect();
     return service;
+}
+
+void
+service_manager_t::execute(const std::function<void()>& callback) {
+    m_ioservice.post(callback);
 }

@@ -1,10 +1,12 @@
 #ifndef COCAINE_FRAMEWORK_SERVICE_MANAGER_HPP
 #define COCAINE_FRAMEWORK_SERVICE_MANAGER_HPP
 
+#include <cocaine/framework/service_client/service.hpp>
 #include <cocaine/framework/logging.hpp>
 
 #include <cocaine/asio/reactor.hpp>
 #include <cocaine/asio/tcp.hpp>
+#include <cocaine/messages.hpp>
 
 #include <memory>
 #include <string>
@@ -13,8 +15,6 @@
 
 namespace cocaine { namespace framework {
 
-class service_connection_t;
-
 class service_manager_t :
     public std::enable_shared_from_this<service_manager_t>
 {
@@ -22,6 +22,7 @@ class service_manager_t :
 
     friend class service_t;
     friend class service_connection_t;
+    friend class detail::service::session_data_t;
 
 public:
     typedef std::pair<std::string, uint16_t>
@@ -41,7 +42,7 @@ public:
     template<class Logger>
     static
     std::shared_ptr<service_manager_t>
-    create(endpoint_t resolver,
+    create(const endpoint_t& resolver,
            Logger&& logger)
     {
         std::vector<endpoint_t> r;
@@ -75,23 +76,20 @@ public:
     std::shared_ptr<logger_t>
     get_system_logger() const;
 
+    service_traits<cocaine::io::locator::resolve>::future_type
+    resolve(const std::string& name);
+
 private:
     service_manager_t(const std::vector<endpoint_t>& resolver_endpoints);
 
     void
     init();
 
-    service_traits<cocaine::io::locator::resolve>::future_type
-    resolve(const std::string& name);
+    void
+    register_connection(service_connection_t *connection);
 
     void
-    register_connection(std::shared_ptr<service_connection_t> connection);
-
-    void
-    release_connection(std::shared_ptr<service_connection_t> connection);
-
-    void
-    remove_connection(std::shared_ptr<service_connection_t> connection);
+    release_connection(service_connection_t *connection);
 
     std::shared_ptr<service_connection_t>
     get_connection(const std::string& name,
@@ -108,7 +106,7 @@ private:
     template<class Service, class... Args>
     std::shared_ptr<Service>
     get_deferred_service(const std::string& name,
-                      Args&&... args)
+                         Args&&... args)
     {
         return std::make_shared<Service>(this->get_deferred_connection(name, Service::version),
                                          std::forward<Args>(args)...);
@@ -123,12 +121,15 @@ private:
                                          std::forward<Args>(args)...);
     }
 
+    void
+    execute(const std::function<void()>& callback);
+
 private:
     cocaine::io::reactor_t m_ioservice;
     std::thread m_working_thread;
     std::vector<endpoint_t> m_resolver_endpoints;
 
-    std::set<std::shared_ptr<service_connection_t>> m_connections;
+    std::set<service_connection_t*> m_connections;
     std::mutex m_connections_lock;
 
     std::shared_ptr<service_connection_t> m_resolver;
