@@ -2,6 +2,7 @@
 #define COCAINE_FRAMEWORK_SERVICES_STORAGE_HPP
 
 #include <cocaine/framework/service.hpp>
+#include <cocaine/traits/literal.hpp>
 
 namespace cocaine { namespace framework {
 
@@ -23,21 +24,23 @@ struct storage_service_t :
         return call<cocaine::io::storage::read>(collection, key);
     }
 
+    template<class Value>
     service_traits<cocaine::io::storage::write>::future_type
     write(const std::string& collection,
           const std::string& key,
-          const std::string& value)
+          Value&& value)
     {
-        return call<cocaine::io::storage::write>(collection, key, value);
+        return call<cocaine::io::storage::write>(collection, key, std::forward<Value>(value));
     }
 
+    template<class Value>
     service_traits<cocaine::io::storage::write>::future_type
     write(const std::string& collection,
           const std::string& key,
-          const std::string& value,
+          Value&& value,
           const std::vector<std::string>& tags)
     {
-        return call<cocaine::io::storage::write>(collection, key, value, tags);
+        return call<cocaine::io::storage::write>(collection, key, std::forward<Value>(value), tags);
     }
 
     service_traits<cocaine::io::storage::remove>::future_type

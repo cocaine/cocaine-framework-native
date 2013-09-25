@@ -49,13 +49,16 @@ public:
                                          std::forward<Args>(args)...);
     }
 
-    template<class Service, typename... Args>
-    std::shared_ptr<Service>
+    template<class Service, class... Args>
+    future<std::shared_ptr<Service>>
     get_service_async(const std::string& name,
                       Args&&... args)
     {
-        return std::make_shared<Service>(this->get_connection_async(name, Service::version),
-                                         std::forward<Args>(args)...);
+        return this->get_connection_async(name, Service::version)
+            .then(std::bind(&service_manager_t::make_service<Service, Args...>,
+                            this,
+                            std::placeholders::_1,
+                            std::forward<Args>(args)...));
     }
 
     std::shared_ptr<logger_t>
@@ -83,9 +86,31 @@ private:
     get_connection(const std::string& name,
                    int version);
 
-    std::shared_ptr<service_connection_t>
+    future<std::shared_ptr<service_connection_t>>
     get_connection_async(const std::string& name,
                          int version);
+
+    std::shared_ptr<service_connection_t>
+    get_deferred_connection(const std::string& name,
+                            int version);
+
+    template<class Service, class... Args>
+    std::shared_ptr<Service>
+    get_deferred_service(const std::string& name,
+                      Args&&... args)
+    {
+        return std::make_shared<Service>(this->get_deferred_connection(name, Service::version),
+                                         std::forward<Args>(args)...);
+    }
+
+    template<class Service, class... Args>
+    std::shared_ptr<Service>
+    make_service(future<std::shared_ptr<service_connection_t>>& connection,
+                 Args&&... args)
+    {
+        return std::make_shared<Service>(connection.get(),
+                                         std::forward<Args>(args)...);
+    }
 
 private:
     cocaine::io::reactor_t m_ioservice;
