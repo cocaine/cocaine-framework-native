@@ -43,6 +43,18 @@ public:
         // pass
     }
 
+    http_headers_t&
+    operator=(const http_headers_t& other) {
+        m_headers = other.m_headers;
+        return *this;
+    }
+
+    http_headers_t&
+    operator=(http_headers_t&& other) {
+        m_headers = std::move(other.m_headers);
+        return *this;
+    }
+
     const headers_vector_t&
     data() const {
         return m_headers;
@@ -92,6 +104,48 @@ struct http_request_t {
         m_body(body)
     {
         // pass
+    }
+
+    http_request_t(const http_request_t& other) :
+        m_method(other.m_method),
+        m_uri(other.m_uri),
+        m_version(other.m_version),
+        m_headers(other.m_headers),
+        m_body(other.m_body)
+    {
+        // pass
+    }
+
+    http_request_t(http_request_t&& other) :
+        m_method(std::move(other.m_method)),
+        m_uri(std::move(other.m_uri)),
+        m_version(std::move(other.m_version)),
+        m_headers(std::move(other.m_headers)),
+        m_body(std::move(other.m_body))
+    {
+        // pass
+    }
+
+    http_request_t&
+    operator=(const http_request_t& other) {
+        m_method = other.m_method;
+        m_uri = other.m_uri;
+        m_version = other.m_version;
+        m_headers = other.m_headers;
+        m_body = other.m_body;
+
+        return *this;
+    }
+
+    http_request_t&
+    operator=(http_request_t&& other) {
+        m_method = std::move(other.m_method);
+        m_uri = std::move(other.m_uri);
+        m_version = std::move(other.m_version);
+        m_headers = std::move(other.m_headers);
+        m_body = std::move(other.m_body);
+
+        return *this;
     }
 
     const std::string&
