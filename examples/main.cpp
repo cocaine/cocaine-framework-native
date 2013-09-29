@@ -22,7 +22,7 @@ class App1 {
         on_chunk(const char *chunk,
                  size_t size)
         {
-            auto generator = parent()->m_storage->read(
+            auto generator = parent().m_storage->read(
                 "namespace",
                 "key." + cocaine::framework::unpack<std::string>(chunk, size)
             );

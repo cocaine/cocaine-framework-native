@@ -22,7 +22,7 @@ class App1 {
         void
         on_request(const cocaine::framework::http_request_t& req)
         {
-            auto file = parent()->m_storage->read("namespace", req.body()).next();
+            auto file = parent().m_storage->read("namespace", req.body()).next();
 
             cocaine::framework::http_headers_t headers;
             headers.add_header("Content-Length", cocaine::format("%d", file.size()));
