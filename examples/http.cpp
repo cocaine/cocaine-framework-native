@@ -1,5 +1,6 @@
 #include <cocaine/framework/dispatch.hpp>
 #include <cocaine/framework/services/storage.hpp>
+#include <cocaine/framework/handlers/http.hpp>
 
 #include <iostream>
 #include <memory>
@@ -9,30 +10,24 @@
 
 class App1 {
     struct on_event1 :
-        public cocaine::framework::handler<App1>,
+        public cocaine::framework::http_handler<App1>,
         public std::enable_shared_from_this<on_event1>
     {
         on_event1(App1 &a) :
-            cocaine::framework::handler<App1>(a)
+            cocaine::framework::http_handler<App1>(a)
         {
             // pass
         }
 
         void
-        on_chunk(const char *chunk,
-                 size_t size)
+        on_request(const cocaine::framework::http_request_t& req)
         {
-            auto generator = parent()->m_storage->read(
-                "namespace",
-                "key." + cocaine::framework::unpack<std::string>(chunk, size)
-            );
-            generator.then(std::bind(&on_event1::send_resp, shared_from_this(), std::placeholders::_1));
-        }
+            auto file = parent()->m_storage->read("namespace", req.body()).next();
 
-        void
-        send_resp(cocaine::framework::generator<std::string>& g) {
-            response()->write(g.next());
-            response()->close();
+            cocaine::framework::http_headers_t headers;
+            headers.add_header("Content-Length", cocaine::format("%d", file.size()));
+            response()->write_headers(200, headers); // 200 OK
+            response()->write_body(file);
         }
     };
     friend class on_event1;
@@ -43,17 +38,8 @@ public:
         m_storage = d.service_manager()->get_service<cocaine::framework::storage_service_t>("storage");
 
         d.on<on_event1>("event1", this);
-        d.on("event2", this, &App1::on_event2);
 
         COCAINE_LOG_WARNING(m_log, "test log");
-    }
-
-    void
-    on_event2(const std::string& event,
-              const std::vector<std::string>& /*request*/,
-              cocaine::framework::response_ptr response)
-    {
-        response->write("on_event2:" + event);
     }
 
 private:
