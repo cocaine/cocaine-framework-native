@@ -1,10 +1,7 @@
 #ifndef COCAINE_FRAMEWORK_SERVICE_BASE_HPP
 #define COCAINE_FRAMEWORK_SERVICE_BASE_HPP
 
-#include <cocaine/framework/service_client/detail.hpp>
-#include <cocaine/framework/service_client/session.hpp>
-#include <cocaine/framework/service_client/status.hpp>
-#include <cocaine/framework/service_client/impl.hpp>
+#include <cocaine/framework/service_client/connection.hpp>
 
 #include <memory>
 #include <string>
@@ -39,7 +36,7 @@ public:
     set_timeout(float timeout);
 
     template<class Event, typename... Args>
-    typename service_traits<Event>::future_type
+    typename session<Event>::future_type
     call(Args&&... args);
 
     void
@@ -53,7 +50,7 @@ private:
 }} // namespace cocaine::framework
 
 template<class Event, typename... Args>
-typename cocaine::framework::service_traits<Event>::future_type
+typename cocaine::framework::session<Event>::future_type
 cocaine::framework::service_t::call(Args&&... args) {
     auto session = m_connection->call<Event, Args...>(std::forward<Args>(args)...);
 

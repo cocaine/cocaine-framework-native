@@ -1,5 +1,5 @@
-#ifndef COCAINE_FRAMEWORK_SERVICE_DETAIL_HPP
-#define COCAINE_FRAMEWORK_SERVICE_DETAIL_HPP
+#ifndef COCAINE_FRAMEWORK_SERVICE_HANDLER_HPP
+#define COCAINE_FRAMEWORK_SERVICE_HANDLER_HPP
 
 #include <cocaine/framework/service_client/error.hpp>
 #include <cocaine/framework/generator.hpp>
@@ -10,17 +10,10 @@
 #include <cocaine/traits/tuple.hpp>
 #include <cocaine/messages.hpp>
 
-#include <ev++.h>
-
 #include <memory>
 #include <string>
 
 namespace cocaine { namespace framework {
-
-typedef uint64_t
-        session_id_t;
-
-class service_connection_t;
 
 namespace detail { namespace service {
 
@@ -169,42 +162,8 @@ namespace detail { namespace service {
         promise_type m_promise;
     };
 
-
-    class session_data_t {
-    public:
-        session_data_t();
-
-        session_data_t(const std::shared_ptr<service_connection_t>& connection,
-                       session_id_t id,
-                       std::shared_ptr<detail::service::service_handler_concept_t>&& handler);
-
-        ~session_data_t();
-
-        void
-        set_timeout(float seconds);
-
-        void
-        stop_timer();
-
-        detail::service::service_handler_concept_t*
-        handler() const {
-            return m_handler.get();
-        }
-
-    private:
-        void
-        on_timeout(ev::timer&, int);
-
-    private:
-        session_id_t m_id;
-        std::shared_ptr<detail::service::service_handler_concept_t> m_handler;
-        std::shared_ptr<ev::timer> m_close_timer;
-        bool m_stopped;
-        std::shared_ptr<service_connection_t> m_connection;
-    };
-
 }} // namespace detail::service
 
 }} // namespace cocaine::framework
 
-#endif // COCAINE_FRAMEWORK_SERVICE_DETAIL_HPP
+#endif // COCAINE_FRAMEWORK_SERVICE_HANDLER_HPP

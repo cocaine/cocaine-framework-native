@@ -1,9 +1,16 @@
 #ifndef COCAINE_FRAMEWORK_SERVICE_SESSION_HPP
 #define COCAINE_FRAMEWORK_SERVICE_SESSION_HPP
 
+#include <cocaine/framework/service_client/handler.hpp>
+
 #include <memory>
 
 namespace cocaine { namespace framework {
+
+typedef uint64_t
+        session_id_t;
+
+class service_connection_t;
 
 template<class Event>
 class session {
@@ -16,43 +23,21 @@ public:
 public:
     session(const std::shared_ptr<service_connection_t>& client,
             session_id_t id,
-            future_type&& downstream) :
-        m_client(client),
-        m_id(id),
-        m_downstream(std::move(downstream))
-    {
-        // pass
-    }
+            future_type&& downstream);
 
-    session(session&& other) :
-        m_client(std::move(other.m_client)),
-        m_id(other.m_id),
-        m_downstream(std::move(other.m_downstream))
-    {
-        // pass
-    }
+    session(session&& other);
 
     session&
-    operator=(session&& other) {
-        m_client = std::move(other.m_client);
-        m_id = other.m_id;
-        m_downstream = std::move(other.m_downstream);
-
-        return *this;
-    }
+    operator=(session&& other);
 
     session_id_t
-    id() const {
-        return m_id;
-    }
+    id() const;
 
     void
     set_timeout(float seconds);
 
     future_type&
-    downstream() {
-        return m_downstream;
-    }
+    downstream();
 
 private:
     std::shared_ptr<service_connection_t> m_client;

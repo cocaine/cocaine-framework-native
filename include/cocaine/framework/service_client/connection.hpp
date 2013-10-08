@@ -1,5 +1,8 @@
-#ifndef COCAINE_FRAMEWORK_SERVICE_IMPL_HPP
-#define COCAINE_FRAMEWORK_SERVICE_IMPL_HPP
+#ifndef COCAINE_FRAMEWORK_SERVICE_CONNECTION_HPP
+#define COCAINE_FRAMEWORK_SERVICE_CONNECTION_HPP
+
+#include <cocaine/framework/service_client/session.hpp>
+#include <cocaine/framework/service_client/status.hpp>
 
 #include <cocaine/asio/tcp.hpp>
 #include <cocaine/asio/socket.hpp>
@@ -12,6 +15,12 @@
 namespace cocaine { namespace framework {
 
 class service_manager_t;
+
+namespace detail { namespace service {
+
+    class session_data_t;
+
+}} // namespace detail::service
 
 class service_connection_t :
     public std::enable_shared_from_this<service_connection_t>
@@ -112,44 +121,7 @@ private:
 
 }} // namespace cocaine::framework
 
-template<class Event, typename... Args>
-cocaine::framework::session<Event>
-cocaine::framework::service_connection_t::call(Args&&... args) {
-    auto h = std::make_shared<detail::service::service_handler<Event>>();
-    //auto h = std::unique_ptr<detail::service::service_handler<Event>>(new detail::service::service_handler<Event>);
-    auto f = h->get_future();
+#include <cocaine/framework/service_client/connection.inl>
+#include <cocaine/framework/service_client/session.inl>
 
-    session_id_t current_session = m_session_counter++;
-
-    std::unique_lock<std::recursive_mutex> lock(m_sessions_mutex);
-
-    // try to connect if disconnected
-    if (status() != service_status::connected &&
-        status() != service_status::connecting)
-    {
-        connect();
-    }
-
-    if (status() == service_status::connected ||
-        status() == service_status::connecting)
-    {
-        m_sessions[current_session] = detail::service::session_data_t(shared_from_this(),
-                                                                      current_session,
-                                                                      std::move(h));
-
-        m_channel.wr->write<Event>(current_session, std::forward<Args>(args)...);
-    } else {
-        // for now 'connect' may fail immediately only when service manager doesn't exist
-        h->error(make_exception_ptr(service_error_t(service_errc::broken_manager)));
-    }
-
-    return session<Event>(shared_from_this(), current_session, std::move(f));
-}
-
-template<class Event>
-void
-cocaine::framework::session<Event>::set_timeout(float seconds) {
-    m_client->set_timeout(m_id, seconds);
-}
-
-#endif // COCAINE_FRAMEWORK_SERVICE_IMPL_HPP
+#endif // COCAINE_FRAMEWORK_SERVICE_CONNECTION_HPP
