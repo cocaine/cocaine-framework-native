@@ -38,7 +38,7 @@ ADD_LIBRARY(cocaine-framework SHARED
     src/service_client/manager
     src/service_client/connection
     src/dispatch
-    src/future
+    src/future_error
     src/handlers/functional
     src/handlers/http)
 

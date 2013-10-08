@@ -74,7 +74,9 @@ cocaine::framework::service_connection_t::call(Args&&... args) {
         m_channel.wr->write<Event>(current_session, std::forward<Args>(args)...);
     } else {
         // for now 'connect' may fail immediately only when service manager doesn't exist
-        h->error(make_exception_ptr(service_error_t(service_errc::broken_manager)));
+        h->error(
+            cocaine::framework::make_exception_ptr(service_error_t(service_errc::broken_manager))
+        );
     }
 
     return session<Event>(shared_from_this(), current_session, std::move(f));

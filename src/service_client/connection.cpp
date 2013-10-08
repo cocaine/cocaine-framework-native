@@ -248,7 +248,7 @@ service_connection_t::delete_session(session_id_t id,
     sessions_map_t::iterator it = m_sessions.find(id);
 
     if (it != m_sessions.end()) {
-        it->second.handler()->error(make_exception_ptr(service_error_t(ec)));
+        it->second.handler()->error(cocaine::framework::make_exception_ptr(service_error_t(ec)));
         m_sessions.erase(it);
     }
 }
