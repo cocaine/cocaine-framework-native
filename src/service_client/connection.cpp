@@ -17,11 +17,13 @@ namespace {
 
 service_connection_t::service_connection_t(const std::string& name,
                                            std::shared_ptr<service_manager_t> manager,
+                                           size_t thread,
                                            unsigned int version) :
     m_name(name),
     m_version(version),
     m_session_counter(1),
     m_manager(manager),
+    m_thread(thread),
     m_connection_status(service_status::disconnected)
 {
     manager->register_connection(this);
@@ -29,11 +31,13 @@ service_connection_t::service_connection_t(const std::string& name,
 
 service_connection_t::service_connection_t(const std::vector<endpoint_t>& endpoints,
                                            std::shared_ptr<service_manager_t> manager,
+                                           size_t thread,
                                            unsigned int version) :
     m_endpoints(endpoints),
     m_version(version),
     m_session_counter(1),
     m_manager(manager),
+    m_thread(thread),
     m_connection_status(service_status::disconnected)
 {
     manager->register_connection(this);
@@ -70,6 +74,11 @@ service_connection_t::name() const {
     } else {
         return "<uninitialized>";
     }
+}
+    
+size_t
+service_connection_t::thread() const {
+    return m_thread;
 }
 
 void
@@ -119,7 +128,7 @@ service_connection_t::connect() {
             std::bind(&service_connection_t::connect_to_endpoint,
                       shared_from_this())
         );
-        m->execute(connector);
+        m->m_reactors[thread()]->execute(connector);
         return connector.get_future();
     }
 }
@@ -181,7 +190,7 @@ service_connection_t::connect_to_endpoint() {
                 try {
                     auto socket = std::make_shared<cocaine::io::socket<cocaine::io::tcp>>(endpoints[i]);
 
-                    m_channel.attach(m->m_ioservice, socket);
+                    m_channel.attach(m->m_reactors[thread()]->reactor(), socket);
                     m_channel.rd->bind(std::bind(&service_connection_t::on_message,
                                                  this,
                                                  std::placeholders::_1),
@@ -191,7 +200,7 @@ service_connection_t::connect_to_endpoint() {
                     m_channel.wr->bind(std::bind(&service_connection_t::on_error,
                                                  this,
                                                  std::placeholders::_1));
-                    m->execute(&emptyf<>::call); // wake up event-loop
+                    m->m_reactors[thread()]->execute(&emptyf<>::call); // wake up event-loop
 
                     m_connection_status = service_status::connected;
                     return shared_from_this();
@@ -260,10 +269,10 @@ service_connection_t::set_timeout(session_id_t id,
     auto m = get_manager();
 
     if (m) {
-        m->execute(std::bind(&service_connection_t::set_timeout_impl,
-                             shared_from_this(),
-                             id,
-                             seconds));
+        m->m_reactors[thread()]->execute(std::bind(&service_connection_t::set_timeout_impl,
+                                                   shared_from_this(),
+                                                   id,
+                                                   seconds));
     }
 }
 
@@ -312,12 +321,12 @@ detail::service::session_data_t::set_timeout(float seconds) {
     if (!m_stopped) {
         auto m = m_connection->get_manager();
         if (m) {
-            m_close_timer = std::make_shared<ev::timer>(m->m_ioservice.native());
+            m_close_timer = std::make_shared<ev::timer>(m->m_reactors[m_connection->thread()]->reactor().native());
             m_close_timer->set<detail::service::session_data_t,
                                &detail::service::session_data_t::on_timeout>(this);
             m_close_timer->priority = EV_MINPRI;
             m_close_timer->start(seconds);
-            m->execute(&emptyf<>::call); // wake up event-loop
+            m->m_reactors[m_connection->thread()]->execute(&emptyf<>::call); // wake up event-loop
         }
     }
 }

@@ -34,10 +34,12 @@ public:
 public:
     service_connection_t(const std::string& name,
                          std::shared_ptr<service_manager_t> manager,
+                         size_t thread,
                          unsigned int version);
 
     service_connection_t(const std::vector<endpoint_t>& endpoints,
                          std::shared_ptr<service_manager_t> manager,
+                         size_t thread,
                          unsigned int version);
 
     // must be deleted from service thread
@@ -55,6 +57,9 @@ public:
     status() const {
         return m_connection_status;
     }
+    
+    size_t
+    thread() const;
 
     // returns empty pointer if the manager doesn't exist
     std::shared_ptr<service_manager_t>
@@ -114,6 +119,7 @@ private:
     std::recursive_mutex m_sessions_mutex;
 
     std::weak_ptr<service_manager_t> m_manager;
+    size_t m_thread;
     iochannel_t m_channel;
 
     service_status m_connection_status;

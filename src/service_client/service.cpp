@@ -96,9 +96,11 @@ service_t::~service_t() {
     if (m_connection) {
         auto m = m_connection->get_manager();
         if (m) {
-            m->execute(std::bind(&service_connection_t::disconnect,
-                                 std::move(m_connection),
-                                 service_status::disconnected));
+            m->m_reactors[m_connection->thread()]->execute(
+                std::bind(&service_connection_t::disconnect,
+                          std::move(m_connection),
+                          service_status::disconnected)
+            );
         }
     }
 }
@@ -134,8 +136,10 @@ service_t::soft_destroy() {
     auto m = m_connection->get_manager();
 
     if (m) {
-        m->execute(std::bind(&emptyf<std::shared_ptr<service_connection_t>>::call,
-                             std::move(m_connection)));
+        m->m_reactors[m_connection->thread()]->execute(
+            std::bind(&emptyf<std::shared_ptr<service_connection_t>>::call,
+                      std::move(m_connection))
+        );
     } else {
         m_connection.reset();
     }
