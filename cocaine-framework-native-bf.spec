@@ -1,6 +1,6 @@
 Summary:    Cocaine - Native Framework
 Name:       cocaine-framework-native
-Version:    0.10.5.5
+Version:    0.10.6.1
 Release:    1%{?dist}
 
 License:    GPLv2+
@@ -31,7 +31,7 @@ Requires: %{name} = %{version}-%{release}
 
 %description devel
 This package contains libraries, header files and developer documentation
-needed for developing software which uses the cairo graphics library.
+needed for developing native Cocaine apps.
 
 %prep
 %setup -q
