@@ -15,6 +15,27 @@
 
 namespace cocaine { namespace framework {
 
+class reactor_thread_t {
+public:
+    reactor_thread_t();
+    
+    void
+    stop();
+    
+    void
+    join();
+    
+    void
+    execute(const std::function<void()>& callback);
+    
+    cocaine::io::reactor_t&
+    reactor();
+    
+private:
+    cocaine::io::reactor_t m_reactor;
+    std::thread m_thread;
+};
+
 class service_manager_t :
     public std::enable_shared_from_this<service_manager_t>
 {
@@ -32,22 +53,24 @@ public:
     static
     std::shared_ptr<service_manager_t>
     create(const std::vector<endpoint_t>& resolver_endpoints,
-           const std::string& logging_prefix);
+           const std::string& logging_prefix,
+           size_t threads_num = 1);
 
     static
     std::shared_ptr<service_manager_t>
     create(const std::vector<endpoint_t>& resolver_endpoints,
-           std::shared_ptr<logger_t> logger = std::shared_ptr<logger_t>());
+           std::shared_ptr<logger_t> logger = std::shared_ptr<logger_t>(),
+           size_t threads_num = 1);
 
-    template<class Logger>
+    template<class... Args>
     static
     std::shared_ptr<service_manager_t>
     create(const endpoint_t& resolver,
-           Logger&& logger)
+           Args&&... args)
     {
         std::vector<endpoint_t> r;
         r.emplace_back(resolver);
-        return create(r, std::forward<Logger>(logger));
+        return create(r, std::forward<Args>(args)...);
     }
 
     ~service_manager_t();
@@ -83,13 +106,16 @@ private:
     service_manager_t(const std::vector<endpoint_t>& resolver_endpoints);
 
     void
-    init();
+    init(size_t threads_num);
 
     void
     register_connection(service_connection_t *connection);
 
     void
     release_connection(service_connection_t *connection);
+    
+    size_t
+    next_reactor();
 
     std::shared_ptr<service_connection_t>
     get_connection(const std::string& name,
@@ -121,17 +147,14 @@ private:
                                          std::forward<Args>(args)...);
     }
 
-    void
-    execute(const std::function<void()>& callback);
-
 private:
-    cocaine::io::reactor_t m_ioservice;
-    std::thread m_working_thread;
-    std::vector<endpoint_t> m_resolver_endpoints;
+    std::vector<std::unique_ptr<reactor_thread_t>> m_reactors;
+    std::atomic<size_t> m_next_reactor;
 
     std::set<service_connection_t*> m_connections;
     std::mutex m_connections_lock;
 
+    std::vector<endpoint_t> m_resolver_endpoints;
     std::shared_ptr<service_connection_t> m_resolver;
     std::shared_ptr<logger_t> m_logger;
 };
