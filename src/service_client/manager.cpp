@@ -3,9 +3,16 @@
 
 #include <cocaine/messages.hpp>
 
+#ifdef __linux__
+# include <sys/prctl.h>
+#endif
+
 using namespace cocaine::framework;
 
 reactor_thread_t::reactor_thread_t() {
+    #ifdef __linux__
+        execute(std::bind(&prctl, PR_SET_NAME, "service-manager"));
+    #endif
     m_thread = std::thread(&cocaine::io::reactor_t::run, &m_reactor);
 }
 
