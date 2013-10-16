@@ -2,6 +2,7 @@ cocaine-framework-native (0.11.0.0) unstable; urgency=low
 
   * Support of timeouts.
   * Support of multiple locators in service manager.
+  * Support of multiple threads in service manager.
   * Several bugfixes.
 
  -- Andrey Goryachev <bugsbunny@yandex-team.ru>  Tue, 15 Oct 2013 11:00:45 +0400
