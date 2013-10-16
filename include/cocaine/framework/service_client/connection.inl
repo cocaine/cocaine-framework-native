@@ -55,7 +55,7 @@ cocaine::framework::service_connection_t::call(Args&&... args) {
 
     session_id_t current_session = m_session_counter++;
 
-    std::unique_lock<std::recursive_mutex> lock(m_sessions_mutex);
+    std::unique_lock<std::mutex> lock(m_sessions_mutex);
 
     // try to connect if disconnected
     if (status() != service_status::connected &&
@@ -73,6 +73,7 @@ cocaine::framework::service_connection_t::call(Args&&... args) {
 
         m_channel.wr->write<Event>(current_session, std::forward<Args>(args)...);
     } else {
+        lock.unlock();
         // for now 'connect' may fail immediately only when service manager doesn't exist
         h->error(
             cocaine::framework::make_exception_ptr(service_error_t(service_errc::broken_manager))

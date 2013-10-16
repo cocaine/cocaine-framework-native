@@ -111,7 +111,7 @@ private:
 
     std::atomic<session_id_t> m_session_counter;
     sessions_map_t m_sessions;
-    std::recursive_mutex m_sessions_mutex;
+    std::mutex m_sessions_mutex;
 
     std::weak_ptr<service_manager_t> m_manager;
     iochannel_t m_channel;

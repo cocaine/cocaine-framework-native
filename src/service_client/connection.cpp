@@ -77,7 +77,7 @@ service_connection_t::disconnect(service_status status) {
     sessions_map_t sessions;
 
     {
-        std::unique_lock<std::recursive_mutex> lock(m_sessions_mutex);
+        std::unique_lock<std::mutex> lock(m_sessions_mutex);
 
         m_connection_status = status;
         sessions.swap(m_sessions);
@@ -101,8 +101,6 @@ service_connection_t::disconnect(service_status status) {
 
 future<std::shared_ptr<service_connection_t>>
 service_connection_t::connect() {
-    std::unique_lock<std::recursive_mutex> lock(m_sessions_mutex);
-
     auto m = get_manager();
 
     if (!m) {
@@ -162,7 +160,7 @@ service_connection_t::connect_to_endpoint() {
 
     std::exception_ptr err;
 
-    std::unique_lock<std::recursive_mutex> lock(m_sessions_mutex);
+    std::unique_lock<std::mutex> lock(m_sessions_mutex);
 
     // iterate over hosts provided by user or locator
     for (size_t hostidx = 0;
@@ -220,12 +218,14 @@ service_connection_t::connect_to_endpoint() {
 void
 service_connection_t::on_error(const std::error_code& /* code */) {
     disconnect();
+
+    std::unique_lock<std::mutex> lock(m_sessions_mutex);
     connect();
 }
 
 void
 service_connection_t::on_message(const cocaine::io::message_t& message) {
-    std::unique_lock<std::recursive_mutex> lock(m_sessions_mutex);
+    std::unique_lock<std::mutex> lock(m_sessions_mutex);
     sessions_map_t::iterator it = m_sessions.find(message.band());
 
     if (it != m_sessions.end()) {
@@ -243,13 +243,19 @@ void
 service_connection_t::delete_session(session_id_t id,
                                      service_errc ec)
 {
-    std::unique_lock<std::recursive_mutex> lock(m_sessions_mutex);
+    detail::service::session_data_t s;
 
-    sessions_map_t::iterator it = m_sessions.find(id);
+    {
+        std::unique_lock<std::mutex> lock(m_sessions_mutex);
+        sessions_map_t::iterator it = m_sessions.find(id);
+        if (it != m_sessions.end()) {
+            s = it->second;
+            m_sessions.erase(it);
+        }
+    }
 
-    if (it != m_sessions.end()) {
-        it->second.handler()->error(cocaine::framework::make_exception_ptr(service_error_t(ec)));
-        m_sessions.erase(it);
+    if (s.handler()) {
+        s.handler()->error(cocaine::framework::make_exception_ptr(service_error_t(ec)));
     }
 }
 
@@ -274,7 +280,7 @@ service_connection_t::set_timeout_impl(session_id_t id,
     sessions_map_t::iterator it;
 
     {
-        std::unique_lock<std::recursive_mutex> lock(m_sessions_mutex);
+        std::unique_lock<std::mutex> lock(m_sessions_mutex);
         it = m_sessions.find(id);
     }
 
