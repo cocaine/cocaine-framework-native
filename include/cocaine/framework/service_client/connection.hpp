@@ -86,6 +86,9 @@ public:
     size_t
     footprint() const;
 
+    size_t
+    sessions_count() const;
+
 private:
     // throws if the manager doesn't exist
     std::shared_ptr<service_manager_t>

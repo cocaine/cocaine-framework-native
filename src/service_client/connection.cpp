@@ -87,6 +87,12 @@ service_connection_t::footprint() const {
     return m_channel.footprint();
 }
 
+size_t
+service_connection_t::sessions_count() const {
+    std::unique_lock<std::mutex> lock(m_sessions_mutex);
+    return m_sessions.size();
+}
+
 void
 service_connection_t::disconnect(service_status status) {
     sessions_map_t sessions;

@@ -109,6 +109,9 @@ public:
     size_t
     connections_count() const;
 
+    size_t
+    sessions_count() const;
+
 private:
     service_manager_t(const std::vector<endpoint_t>& resolver_endpoints);
 

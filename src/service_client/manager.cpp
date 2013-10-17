@@ -195,3 +195,15 @@ service_manager_t::connections_count() const {
     std::unique_lock<std::mutex> lock(m_connections_lock);
     return m_connections.size();
 }
+
+size_t
+service_manager_t::sessions_count() const {
+    size_t result = 0;
+
+    std::unique_lock<std::mutex> lock(m_connections_lock);
+    for (auto it = m_connections.begin(); it != m_connections.end(); ++it) {
+        result += (*it)->sessions_count();
+    }
+
+    return result;
+}
