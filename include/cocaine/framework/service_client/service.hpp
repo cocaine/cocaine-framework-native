@@ -30,7 +30,7 @@ public:
     name();
 
     service_status
-    status();
+    status() const;
 
     void
     set_timeout(float timeout);

@@ -117,7 +117,7 @@ service_t::name() {
 }
 
 service_status
-service_t::status() {
+service_t::status() const {
     return m_connection->status();
 }
 
