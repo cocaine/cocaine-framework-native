@@ -102,6 +102,13 @@ public:
     service_traits<cocaine::io::locator::resolve>::future_type
     resolve(const std::string& name);
 
+    // Returns amount of memory allocated by internal buffers of connections.
+    size_t
+    footprint() const;
+
+    size_t
+    connections_count() const;
+
 private:
     service_manager_t(const std::vector<endpoint_t>& resolver_endpoints);
 
@@ -152,7 +159,7 @@ private:
     std::atomic<size_t> m_next_reactor;
 
     std::set<service_connection_t*> m_connections;
-    std::mutex m_connections_lock;
+    mutable std::mutex m_connections_lock;
 
     std::vector<endpoint_t> m_resolver_endpoints;
     std::shared_ptr<service_connection_t> m_resolver;

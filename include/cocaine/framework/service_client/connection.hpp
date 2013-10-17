@@ -83,6 +83,9 @@ public:
     void
     disconnect(service_status status = service_status::disconnected);
 
+    size_t
+    footprint() const;
+
 private:
     // throws if the manager doesn't exist
     std::shared_ptr<service_manager_t>
@@ -116,7 +119,7 @@ private:
 
     std::atomic<session_id_t> m_session_counter;
     sessions_map_t m_sessions;
-    std::mutex m_sessions_mutex;
+    mutable std::mutex m_sessions_mutex;
 
     std::weak_ptr<service_manager_t> m_manager;
     size_t m_thread;

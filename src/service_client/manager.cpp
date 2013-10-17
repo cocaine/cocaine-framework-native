@@ -9,10 +9,17 @@
 
 using namespace cocaine::framework;
 
+namespace {
+    void
+    set_name() {
+#ifdef __linux__
+        prctl(PR_SET_NAME, "service-manager");
+#endif
+    }
+}
+
 reactor_thread_t::reactor_thread_t() {
-    #ifdef __linux__
-        execute(std::bind(&prctl, PR_SET_NAME, "service-manager"));
-    #endif
+    execute(&set_name);
     m_thread = std::thread(&cocaine::io::reactor_t::run, &m_reactor);
 }
 
@@ -169,4 +176,22 @@ service_manager_t::get_deferred_connection(const std::string& name,
                                                           version);
     service->connect();
     return service;
+}
+
+size_t
+service_manager_t::footprint() const {
+    size_t result = 0;
+
+    std::unique_lock<std::mutex> lock(m_connections_lock);
+    for (auto it = m_connections.begin(); it != m_connections.end(); ++it) {
+        result += (*it)->footprint();
+    }
+
+    return result;
+}
+
+size_t
+service_manager_t::connections_count() const {
+    std::unique_lock<std::mutex> lock(m_connections_lock);
+    return m_connections.size();
 }

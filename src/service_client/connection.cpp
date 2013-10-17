@@ -81,6 +81,12 @@ service_connection_t::thread() const {
     return m_thread;
 }
 
+size_t
+service_connection_t::footprint() const {
+    std::unique_lock<std::mutex> lock(m_sessions_mutex);
+    return m_channel.footprint();
+}
+
 void
 service_connection_t::disconnect(service_status status) {
     sessions_map_t sessions;
