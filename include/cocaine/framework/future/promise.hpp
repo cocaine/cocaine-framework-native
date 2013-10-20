@@ -7,41 +7,69 @@ namespace cocaine { namespace framework {
 
 namespace detail { namespace future {
 
-    template<class... Args>
+    template<class State>
     class state_handler {
-        COCAINE_DECLARE_NONCOPYABLE(state_handler)
     public:
-        state_handler() :
-            m_state(new shared_state<Args...>()),
-            m_future_retrieved(false)
+        state_handler(const std::shared_ptr<State>& state = std::make_shared<State>()) :
+            m_state(state)
+        {
+            if (m_state) {
+                m_state->new_promise();
+            }
+        }
+
+        state_handler(const state_handler& other) :
+            m_state(other.m_state)
+        {
+            if (m_state) {
+                m_state->new_promise();
+            }
+        }
+
+        state_handler(state_handler&& other) :
+            m_state(std::move(other.m_state))
         {
             // pass
         }
 
         ~state_handler() {
-            m_state->try_set_exception(
-                cocaine::framework::make_exception_ptr(future_error(future_errc::broken_promise))
-            );
-        }
-
-        cocaine::framework::future<Args...>
-        get_future() {
-            bool retrieved = m_future_retrieved.exchange(true);
-            if (!retrieved) {
-                return future_from_state<Args...>(m_state);
-            } else {
-                throw future_error(future_errc::future_already_retrieved);
+            if (m_state) {
+                m_state->release_promise();
             }
         }
 
-        std::shared_ptr<shared_state<Args...>>
+        state_handler&
+        operator=(const state_handler& other) {
+            if (m_state) {
+                m_state->release_promise();
+            }
+            m_state = other.m_state;
+            if (m_state) {
+                m_state->new_promise();
+            }
+            return *this;
+        }
+
+        state_handler&
+        operator=(state_handler&& other) {
+            if (m_state) {
+                m_state->release_promise();
+            }
+            m_state = std::move(other.m_state);
+            return *this;
+        }
+
+        const std::shared_ptr<State>&
         state() const {
-            return m_state;
+            if (!m_state) {
+                throw future_error(future_errc::no_state);
+            } else {
+                return m_state;
+            }
         }
 
     protected:
-        std::shared_ptr<shared_state<Args...>> m_state;
-        std::atomic<bool> m_future_retrieved;
+        std::shared_ptr<State> m_state;
     };
 
 }} // namespace detail::future
@@ -52,21 +80,19 @@ public:
     typedef future<Args...>
             future_type;
 
-    promise() :
-        m_state(new detail::future::state_handler<Args...>())
-    {
+    promise() {
         // pass
     }
 
     void
     set_exception(std::exception_ptr e) {
-        state()->set_exception(e);
+        m_state.state()->set_exception(e);
     }
 
     template<class Exception>
     void
     set_exception(const Exception& e) {
-        state()->set_exception(
+        m_state.state()->set_exception(
             cocaine::framework::make_exception_ptr(e)
         );
     }
@@ -74,38 +100,36 @@ public:
     template<class... Args2>
     void
     set_value(Args2&&... args) {
-        state()->set_value(std::forward<Args2>(args)...);
+        m_state.state()->set_value(std::forward<Args2>(args)...);
     }
 
     future<Args...>
     get_future() {
-        check_state();
-        return m_state->get_future();
-    }
-
-protected:
-    std::shared_ptr<detail::future::shared_state<Args...>>
-    state() const {
-        check_state();
-        return m_state->state();
-    }
-
-    void
-    check_state() const {
-        if (!m_state) {
-            throw future_error(future_errc::no_state);
+        if (!m_state.state()->take_future()) {
+            return detail::future::future_from_state<Args...>(m_state.state());
+        } else {
+            throw future_error(future_errc::future_already_retrieved);
         }
     }
 
+protected:
+    typedef detail::future::shared_state<Args...>
+            state_type;
+
     explicit
-    promise(const std::shared_ptr<detail::future::state_handler<Args...>>& state) :
+    promise(const std::shared_ptr<state_type>& state) :
         m_state(state)
     {
         // pass
     }
 
+    const std::shared_ptr<state_type>&
+    state() const {
+        return m_state.state();
+    }
+
 private:
-    std::shared_ptr<detail::future::state_handler<Args...>> m_state;
+    detail::future::state_handler<state_type> m_state;
 };
 
 }} // namespace cocaine::framework

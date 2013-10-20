@@ -23,9 +23,29 @@ class shared_state {
 
 public:
     shared_state() :
-        m_closed(false)
+        m_closed(false),
+        m_promise_counter(0),
+        m_future_retrieved(false)
     {
         // pass
+    }
+
+    void
+    new_promise() {
+        ++m_promise_counter;
+    }
+
+    void
+    release_promise() {
+        auto counter = --m_promise_counter;
+        if (counter == 0) {
+            try_close();
+        }
+    }
+
+    bool
+    take_future() {
+        return m_future_retrieved.exchange(true);
     }
 
     void
@@ -260,6 +280,9 @@ protected:
 
     std::mutex m_access_mutex;
     std::condition_variable m_ready;
+
+    std::atomic<int> m_promise_counter;
+    std::atomic<bool> m_future_retrieved;
 };
 
 template<>
@@ -274,9 +297,29 @@ class shared_state<void> {
 public:
     shared_state() :
         m_closed(false),
-        m_void_retrieved(false)
+        m_void_retrieved(false),
+        m_promise_counter(0),
+        m_future_retrieved(false)
     {
         // pass
+    }
+
+    void
+    new_promise() {
+        ++m_promise_counter;
+    }
+
+    void
+    release_promise() {
+        auto counter = --m_promise_counter;
+        if (counter == 0) {
+            try_close();
+        }
+    }
+
+    bool
+    take_future() {
+        return m_future_retrieved.exchange(true);
     }
 
     void
@@ -466,6 +509,9 @@ protected:
 
     std::mutex m_access_mutex;
     std::condition_variable m_ready;
+
+    std::atomic<int> m_promise_counter;
+    std::atomic<bool> m_future_retrieved;
 };
 
 }}}} // namespace cocaine::framework::detail::generator

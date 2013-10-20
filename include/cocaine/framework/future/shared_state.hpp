@@ -33,8 +33,31 @@ class shared_state {
     };
 
 public:
-    shared_state() {
+    shared_state() :
+        m_promise_counter(0),
+        m_future_retrieved(false)
+    {
         // pass
+    }
+
+    void
+    new_promise() {
+        ++m_promise_counter;
+    }
+
+    void
+    release_promise() {
+        auto counter = --m_promise_counter;
+        if (counter == 0) {
+            try_set_exception(
+                cocaine::framework::make_exception_ptr(future_error(future_errc::broken_promise))
+            );
+        }
+    }
+
+    bool
+    take_future() {
+        return m_future_retrieved.exchange(true);
     }
 
     void
@@ -147,6 +170,9 @@ private:
 
     std::mutex m_access_mutex;
     std::condition_variable m_ready;
+
+    std::atomic<int> m_promise_counter;
+    std::atomic<bool> m_future_retrieved;
 };
 
 template<class... Args>

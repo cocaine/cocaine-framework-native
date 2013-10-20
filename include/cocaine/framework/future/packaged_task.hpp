@@ -14,7 +14,7 @@ class packaged_task<R(Args...)> :
 {
 public:
     packaged_task() :
-        promise<R>(std::shared_ptr<detail::future::state_handler<R>>())
+        promise<R>(std::shared_ptr<typename promise<R>::state_type>())
     {
         // pass
     }
