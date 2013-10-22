@@ -82,7 +82,7 @@ public:
                          size_t thread,
                          unsigned int version);
 
-    // If the connection some IO watcher and corresponding event loop is running, then the connection must be deleted only from event loop.
+    // If the connection owns some IO watcher and corresponding event loop is running, then the connection must be deleted only from event loop.
     ~service_connection_t();
 
     // Returns name of the service or one of the endpoints if the service has no name.

@@ -2,8 +2,6 @@
 
 #include <cocaine/asio/resolver.hpp>
 
-#include <iostream>
-
 using namespace cocaine::framework;
 
 namespace {

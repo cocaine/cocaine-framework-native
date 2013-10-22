@@ -3,8 +3,6 @@
 
 #include <cocaine/messages.hpp>
 
-#include <iostream>
-
 #ifdef __linux__
 # include <sys/prctl.h>
 #endif
