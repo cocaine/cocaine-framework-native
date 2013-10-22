@@ -3,49 +3,6 @@
 
 #include <ev++.h>
 
-namespace cocaine { namespace framework {
-
-class service_connection_t;
-
-namespace detail { namespace service {
-
-    class session_data_t {
-    public:
-        session_data_t();
-
-        session_data_t(const std::shared_ptr<service_connection_t>& connection,
-                       session_id_t id,
-                       std::shared_ptr<detail::service::service_handler_concept_t>&& handler);
-
-        ~session_data_t();
-
-        void
-        set_timeout(float seconds);
-
-        void
-        stop_timer();
-
-        detail::service::service_handler_concept_t*
-        handler() const {
-            return m_handler.get();
-        }
-
-    private:
-        void
-        on_timeout(ev::timer&, int);
-
-    private:
-        session_id_t m_id;
-        std::shared_ptr<detail::service::service_handler_concept_t> m_handler;
-        std::shared_ptr<ev::timer> m_close_timer;
-        bool m_stopped;
-        std::shared_ptr<service_connection_t> m_connection;
-    };
-
-}} // namespace detail::service
-
-}} // namespace cocaine::framework
-
 template<class Event, typename... Args>
 cocaine::framework::session<Event>
 cocaine::framework::service_connection_t::call(Args&&... args) {
@@ -59,7 +16,8 @@ cocaine::framework::service_connection_t::call(Args&&... args) {
 
     // try to connect if disconnected
     if (status() != service_status::connected &&
-        status() != service_status::connecting)
+        status() != service_status::connecting &&
+        m_auto_reconnect)
     {
         connect();
     }

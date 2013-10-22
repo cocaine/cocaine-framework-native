@@ -11,8 +11,48 @@
 #include <memory>
 #include <string>
 #include <mutex>
+#include <unordered_map>
 
 namespace cocaine { namespace framework {
+
+class service_connection_t;
+
+namespace detail { namespace service {
+
+    class session_data_t {
+    public:
+        session_data_t();
+
+        session_data_t(const std::shared_ptr<service_connection_t>& connection,
+                       session_id_t id,
+                       std::shared_ptr<detail::service::service_handler_concept_t>&& handler);
+
+        ~session_data_t();
+
+        void
+        set_timeout(float seconds);
+
+        void
+        stop_timer();
+
+        detail::service::service_handler_concept_t*
+        handler() const {
+            return m_handler.get();
+        }
+
+    private:
+        void
+        on_timeout(ev::timer&, int);
+
+    private:
+        session_id_t m_id;
+        std::shared_ptr<detail::service::service_handler_concept_t> m_handler;
+        std::shared_ptr<ev::timer> m_close_timer;
+        bool m_stopped;
+        std::shared_ptr<service_connection_t> m_connection;
+    };
+
+}} // namespace detail::service
 
 class service_manager_t;
 
@@ -42,9 +82,10 @@ public:
                          size_t thread,
                          unsigned int version);
 
-    // must be deleted from service thread
+    // If the connection some IO watcher and corresponding event loop is running, then the connection must be deleted only from event loop.
     ~service_connection_t();
 
+    // Returns name of the service or one of the endpoints if the service has no name.
     std::string
     name() const;
 
@@ -57,7 +98,7 @@ public:
     status() const {
         return m_connection_status;
     }
-    
+
     size_t
     thread() const;
 
@@ -75,11 +116,14 @@ public:
     void
     set_timeout(session_id_t id, float seconds);
 
-    // call it only when disconnected!
+    void
+    auto_reconnect(bool);
+
+    // Call it only when disconnected!
     future<std::shared_ptr<service_connection_t>>
     connect();
 
-    // must be called only from service thread
+    // Must be called only from service thread if the thread is running.
     void
     disconnect(service_status status = service_status::disconnected);
 
@@ -110,7 +154,7 @@ private:
     set_timeout_impl(session_id_t id, float seconds);
 
 private:
-    typedef std::map<session_id_t, detail::service::session_data_t>
+    typedef std::unordered_map<session_id_t, detail::service::session_data_t>
             sessions_map_t;
 
     typedef cocaine::io::channel<cocaine::io::socket<cocaine::io::tcp>>
@@ -129,6 +173,7 @@ private:
     iochannel_t m_channel;
 
     service_status m_connection_status;
+    std::atomic<bool> m_auto_reconnect;
 };
 
 }} // namespace cocaine::framework

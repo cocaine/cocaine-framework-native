@@ -97,6 +97,7 @@ service_t::~service_t() {
         auto m = m_connection->get_manager();
         if (m) {
             auto thread_num = m_connection->thread();
+            m_connection->auto_reconnect(false);
             m->m_reactors[thread_num]->execute(
                 std::bind(&service_connection_t::disconnect,
                           std::move(m_connection),
@@ -138,6 +139,7 @@ service_t::soft_destroy() {
 
     if (m) {
         auto thread_num = m_connection->thread();
+        m_connection->auto_reconnect(false);
         m->m_reactors[thread_num]->execute(
             std::bind(&emptyf<std::shared_ptr<service_connection_t>>::call,
                       std::move(m_connection))

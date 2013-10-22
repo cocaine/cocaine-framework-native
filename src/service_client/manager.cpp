@@ -3,6 +3,8 @@
 
 #include <cocaine/messages.hpp>
 
+#include <iostream>
+
 #ifdef __linux__
 # include <sys/prctl.h>
 #endif
@@ -50,10 +52,8 @@ service_manager_t::create(const std::vector<endpoint_t>& resolver_endpoints,
                           const std::string& logging_prefix,
                           size_t threads_num)
 {
-    std::shared_ptr<service_manager_t> manager(
-        new service_manager_t(resolver_endpoints)
-    );
-    manager->init(threads_num);
+    std::shared_ptr<service_manager_t> manager(new service_manager_t);
+    manager->init(resolver_endpoints, threads_num);
     manager->m_logger = manager->get_deferred_service<logging_service_t>("logging", logging_prefix);
     return manager;
 }
@@ -63,17 +63,14 @@ service_manager_t::create(const std::vector<endpoint_t>& resolver_endpoints,
                           std::shared_ptr<logger_t> logger,
                           size_t threads_num)
 {
-    std::shared_ptr<service_manager_t> manager(
-        new service_manager_t(resolver_endpoints)
-    );
-    manager->init(threads_num);
+    std::shared_ptr<service_manager_t> manager(new service_manager_t);
+    manager->init(resolver_endpoints, threads_num);
     manager->m_logger = logger;
     return manager;
 }
 
-service_manager_t::service_manager_t(const std::vector<endpoint_t>& resolver_endpoints) :
-    m_next_reactor(0),
-    m_resolver_endpoints(resolver_endpoints)
+service_manager_t::service_manager_t() :
+    m_next_reactor(0)
 {
     // pass
 }
@@ -87,18 +84,21 @@ service_manager_t::~service_manager_t() {
         m_reactors[i]->join();
     }
 
+    m_resolver->auto_reconnect(false);
     m_resolver->disconnect();
 
-    std::unique_lock<std::mutex> lock(m_connections_lock);
+    std::lock_guard<std::mutex> lock(m_connections_mutex);
     for (auto it = m_connections.begin(); it != m_connections.end(); ++it) {
-        (*it)->disconnect();
+        auto shared = it->weak.lock();
+        if (shared) {
+            shared->auto_reconnect(false);
+            shared->disconnect();
+        }
     }
-
-    m_resolver.reset();
 }
 
 void
-service_manager_t::init(size_t threads_num) {
+service_manager_t::init(const std::vector<endpoint_t>& resolver_endpoints, size_t threads_num) {
     m_reactors.reserve(threads_num);
     
     for (size_t i = 0; i < threads_num; ++i) {
@@ -106,36 +106,38 @@ service_manager_t::init(size_t threads_num) {
     }
     
     m_resolver = std::make_shared<service_connection_t>(
-        m_resolver_endpoints,
+        resolver_endpoints,
         shared_from_this(),
         0,
         cocaine::io::protocol<cocaine::io::locator_tag>::version::value
     );
 
     m_resolver->connect();
-    
 }
 
-std::shared_ptr<logger_t>
+const std::shared_ptr<logger_t>&
 service_manager_t::get_system_logger() const {
     return m_logger;
 }
 
 service_traits<cocaine::io::locator::resolve>::future_type
 service_manager_t::resolve(const std::string& name) {
-    return std::move(m_resolver->call<cocaine::io::locator::resolve>(name).downstream());
+    auto session = m_resolver->call<cocaine::io::locator::resolve>(name);
+    session.set_timeout(10.0f); // may be this timeout must be configurable?
+    return std::move(session.downstream());
 }
 
 void
-service_manager_t::register_connection(service_connection_t *connection) {
-    std::unique_lock<std::mutex> lock(m_connections_lock);
-    m_connections.insert(connection);
+service_manager_t::register_connection(const std::shared_ptr<service_connection_t>& connection) {
+    std::lock_guard<std::mutex> guard(m_connections_mutex);
+    m_connections.insert(connection_pair_t {connection.get(),
+                                            std::weak_ptr<service_connection_t>(connection)});
 }
 
 void
 service_manager_t::release_connection(service_connection_t *connection) {
-    std::unique_lock<std::mutex> lock(m_connections_lock);
-    m_connections.erase(connection);
+    std::lock_guard<std::mutex> guard(m_connections_mutex);
+    m_connections.erase(connection_pair_t {connection, std::weak_ptr<service_connection_t>()});
 }
 
 size_t
@@ -151,6 +153,7 @@ service_manager_t::get_connection(const std::string& name,
                                                           shared_from_this(),
                                                           next_reactor(),
                                                           version);
+    register_connection(service);
     service->connect().get();
     return service;
 }
@@ -163,6 +166,7 @@ service_manager_t::get_connection_async(const std::string& name,
                                                           shared_from_this(),
                                                           next_reactor(),
                                                           version);
+    register_connection(service);
     return service->connect();
 }
 
@@ -174,6 +178,7 @@ service_manager_t::get_deferred_connection(const std::string& name,
                                                           shared_from_this(),
                                                           next_reactor(),
                                                           version);
+    register_connection(service);
     service->connect();
     return service;
 }
@@ -182,9 +187,9 @@ size_t
 service_manager_t::footprint() const {
     size_t result = 0;
 
-    std::unique_lock<std::mutex> lock(m_connections_lock);
+    std::unique_lock<std::mutex> lock(m_connections_mutex);
     for (auto it = m_connections.begin(); it != m_connections.end(); ++it) {
-        result += (*it)->footprint();
+        result += it->connection->footprint();
     }
 
     return result;
@@ -192,7 +197,7 @@ service_manager_t::footprint() const {
 
 size_t
 service_manager_t::connections_count() const {
-    std::unique_lock<std::mutex> lock(m_connections_lock);
+    std::unique_lock<std::mutex> lock(m_connections_mutex);
     return m_connections.size();
 }
 
@@ -200,9 +205,9 @@ size_t
 service_manager_t::sessions_count() const {
     size_t result = 0;
 
-    std::unique_lock<std::mutex> lock(m_connections_lock);
+    std::unique_lock<std::mutex> lock(m_connections_mutex);
     for (auto it = m_connections.begin(); it != m_connections.end(); ++it) {
-        result += (*it)->sessions_count();
+        result += it->connection->sessions_count();
     }
 
     return result;

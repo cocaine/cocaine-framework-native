@@ -2,6 +2,8 @@
 
 #include <cocaine/asio/resolver.hpp>
 
+#include <iostream>
+
 using namespace cocaine::framework;
 
 namespace {
@@ -24,9 +26,10 @@ service_connection_t::service_connection_t(const std::string& name,
     m_session_counter(1),
     m_manager(manager),
     m_thread(thread),
-    m_connection_status(service_status::disconnected)
+    m_connection_status(service_status::disconnected),
+    m_auto_reconnect(true)
 {
-    manager->register_connection(this);
+    // pass
 }
 
 service_connection_t::service_connection_t(const std::vector<endpoint_t>& endpoints,
@@ -38,9 +41,10 @@ service_connection_t::service_connection_t(const std::vector<endpoint_t>& endpoi
     m_session_counter(1),
     m_manager(manager),
     m_thread(thread),
-    m_connection_status(service_status::disconnected)
+    m_connection_status(service_status::disconnected),
+    m_auto_reconnect(true)
 {
-    manager->register_connection(this);
+    // pass
 }
 
 service_connection_t::~service_connection_t() {
@@ -74,6 +78,11 @@ service_connection_t::name() const {
     } else {
         return "<uninitialized>";
     }
+}
+
+void
+service_connection_t::auto_reconnect(bool reconnect) {
+    m_auto_reconnect = reconnect;
 }
     
 size_t
@@ -240,8 +249,10 @@ void
 service_connection_t::on_error(const std::error_code& /* code */) {
     disconnect();
 
-    std::unique_lock<std::mutex> lock(m_sessions_mutex);
-    connect();
+    if (m_auto_reconnect) {
+        std::unique_lock<std::mutex> lock(m_sessions_mutex);
+        connect();
+    }
 }
 
 void
