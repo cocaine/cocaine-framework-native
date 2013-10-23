@@ -308,13 +308,9 @@ void
 service_connection_t::set_timeout_impl(session_id_t id,
                                        float seconds)
 {
-    sessions_map_t::iterator it;
+    std::unique_lock<std::mutex> lock(m_sessions_mutex);
 
-    {
-        std::unique_lock<std::mutex> lock(m_sessions_mutex);
-        it = m_sessions.find(id);
-    }
-
+    auto it = m_sessions.find(id);
     if (it != m_sessions.end()) {
         it->second.set_timeout(seconds);
     }
