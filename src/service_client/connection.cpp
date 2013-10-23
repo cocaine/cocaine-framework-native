@@ -263,8 +263,9 @@ service_connection_t::on_message(const cocaine::io::message_t& message) {
         if (message.id() == io::event_traits<io::rpc::choke>::id) {
             m_sessions.erase(it);
         } else {
+            auto data = it->second;
             lock.unlock();
-            it->second.handler()->handle_message(message);
+            data.handler()->handle_message(message);
         }
     }
 }
