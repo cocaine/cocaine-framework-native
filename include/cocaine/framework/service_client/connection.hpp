@@ -135,10 +135,6 @@ public:
     sessions_count() const;
 
 private:
-    // throws if the manager doesn't exist
-    std::shared_ptr<service_manager_t>
-    manager();
-
     std::shared_ptr<service_connection_t>
     connect_to_endpoint();
 

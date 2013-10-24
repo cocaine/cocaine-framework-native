@@ -25,8 +25,11 @@ public:
     void
     join();
     
+    template<class F>
     void
-    execute(const std::function<void()>& callback);
+    execute(F&& callback) {
+        m_reactor.post(std::forward<F>(callback));
+    }
     
     cocaine::io::reactor_t&
     reactor();

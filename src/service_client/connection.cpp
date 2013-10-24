@@ -57,16 +57,6 @@ service_connection_t::get_manager() throw() {
     return m_manager.lock();
 }
 
-std::shared_ptr<service_manager_t>
-service_connection_t::manager() {
-    auto m = get_manager();
-    if (m) {
-        return m;
-    } else {
-        throw service_error_t(service_errc::broken_manager);
-    }
-}
-
 std::string
 service_connection_t::name() const {
     if (m_name) {
@@ -202,7 +192,7 @@ service_connection_t::connect_to_endpoint() {
 
     std::unique_lock<std::mutex> lock(m_sessions_mutex);
 
-    // iterate over hosts provided by user or locator
+    // iterate over hosts provided by user or by locator
     for (size_t hostidx = 0;
         hostidx < m_endpoints.size() && m_connection_status == service_status::connecting;
         ++hostidx)
@@ -323,9 +313,9 @@ service_connection_t::set_timeout(session_id_t id,
 
     if (m) {
         m_reactor->execute(std::bind(&service_connection_t::set_timeout_impl,
-                                                   shared_from_this(),
-                                                   id,
-                                                   seconds));
+                                     shared_from_this(),
+                                     id,
+                                     seconds));
     }
 }
 

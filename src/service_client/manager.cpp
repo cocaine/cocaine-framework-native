@@ -35,11 +35,6 @@ reactor_thread_t::join() {
     }
 }
 
-void
-reactor_thread_t::execute(const std::function<void()>& callback) {
-    m_reactor.post(callback);
-}
-
 cocaine::io::reactor_t&
 reactor_thread_t::reactor() {
     return m_reactor;
