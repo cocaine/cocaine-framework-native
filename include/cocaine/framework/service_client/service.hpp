@@ -49,6 +49,20 @@ private:
     boost::optional<float> m_timeout;
 };
 
+template<class Tag>
+class service :
+    public service_t
+{
+public:
+    static const unsigned int version = cocaine::io::protocol<Tag>::version::value;
+
+    service(std::shared_ptr<service_connection_t> connection) :
+        service_t(connection)
+    {
+        // pass
+    }
+};
+
 }} // namespace cocaine::framework
 
 template<class Event, typename... Args>
