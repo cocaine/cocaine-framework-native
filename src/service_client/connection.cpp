@@ -163,14 +163,20 @@ service_connection_t::on_resolved(service_traits<cocaine::io::locator::resolve>:
         std::tie(m_endpoints[0].first, m_endpoints[0].second) = std::get<0>(service_info);
     } catch (const service_error_t& e) {
         if (e.code().category() == service_response_category()) {
-            disconnect(service_status::not_found);
+            m_reactor->execute(std::bind(&service_connection_t::disconnect,
+                                         shared_from_this(),
+                                         service_status::not_found));
             throw service_error_t(service_errc::not_found);
         } else {
-            disconnect();
+            m_reactor->execute(std::bind(&service_connection_t::disconnect,
+                                         shared_from_this(),
+                                         service_status::disconnected));
             throw;
         }
     } catch (...) {
-        disconnect();
+        m_reactor->execute(std::bind(&service_connection_t::disconnect,
+                                     shared_from_this(),
+                                     service_status::disconnected));
         throw;
     }
 
