@@ -245,6 +245,8 @@ service_connection_t::connect_to_endpoint() {
 
 void
 service_connection_t::on_error(const std::error_code& /* code */) {
+    auto self = shared_from_this(); // keep the connection alive while the method is running
+
     disconnect();
 
     if (m_auto_reconnect) {
@@ -255,6 +257,8 @@ service_connection_t::on_error(const std::error_code& /* code */) {
 
 void
 service_connection_t::on_message(const cocaine::io::message_t& message) {
+    auto self = shared_from_this(); // keep the connection alive while the method is running
+
     std::unique_lock<std::mutex> lock(m_sessions_mutex);
     sessions_map_t::iterator it = m_sessions.find(message.band());
 
@@ -274,6 +278,8 @@ void
 service_connection_t::delete_session(session_id_t id,
                                      service_errc ec)
 {
+    auto self = shared_from_this(); // keep the connection alive while the method is running
+
     detail::service::session_data_t s;
 
     {
