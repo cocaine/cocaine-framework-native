@@ -55,6 +55,7 @@ namespace detail { namespace service {
 }} // namespace detail::service
 
 class service_manager_t;
+class reactor_thread_t;
 
 namespace detail { namespace service {
 
@@ -99,8 +100,8 @@ public:
         return m_connection_status;
     }
 
-    size_t
-    thread() const;
+    reactor_thread_t*
+    reactor() const;
 
     // returns empty pointer if the manager doesn't exist
     std::shared_ptr<service_manager_t>
@@ -141,7 +142,7 @@ private:
     std::shared_ptr<service_connection_t>
     connect_to_endpoint();
 
-    std::shared_ptr<service_connection_t>
+    future<std::shared_ptr<service_connection_t>>
     on_resolved(session<cocaine::io::locator::resolve>::future_type&);
 
     void
@@ -169,7 +170,7 @@ private:
     mutable std::mutex m_sessions_mutex;
 
     std::weak_ptr<service_manager_t> m_manager;
-    size_t m_thread;
+    reactor_thread_t *m_reactor;
     iochannel_t m_channel;
 
     service_status m_connection_status;

@@ -262,7 +262,7 @@ struct unwrapper<cocaine::framework::future<cocaine::framework::future<Args...>>
                 f.set_default_executor(executor);
                 return f;
             } catch (...) {
-                return future_from_state<Args...>(std::current_exception(), executor);
+                return future_from_state<Args...>(ready_state<Args...>(std::current_exception()), executor);
             }
         } else {
             auto new_state = std::make_shared<shared_state<Args...>>();
