@@ -55,13 +55,6 @@ namespace detail { namespace service {
 }} // namespace detail::service
 
 class service_manager_t;
-class reactor_thread_t;
-
-namespace detail { namespace service {
-
-    class session_data_t;
-
-}} // namespace detail::service
 
 class service_connection_t :
     public std::enable_shared_from_this<service_connection_t>
@@ -75,15 +68,15 @@ public:
 public:
     service_connection_t(const std::string& name,
                          std::shared_ptr<service_manager_t> manager,
-                         size_t thread,
+                         cocaine::io::reactor_t& reactor,
                          unsigned int version);
 
     service_connection_t(const std::vector<endpoint_t>& endpoints,
                          std::shared_ptr<service_manager_t> manager,
-                         size_t thread,
+                         cocaine::io::reactor_t& reactor,
                          unsigned int version);
 
-    // If the connection owns some IO watcher and corresponding event loop is running, then the connection must be deleted only from event loop.
+    // If the connection owns some IO watcher and corresponding event loop is running, then the connection must be deleted only from the event loop.
     ~service_connection_t();
 
     // Returns name of the service or one of the endpoints if the service has no name.
@@ -100,25 +93,18 @@ public:
         return m_connection_status;
     }
 
-    reactor_thread_t*
+    cocaine::io::reactor_t&
     reactor() const;
 
-    // returns empty pointer if the manager doesn't exist
+    void
+    auto_reconnect(bool);
+
     std::shared_ptr<service_manager_t>
-    get_manager() throw();
+    get_manager() const;
 
     template<class Event, typename... Args>
     session<Event>
     call(Args&&... args);
-
-    void
-    delete_session(session_id_t id, service_errc ec);
-
-    void
-    set_timeout(session_id_t id, float seconds);
-
-    void
-    auto_reconnect(bool);
 
     // Call it only when disconnected!
     future<std::shared_ptr<service_connection_t>>
@@ -127,6 +113,12 @@ public:
     // Must be called only from service thread if the thread is running.
     void
     disconnect(service_status status = service_status::disconnected);
+
+    void
+    delete_session(session_id_t id, service_errc ec);
+
+    void
+    set_timeout(session_id_t id, float seconds);
 
     size_t
     footprint() const;
@@ -166,7 +158,7 @@ private:
     mutable std::mutex m_sessions_mutex;
 
     std::weak_ptr<service_manager_t> m_manager;
-    reactor_thread_t *m_reactor;
+    cocaine::io::reactor_t &m_reactor;
     iochannel_t m_channel;
 
     service_status m_connection_status;

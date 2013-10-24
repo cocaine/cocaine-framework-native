@@ -17,13 +17,13 @@ namespace {
 
 service_connection_t::service_connection_t(const std::string& name,
                                            std::shared_ptr<service_manager_t> manager,
-                                           size_t thread,
+                                           cocaine::io::reactor_t& reactor,
                                            unsigned int version) :
     m_name(name),
     m_version(version),
     m_session_counter(1),
     m_manager(manager),
-    m_reactor(manager->m_reactors[thread].get()),
+    m_reactor(reactor),
     m_connection_status(service_status::disconnected),
     m_auto_reconnect(true)
 {
@@ -32,13 +32,13 @@ service_connection_t::service_connection_t(const std::string& name,
 
 service_connection_t::service_connection_t(const std::vector<endpoint_t>& endpoints,
                                            std::shared_ptr<service_manager_t> manager,
-                                           size_t thread,
+                                           cocaine::io::reactor_t& reactor,
                                            unsigned int version) :
     m_endpoints(endpoints),
     m_version(version),
     m_session_counter(1),
     m_manager(manager),
-    m_reactor(manager->m_reactors[thread].get()),
+    m_reactor(reactor),
     m_connection_status(service_status::disconnected),
     m_auto_reconnect(true)
 {
@@ -53,7 +53,7 @@ service_connection_t::~service_connection_t() {
 }
 
 std::shared_ptr<service_manager_t>
-service_connection_t::get_manager() throw() {
+service_connection_t::get_manager() const {
     return m_manager.lock();
 }
 
@@ -73,7 +73,7 @@ service_connection_t::auto_reconnect(bool reconnect) {
     m_auto_reconnect = reconnect;
 }
     
-reactor_thread_t*
+cocaine::io::reactor_t&
 service_connection_t::reactor() const {
     return m_reactor;
 }
@@ -135,7 +135,7 @@ service_connection_t::connect() {
             std::bind(&service_connection_t::connect_to_endpoint,
                       shared_from_this())
         );
-        m_reactor->execute(connector);
+        m_reactor.post(connector);
         return connector.get_future();
     }
 }
@@ -153,28 +153,27 @@ service_connection_t::on_resolved(service_traits<cocaine::io::locator::resolve>:
         std::tie(m_endpoints[0].first, m_endpoints[0].second) = std::get<0>(service_info);
     } catch (const service_error_t& e) {
         if (e.code().category() == service_response_category()) {
-            m_reactor->execute(std::bind(&service_connection_t::disconnect,
-                                         shared_from_this(),
-                                         service_status::not_found));
+            m_reactor.post(std::bind(&service_connection_t::disconnect,
+                                     shared_from_this(),
+                                     service_status::not_found));
             throw service_error_t(service_errc::not_found);
         } else {
-            m_reactor->execute(std::bind(&service_connection_t::disconnect,
-                                         shared_from_this(),
-                                         service_status::disconnected));
+            m_reactor.post(std::bind(&service_connection_t::disconnect,
+                                     shared_from_this(),
+                                     service_status::disconnected));
             throw;
         }
     } catch (...) {
-        m_reactor->execute(std::bind(&service_connection_t::disconnect,
-                                     shared_from_this(),
-                                     service_status::disconnected));
+        m_reactor.post(std::bind(&service_connection_t::disconnect,
+                                 shared_from_this(),
+                                 service_status::disconnected));
         throw;
     }
 
     packaged_task<std::shared_ptr<service_connection_t>()> connector(
-        std::bind(&service_connection_t::connect_to_endpoint,
-                  shared_from_this())
+        std::bind(&service_connection_t::connect_to_endpoint, shared_from_this())
     );
-    m_reactor->execute(connector);
+    m_reactor.post(connector);
 
     return connector.get_future();
 }
@@ -209,7 +208,7 @@ service_connection_t::connect_to_endpoint() {
                 try {
                     auto socket = std::make_shared<cocaine::io::socket<cocaine::io::tcp>>(endpoints[i]);
 
-                    m_channel.attach(m_reactor->reactor(), socket);
+                    m_channel.attach(m_reactor, socket);
                     m_channel.rd->bind(std::bind(&service_connection_t::on_message,
                                                  this,
                                                  std::placeholders::_1),
@@ -256,7 +255,7 @@ service_connection_t::on_error(const std::error_code& /* code */) {
     }
 
     if (self.unique()) {
-        m_reactor->execute(std::bind(&emptyf<std::shared_ptr<service_connection_t>>::call, self));
+        m_reactor.post(std::bind(&emptyf<std::shared_ptr<service_connection_t>>::call, self));
     }
 }
 
@@ -279,7 +278,7 @@ service_connection_t::on_message(const cocaine::io::message_t& message) {
     }
 
     if (self.unique()) {
-        m_reactor->execute(std::bind(&emptyf<std::shared_ptr<service_connection_t>>::call, self));
+        m_reactor.post(std::bind(&emptyf<std::shared_ptr<service_connection_t>>::call, self));
     }
 }
 
@@ -312,10 +311,10 @@ service_connection_t::set_timeout(session_id_t id,
     auto m = get_manager();
 
     if (m) {
-        m_reactor->execute(std::bind(&service_connection_t::set_timeout_impl,
-                                     shared_from_this(),
-                                     id,
-                                     seconds));
+        m_reactor.post(std::bind(&service_connection_t::set_timeout_impl,
+                                 shared_from_this(),
+                                 id,
+                                 seconds));
     }
 }
 
@@ -360,12 +359,11 @@ detail::service::session_data_t::set_timeout(float seconds) {
     if (!m_stopped) {
         auto m = m_connection->get_manager();
         if (m) {
-            m_close_timer = std::make_shared<ev::timer>(m_connection->reactor()->reactor().native());
+            m_close_timer = std::make_shared<ev::timer>(m_connection->reactor().native());
             m_close_timer->set<detail::service::session_data_t,
                                &detail::service::session_data_t::on_timeout>(this);
             m_close_timer->priority = EV_MINPRI;
             m_close_timer->start(seconds);
-            m_connection->reactor()->execute(&emptyf<>::call); // wake up event-loop
         }
     }
 }

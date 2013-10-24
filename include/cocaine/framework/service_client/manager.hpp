@@ -15,38 +15,12 @@
 
 namespace cocaine { namespace framework {
 
-class reactor_thread_t {
-public:
-    reactor_thread_t();
-    
-    void
-    stop();
-    
-    void
-    join();
-    
-    template<class F>
-    void
-    execute(F&& callback) {
-        m_reactor.post(std::forward<F>(callback));
-    }
-    
-    cocaine::io::reactor_t&
-    reactor();
-    
-private:
-    cocaine::io::reactor_t m_reactor;
-    std::thread m_thread;
-};
-
 class service_manager_t :
     public std::enable_shared_from_this<service_manager_t>
 {
     COCAINE_DECLARE_NONCOPYABLE(service_manager_t)
 
-    friend class service_t;
     friend class service_connection_t;
-    friend class detail::service::session_data_t;
 
 public:
     typedef std::pair<std::string, uint16_t>
@@ -177,6 +151,8 @@ private:
     release_connection(service_connection_t *connection);
 
 private:
+    class reactor_thread_t;
+
     // Pool of threads to run service clients.
     std::vector<std::unique_ptr<reactor_thread_t>> m_reactors;
     std::atomic<size_t> m_next_reactor;

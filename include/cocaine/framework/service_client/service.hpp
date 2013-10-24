@@ -3,6 +3,8 @@
 
 #include <cocaine/framework/service_client/connection.hpp>
 
+#include <boost/optional.hpp>
+
 #include <memory>
 #include <string>
 

@@ -1,10 +1,6 @@
 #ifndef COCAINE_FRAMEWORK_SERVICE_STATUS_HPP
 #define COCAINE_FRAMEWORK_SERVICE_STATUS_HPP
 
-#include <memory>
-#include <string>
-#include <mutex>
-
 namespace cocaine { namespace framework {
 
 enum class service_status {

@@ -18,27 +18,34 @@ namespace {
     }
 }
 
-reactor_thread_t::reactor_thread_t() {
-    execute(&set_name);
-    m_thread = std::thread(&cocaine::io::reactor_t::run, &m_reactor);
-}
-
-void
-reactor_thread_t::stop() {
-    execute(std::bind(&cocaine::io::reactor_t::stop, &m_reactor));
-}
-
-void
-reactor_thread_t::join() {
-    if (m_thread.joinable()) {
-        m_thread.join();
+class service_manager_t::reactor_thread_t {
+public:
+    reactor_thread_t() {
+        m_reactor.post(&set_name);
+        m_thread = std::thread(&cocaine::io::reactor_t::run, &m_reactor);
     }
-}
 
-cocaine::io::reactor_t&
-reactor_thread_t::reactor() {
-    return m_reactor;
-}
+    void
+    stop() {
+        m_reactor.post(std::bind(&cocaine::io::reactor_t::stop, &m_reactor));
+    }
+
+    void
+    join() {
+        if (m_thread.joinable()) {
+            m_thread.join();
+        }
+    }
+
+    cocaine::io::reactor_t&
+    reactor() {
+        return m_reactor;
+    }
+
+private:
+    cocaine::io::reactor_t m_reactor;
+    std::thread m_thread;
+};
 
 std::shared_ptr<service_manager_t>
 service_manager_t::create(const std::vector<endpoint_t>& resolver_endpoints,
@@ -101,7 +108,7 @@ service_manager_t::init(const std::vector<endpoint_t>& resolver_endpoints, size_
     m_resolver = std::make_shared<service_connection_t>(
         resolver_endpoints,
         shared_from_this(),
-        0,
+        m_reactors[0]->reactor(),
         cocaine::io::protocol<cocaine::io::locator_tag>::version::value
     );
 
@@ -144,7 +151,7 @@ service_manager_t::get_connection(const std::string& name,
 {
     auto service = std::make_shared<service_connection_t>(name,
                                                           shared_from_this(),
-                                                          next_reactor(),
+                                                          m_reactors[next_reactor()]->reactor(),
                                                           version);
     register_connection(service);
     service->connect().get();
@@ -157,7 +164,7 @@ service_manager_t::get_connection_async(const std::string& name,
 {
     auto service = std::make_shared<service_connection_t>(name,
                                                           shared_from_this(),
-                                                          next_reactor(),
+                                                          m_reactors[next_reactor()]->reactor(),
                                                           version);
     register_connection(service);
     return service->connect();
@@ -169,7 +176,7 @@ service_manager_t::get_deferred_connection(const std::string& name,
 {
     auto service = std::make_shared<service_connection_t>(name,
                                                           shared_from_this(),
-                                                          next_reactor(),
+                                                          m_reactors[next_reactor()]->reactor(),
                                                           version);
     register_connection(service);
     service->connect();
