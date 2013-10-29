@@ -113,7 +113,16 @@ service_connection_t::disconnect(service_status status) {
     service_error_t err(errc);
 
     for (auto it = sessions.begin(); it != sessions.end(); ++it) {
-        it->second.handler()->error(cocaine::framework::make_exception_ptr(err));
+        try {
+            it->second.handler()->error(cocaine::framework::make_exception_ptr(err));
+        } catch (const std::exception& e) {
+            auto m = get_manager();
+            if (m && m->get_system_logger()) {
+                COCAINE_LOG_DEBUG(m->get_system_logger(),
+                                  "Following error has occurred while handling disconnect: %s",
+                                  e.what());
+            }
+        }
     }
 }
 
@@ -268,17 +277,30 @@ service_connection_t::on_message(const cocaine::io::message_t& message) {
 
     if (it != m_sessions.end()) {
         it->second.stop_timer();
+        detail::service::session_data_t data;
         if (message.id() == io::event_traits<io::rpc::choke>::id) {
             m_sessions.erase(it);
         } else if (message.id() == io::event_traits<io::rpc::error>::id) {
-            auto data = it->second;
+            data = it->second;
             m_sessions.erase(it);
-            lock.unlock();
-            data.handler()->handle_message(message);
         } else {
-            auto data = it->second;
-            lock.unlock();
-            data.handler()->handle_message(message);
+            data = it->second;
+        }
+
+        lock.unlock();
+
+        if (data.handler()) {
+            try {
+                data.handler()->handle_message(message);
+            } catch (const std::exception& e) {
+                auto m = get_manager();
+                if (m && m->get_system_logger()) {
+                    COCAINE_LOG_DEBUG(m->get_system_logger(),
+                                      "Error has occurred while processing a message from service '%s': %s",
+                                      name(),
+                                      e.what());
+                }
+            }
         }
     }
 
@@ -305,7 +327,16 @@ service_connection_t::delete_session(session_id_t id,
     }
 
     if (s.handler()) {
-        s.handler()->error(cocaine::framework::make_exception_ptr(service_error_t(ec)));
+        try {
+            s.handler()->error(cocaine::framework::make_exception_ptr(service_error_t(ec)));
+        } catch (const std::exception& e) {
+            auto m = get_manager();
+            if (m && m->get_system_logger()) {
+                COCAINE_LOG_DEBUG(m->get_system_logger(),
+                                  "Following error has occurred while handling timeout: %s",
+                                  e.what());
+            }
+        }
     }
 
     if (self.unique()) {

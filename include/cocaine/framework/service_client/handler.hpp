@@ -8,6 +8,7 @@
 #include <cocaine/rpc/protocol.hpp>
 #include <cocaine/traits/typelist.hpp>
 #include <cocaine/traits/tuple.hpp>
+#include <cocaine/traits/literal.hpp>
 #include <cocaine/messages.hpp>
 
 #include <memory>
@@ -51,10 +52,10 @@ namespace detail { namespace service {
         inline
         void
         unpack(promise_type& p,
-               std::string& data)
+               const cocaine::io::literal& data)
         {
             msgpack::unpacked msg;
-            msgpack::unpack(&msg, data.data(), data.size());
+            msgpack::unpack(&msg, data.blob, data.size);
 
             ResultType r;
             cocaine::io::type_traits<ResultType>::unpack(msg.get(), r);
@@ -71,9 +72,9 @@ namespace detail { namespace service {
         inline
         void
         unpack(promise_type& p,
-               std::string& data)
+               const cocaine::io::literal& data)
         {
-            p.write(std::move(data));
+            p.write(std::string(data.blob, data.size));
         }
     };
 
@@ -86,9 +87,18 @@ namespace detail { namespace service {
                const cocaine::io::message_t& message)
         {
             if (message.id() == io::event_traits<io::rpc::chunk>::id) {
-                std::string data;
-                message.as<cocaine::io::rpc::chunk>(data);
-                unpacker<Event>::unpack(p, data);
+                if (message.args().type != msgpack::type::ARRAY ||
+                    message.args().via.array.size != 1 ||
+                    message.args().via.array.ptr[0].type != msgpack::type::RAW)
+                {
+                    throw msgpack::type_error();
+                } else {
+                    cocaine::io::literal data = {
+                        message.args().via.array.ptr[0].via.raw.ptr,
+                        message.args().via.array.ptr[0].via.raw.size
+                    };
+                    unpacker<Event>::unpack(p, data);
+                }
             } else if (message.id() == io::event_traits<io::rpc::error>::id) {
                 int code;
                 std::string msg;
