@@ -270,6 +270,11 @@ service_connection_t::on_message(const cocaine::io::message_t& message) {
         it->second.stop_timer();
         if (message.id() == io::event_traits<io::rpc::choke>::id) {
             m_sessions.erase(it);
+        } else if (message.id() == io::event_traits<io::rpc::error>::id) {
+            auto data = it->second;
+            m_sessions.erase(it);
+            lock.unlock();
+            data.handler()->handle_message(message);
         } else {
             auto data = it->second;
             lock.unlock();
@@ -301,6 +306,10 @@ service_connection_t::delete_session(session_id_t id,
 
     if (s.handler()) {
         s.handler()->error(cocaine::framework::make_exception_ptr(service_error_t(ec)));
+    }
+
+    if (self.unique()) {
+        m_reactor.post(std::bind(&emptyf<std::shared_ptr<service_connection_t>>::call, self));
     }
 }
 
