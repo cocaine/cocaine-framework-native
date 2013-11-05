@@ -523,14 +523,14 @@ public:
     void
     wait_for(const std::chrono::duration<Rep, Period>& rel_time) const {
         check_state();
-        m_state->wait(rel_time);
+        m_state->wait_for(rel_time);
     }
 
     template<class Clock, class Duration>
     void
     wait_until(const std::chrono::time_point<Clock, Duration>& timeout_time) const {
         check_state();
-        m_state->wait(timeout_time);
+        m_state->wait_until(timeout_time);
     }
 
     bool
