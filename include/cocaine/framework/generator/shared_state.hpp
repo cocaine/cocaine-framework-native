@@ -60,18 +60,6 @@ public:
         }
     }
 
-    void
-    error(const std::system_error& e) {
-        std::unique_lock<std::mutex> lock(m_access_mutex);
-        if (!closed()) {
-            error_type err;
-            err.set<error_tag>(e);
-            set_error(lock, std::move(err));
-        } else {
-            throw future_error(future_errc::promise_already_satisfied);
-        }
-    }
-
     template<class... Args2>
     void
     write(Args2&&... args) {
@@ -184,8 +172,6 @@ public:
 
         if (m_error.is<exception_tag>()) {
             output->error(m_error.get<exception_tag>());
-        } else if (m_error.is<error_tag>()) {
-            output->error(m_error.get<error_tag>());
         } else if (closed()) {
             output->close();
         } else {
@@ -238,9 +224,7 @@ protected:
               error_type&& e)
     {
         if (m_output_stream) {
-            if (e.is<error_tag>()) {
-                m_output_stream->error(e.get<error_tag>());
-            } else if (e.is<exception_tag>()) {
+            if (e.is<exception_tag>()) {
                 m_output_stream->error(e.get<exception_tag>());
             }
         } else {
@@ -335,18 +319,6 @@ public:
     }
 
     void
-    error(const std::system_error& e) {
-        std::unique_lock<std::mutex> lock(m_access_mutex);
-        if (!closed()) {
-            error_type err;
-            err.set<error_tag>(e);
-            set_error(lock, std::move(err));
-        } else {
-            throw future_error(future_errc::promise_already_satisfied);
-        }
-    }
-
-    void
     close() {
         std::unique_lock<std::mutex> lock(m_access_mutex);
         if (!closed()) {
@@ -409,10 +381,6 @@ public:
                 auto exception = std::move(m_error.get<exception_tag>());
                 m_error.clean();
                 std::rethrow_exception(exception);
-            } else if (m_error.is<error_tag>()) {
-                auto error = m_error.get<error_tag>();
-                m_error.clean();
-                throw error;
             } else if (closed()) {
                 if (!m_void_retrieved) {
                     m_void_retrieved = true;
@@ -434,8 +402,6 @@ public:
 
         if (m_error.is<exception_tag>()) {
             output->error(m_error.get<exception_tag>());
-        } else if (m_error.is<error_tag>()) {
-            output->error(m_error.get<error_tag>());
         } else if (closed()) {
             output->close();
         } else {
@@ -466,9 +432,7 @@ protected:
               error_type&& e)
     {
         if (m_output_stream) {
-            if (e.is<error_tag>()) {
-                m_output_stream->error(e.get<error_tag>());
-            } else if (e.is<exception_tag>()) {
+            if (e.is<exception_tag>()) {
                 m_output_stream->error(e.get<exception_tag>());
             }
         } else {

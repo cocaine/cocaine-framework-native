@@ -22,12 +22,6 @@ public:
 
     virtual
     void
-    error(const std::system_error& err) {
-        error(cocaine::framework::make_exception_ptr(err));
-    }
-
-    virtual
-    void
     close() = 0;
 
     virtual
@@ -46,12 +40,6 @@ public:
     virtual
     void
     error(const std::exception_ptr& e) = 0;
-
-    virtual
-    void
-    error(const std::system_error& err) {
-        error(cocaine::framework::make_exception_ptr(err));
-    }
 
     virtual
     void

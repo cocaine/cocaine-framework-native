@@ -27,11 +27,6 @@ public:
     }
 
     void
-    error(const std::system_error& e) {
-        m_state.state()->error(e);
-    }
-
-    void
     close() {
         m_state.state()->close();
     }
@@ -64,11 +59,6 @@ class stream<void> :
 public:
     void
     error(const std::exception_ptr& e) {
-        m_state.state()->error(e);
-    }
-
-    void
-    error(const std::system_error& e) {
         m_state.state()->error(e);
     }
 
