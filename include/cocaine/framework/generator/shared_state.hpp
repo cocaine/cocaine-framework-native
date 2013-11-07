@@ -25,6 +25,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 #include <cocaine/framework/future.hpp>
 
 #include <queue>
+#include <list>
 
 namespace cocaine { namespace framework { namespace detail { namespace generator {
 
@@ -276,7 +277,7 @@ protected:
 
 protected:
     error_type m_error;
-    std::queue<value_type> m_values;
+    std::queue<value_type, std::list<value_type>> m_values;
     std::atomic<bool> m_closed;
 
     std::shared_ptr<stream_type> m_output_stream; // stream to redirect to
