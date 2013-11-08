@@ -9,7 +9,8 @@ void
 handler(cf::future<std::string>& f)
 {
     try {
-        std::cout << "result: " << f.get() << std::endl;
+        // Application stub provides raw unpacked response.
+        std::cout << "result: " << cocaine::framework::unpack<std::string>(f.get()) << std::endl;
     } catch (const std::exception& e) {
         std::cout << "error: " << e.what() << std::endl;
     }
@@ -19,6 +20,7 @@ void
 read_handler(cf::generator<std::string>& g)
 {
     try {
+        // Storage always returns packaged binary data, so storage stub unpacks it himself.
         std::cout << "result: " << g.next() << std::endl;
     } catch (const std::exception& e) {
         std::cout << "error: " << e.what() << std::endl;

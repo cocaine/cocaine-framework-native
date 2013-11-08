@@ -50,10 +50,12 @@ public:
 
     void
     on_event2(const std::string& event,
-              const std::vector<std::string>& /*request*/,
+              const std::vector<std::string>& request,
               cocaine::framework::response_ptr response)
     {
         response->write("on_event2:" + event);
+        // Don't forget to unpack the request.
+        response->write(cocaine::framework::unpack<std::string>(request[0]));
     }
 
 private:
