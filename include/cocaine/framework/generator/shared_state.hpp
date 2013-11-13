@@ -35,12 +35,7 @@ class shared_state {
             stream_type;
 
     typedef typename future::storable_type<Args...>::type value_type;
-    typedef future::variant<std::exception_ptr, std::system_error> error_type;
-
-    enum {
-        exception_tag = 0,
-        error_tag
-    };
+    typedef std::exception_ptr error_type;
 
 public:
     shared_state() :
@@ -73,9 +68,7 @@ public:
     error(const std::exception_ptr& e) {
         std::unique_lock<std::mutex> lock(m_access_mutex);
         if (!closed()) {
-            error_type err;
-            err.set<exception_tag>(e);
-            set_error(lock, std::move(err));
+            set_error(lock, e);
         } else {
             throw future_error(future_errc::promise_already_satisfied);
         }
@@ -126,7 +119,7 @@ public:
 
     bool
     empty() const {
-        return m_values.empty() && m_error.empty();
+        return m_values.empty() && m_error == error_type();
     }
 
     bool
@@ -164,14 +157,10 @@ public:
                 value_type result(std::move(m_values.front()));
                 m_values.pop();
                 return result;
-            } else if (m_error.is<exception_tag>()) {
-                auto exception = std::move(m_error.get<exception_tag>());
-                m_error.clean();
+            } else if (m_error != error_type()) {
+                auto exception = std::move(m_error);
+                m_error = error_type();
                 std::rethrow_exception(exception);
-            } else if (m_error.is<error_tag>()) {
-                auto error = m_error.get<error_tag>();
-                m_error.clean();
-                throw error;
             } else if (closed()) {
                 throw future_error(future_errc::stream_closed);
             }
@@ -191,8 +180,10 @@ public:
             m_values.pop();
         }
 
-        if (m_error.is<exception_tag>()) {
-            output->error(m_error.get<exception_tag>());
+        if (m_error != error_type()) {
+            auto exception = m_error;
+            m_error = error_type();
+            output->error(exception);
         } else if (closed()) {
             output->close();
         } else {
@@ -207,10 +198,7 @@ public:
 
         m_output_stream.reset();
 
-        if (!this->m_values.empty() ||
-            !this->m_error.empty() ||
-            this->closed())
-        {
+        if (!this->m_values.empty() || this->closed()) {
             lock.unlock();
             callback();
         } else {
@@ -242,14 +230,12 @@ protected:
     template<class... Args2>
     void
     set_error(std::unique_lock<std::mutex>& lock,
-              error_type&& e)
+              const error_type& e)
     {
         if (m_output_stream) {
-            if (e.is<exception_tag>()) {
-                m_output_stream->error(e.get<exception_tag>());
-            }
+            m_output_stream->error(e);
         } else {
-            m_error = std::move(e);
+            m_error = e;
         }
         close(lock);
     }
@@ -292,12 +278,7 @@ protected:
 
 template<>
 class shared_state<void> {
-    typedef future::variant<std::exception_ptr, std::system_error> error_type;
-
-    enum {
-        exception_tag = 0,
-        error_tag
-    };
+    typedef std::exception_ptr error_type;
 
 public:
     shared_state() :
@@ -331,9 +312,7 @@ public:
     error(const std::exception_ptr& e) {
         std::unique_lock<std::mutex> lock(m_access_mutex);
         if (!closed()) {
-            error_type err;
-            err.set<exception_tag>(e);
-            set_error(lock, std::move(err));
+            set_error(lock, e);
         } else {
             throw future_error(future_errc::promise_already_satisfied);
         }
@@ -364,7 +343,7 @@ public:
 
     bool
     empty() const {
-        return m_error.empty();
+        return m_error == error_type();
     }
 
     bool
@@ -398,9 +377,9 @@ public:
     get() {
         while (true) {
             std::unique_lock<std::mutex> lock(m_access_mutex);
-            if (m_error.is<exception_tag>()) {
-                auto exception = std::move(m_error.get<exception_tag>());
-                m_error.clean();
+            if (m_error != error_type()) {
+                auto exception = std::move(m_error);
+                m_error = error_type();
                 std::rethrow_exception(exception);
             } else if (closed()) {
                 if (!m_void_retrieved) {
@@ -421,8 +400,10 @@ public:
 
         m_callback = std::function<void()>();
 
-        if (m_error.is<exception_tag>()) {
-            output->error(m_error.get<exception_tag>());
+        if (m_error != error_type()) {
+            auto exception = m_error;
+            m_error = error_type();
+            output->error(exception);
         } else if (closed()) {
             output->close();
         } else {
@@ -437,8 +418,7 @@ public:
 
         m_output_stream.reset();
 
-        if (this->closed())
-        {
+        if (this->closed()) {
             lock.unlock();
             callback();
         } else {
@@ -450,14 +430,12 @@ protected:
     template<class... Args2>
     void
     set_error(std::unique_lock<std::mutex>& lock,
-              error_type&& e)
+              const error_type& e)
     {
         if (m_output_stream) {
-            if (e.is<exception_tag>()) {
-                m_output_stream->error(e.get<exception_tag>());
-            }
+            m_output_stream->error(e);
         } else {
-            m_error = std::move(e);
+            m_error = e;
         }
         close(lock);
     }
