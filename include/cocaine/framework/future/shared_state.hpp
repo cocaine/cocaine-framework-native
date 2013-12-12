@@ -232,19 +232,19 @@ public:
     }
 
     void
-    wait() {
+    wait() const {
         // pass
     }
 
     template<class Rep, class Period>
     void
-    wait_for(const std::chrono::duration<Rep, Period>& rel_time) {
+    wait_for(const std::chrono::duration<Rep, Period>& /*rel_time*/) const {
         // pass
     }
 
     template<class Clock, class Duration>
     void
-    wait_until(const std::chrono::time_point<Clock, Duration>& timeout_time) {
+    wait_until(const std::chrono::time_point<Clock, Duration>& /*timeout_time*/) const {
         // pass
     }
 
