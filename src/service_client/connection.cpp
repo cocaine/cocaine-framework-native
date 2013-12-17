@@ -209,16 +209,9 @@ service_connection_t::on_resolved(service_traits<cocaine::io::locator::resolve>:
 
 std::shared_ptr<service_connection_t>
 service_connection_t::connect_to_endpoint() {
-    auto m = get_manager();
-
-    if (!m) {
-        disconnect();
-        throw service_error_t(service_errc::broken_manager);
-    }
+    std::unique_lock<std::mutex> lock(m_sessions_mutex);
 
     std::exception_ptr err;
-
-    std::unique_lock<std::mutex> lock(m_sessions_mutex);
 
     // iterate over hosts provided by user or by locator
     for (size_t hostidx = 0;
