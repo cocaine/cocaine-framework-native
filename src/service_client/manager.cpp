@@ -45,6 +45,13 @@ public:
         m_thread = std::thread(&cocaine::io::reactor_t::run, &m_reactor);
     }
 
+    ~reactor_thread_t() {
+        if (m_thread.joinable()) {
+            m_reactor.post(std::bind(&cocaine::io::reactor_t::stop, &m_reactor));
+            m_thread.join();
+        }
+    }
+
     void
     stop() {
         m_reactor.post(std::bind(&cocaine::io::reactor_t::stop, &m_reactor));
@@ -104,8 +111,10 @@ service_manager_t::~service_manager_t() {
         m_reactors[i]->join();
     }
 
-    m_resolver->auto_reconnect(false);
-    m_resolver->disconnect();
+    if (m_resolver) {
+        m_resolver->auto_reconnect(false);
+        m_resolver->disconnect();
+    }
 
     std::lock_guard<std::mutex> lock(m_connections_mutex);
     for (auto it = m_connections.begin(); it != m_connections.end(); ++it) {

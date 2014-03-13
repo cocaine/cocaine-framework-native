@@ -115,13 +115,9 @@ service_t::service_t(std::shared_ptr<service_connection_t> connection) :
 service_t::~service_t() {
     if (m_connection) {
         m_connection->auto_reconnect(false);
-        auto m = m_connection->get_manager();
-        if (m) {
-            auto& reactor = m_connection->reactor();
-            reactor.post(std::bind(&service_connection_t::disconnect,
-                                   std::move(m_connection),
-                                   service_status::disconnected));
-        }
+        m_connection->reactor().post(std::bind(&service_connection_t::disconnect,
+                                               std::move(m_connection),
+                                               service_status::disconnected));
     }
 }
 
@@ -153,15 +149,8 @@ namespace {
 
 void
 service_t::soft_destroy() {
-    auto m = m_connection->get_manager();
-
     m_connection->auto_reconnect(false);
-
-    if (m) {
-        auto& reactor = m_connection->reactor();
-        reactor.post(std::bind(&emptyf<std::shared_ptr<service_connection_t>>::call,
-                               std::move(m_connection)));
-    } else {
-        m_connection.reset();
-    }
+    auto& reactor = m_connection->reactor();
+    m_connection->reactor().post(std::bind(&emptyf<std::shared_ptr<service_connection_t>>::call,
+                                           std::move(m_connection)));
 }

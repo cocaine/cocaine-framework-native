@@ -42,7 +42,7 @@ service_connection_t::service_connection_t(const std::string& name,
     m_name(name),
     m_version(version),
     m_session_counter(1),
-    m_manager(manager),
+    m_manager(*manager.get()),
     m_reactor(reactor),
     m_connection_status(service_status::disconnected),
     m_auto_reconnect(true)
@@ -57,7 +57,7 @@ service_connection_t::service_connection_t(const std::vector<endpoint_t>& endpoi
     m_endpoints(endpoints),
     m_version(version),
     m_session_counter(1),
-    m_manager(manager),
+    m_manager(*manager.get()),
     m_reactor(reactor),
     m_connection_status(service_status::disconnected),
     m_auto_reconnect(true)
@@ -66,15 +66,7 @@ service_connection_t::service_connection_t(const std::vector<endpoint_t>& endpoi
 }
 
 service_connection_t::~service_connection_t() {
-    auto m = get_manager();
-    if (m) {
-        m->release_connection(this);
-    }
-}
-
-std::shared_ptr<service_manager_t>
-service_connection_t::get_manager() const {
-    return m_manager.lock();
+    m_manager.release_connection(this);
 }
 
 std::string
@@ -143,16 +135,11 @@ service_connection_t::disconnect(service_status status) {
 
 future<std::shared_ptr<service_connection_t>>
 service_connection_t::connect() {
-    auto m = get_manager();
-
-    if (!m) {
-        return make_ready_future<std::shared_ptr<service_connection_t>>
-               ::error(service_error_t(service_errc::broken_manager));
-    } else if (m_name) {
+    if (m_name) {
         m_connection_status = service_status::connecting;
-        return m->resolve(*m_name).then(std::bind(&service_connection_t::on_resolved,
-                                                  shared_from_this(),
-                                                  std::placeholders::_1));
+        return m_manager.resolve(*m_name).then(std::bind(&service_connection_t::on_resolved,
+                                                         shared_from_this(),
+                                                         std::placeholders::_1));
     } else {
         m_connection_status = service_status::connecting;
         packaged_task<std::shared_ptr<service_connection_t>()> connector(
@@ -345,14 +332,10 @@ void
 service_connection_t::set_timeout(session_id_t id,
                                   float seconds)
 {
-    auto m = get_manager();
-
-    if (m) {
-        m_reactor.post(std::bind(&service_connection_t::set_timeout_impl,
-                                 shared_from_this(),
-                                 id,
-                                 seconds));
-    }
+    m_reactor.post(std::bind(&service_connection_t::set_timeout_impl,
+                             shared_from_this(),
+                             id,
+                             seconds));
 }
 
 void

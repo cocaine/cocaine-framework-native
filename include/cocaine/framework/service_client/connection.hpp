@@ -119,9 +119,6 @@ public:
     void
     auto_reconnect(bool);
 
-    std::shared_ptr<service_manager_t>
-    get_manager() const;
-
     template<class Event, typename... Args>
     session<Event>
     call(Args&&... args);
@@ -177,7 +174,7 @@ private:
     sessions_map_t m_sessions;
     mutable std::mutex m_sessions_mutex;
 
-    std::weak_ptr<service_manager_t> m_manager;
+    service_manager_t &m_manager;
     cocaine::io::reactor_t &m_reactor;
     iochannel_t m_channel;
 
