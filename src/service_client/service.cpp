@@ -150,7 +150,6 @@ namespace {
 void
 service_t::soft_destroy() {
     m_connection->auto_reconnect(false);
-    auto& reactor = m_connection->reactor();
     m_connection->reactor().post(std::bind(&emptyf<std::shared_ptr<service_connection_t>>::call,
                                            std::move(m_connection)));
 }
