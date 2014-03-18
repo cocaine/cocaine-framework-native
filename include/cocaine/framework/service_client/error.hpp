@@ -23,6 +23,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 #include <system_error>
 #include <stdexcept>
+#include <string>
 #include <exception>
 #include <type_traits>
 

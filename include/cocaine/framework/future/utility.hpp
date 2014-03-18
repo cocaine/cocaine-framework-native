@@ -109,7 +109,7 @@ public:
 
     template<class Future>
     void
-    make_ready(Future& f) {
+    make_ready(Future&) {
         std::unique_lock<std::recursive_mutex> lock(m_futures_mutex);
         if (!m_cake) {
             m_cake = true;
@@ -160,7 +160,7 @@ public:
     }
 
     void
-    make_ready(T& f) {
+    make_ready(T&) {
         std::unique_lock<std::recursive_mutex> lock(m_futures_mutex);
         if (!m_cake) {
             m_cake = true;
@@ -245,7 +245,7 @@ public:
 
     template<class Future>
     void
-    make_ready(Future& f) {
+    make_ready(Future&) {
         unsigned int counter = --(this->m_cake);
         if (counter == 0) {
             m_promise.set_value(std::move(m_futures));
@@ -288,7 +288,7 @@ public:
 
     template<class Future>
     void
-    make_ready(Future& f) {
+    make_ready(Future&) {
         unsigned int counter = --(this->m_cake);
         if (counter == 0) {
             m_promise.set_value(std::move(m_futures));

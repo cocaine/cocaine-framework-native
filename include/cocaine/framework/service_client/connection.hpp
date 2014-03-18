@@ -26,6 +26,14 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 #include <cocaine/asio/tcp.hpp>
 #include <cocaine/asio/socket.hpp>
+
+#ifdef __APPLE__
+    // Workaround about libev++ conflict with variable declared in <event.h> on MAC's.
+    #ifdef EV_ERROR
+    #undef EV_ERROR
+    #endif
+#endif
+
 #include <cocaine/rpc/channel.hpp>
 
 #include <memory>
