@@ -1,3 +1,11 @@
+cocaine-framework-native (0.11.1.0) unstable; urgency=low
+
+  * Fixed race in service destructor.
+  * Fixed building on Max OS X.
+  * Warning: binary compatibility is broken.
+
+ -- Andrey Goryachev <bugsbunny@yandex-team.ru>  Wed, 19 Mar 2014 18:08:48 +0400
+
 cocaine-framework-native (0.11.0.3) unstable; urgency=low
 
   * Fixed segmentation fault.
