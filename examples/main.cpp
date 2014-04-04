@@ -42,7 +42,7 @@ public:
         m_log = d.service_manager()->get_system_logger();
         m_storage = d.service_manager()->get_service<cocaine::framework::storage_service_t>("storage");
 
-        d.on<on_event1>("event1", this);
+        d.on<on_event1>("event1", *this);
         d.on("event2", this, &App1::on_event2);
 
         COCAINE_LOG_WARNING(m_log, "test log");
