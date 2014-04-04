@@ -106,7 +106,7 @@ service_manager_t::~service_manager_t() {
     for (size_t i = 0; i < m_reactors.size(); ++i) {
         m_reactors[i]->stop();
     }
-    
+
     for (size_t i = 0; i < m_reactors.size(); ++i) {
         m_reactors[i]->join();
     }
@@ -116,14 +116,20 @@ service_manager_t::~service_manager_t() {
         m_resolver->disconnect();
     }
 
-    std::lock_guard<std::mutex> lock(m_connections_mutex);
-    for (auto it = m_connections.begin(); it != m_connections.end(); ++it) {
-        auto shared = it->weak.lock();
-        if (shared) {
-            shared->auto_reconnect(false);
-            shared->disconnect();
+    {
+        std::lock_guard<std::mutex> lock(m_connections_mutex);
+        for (auto it = m_connections.begin(); it != m_connections.end(); ++it) {
+            auto shared = it->weak.lock();
+            if (shared) {
+                shared->auto_reconnect(false);
+                shared->disconnect();
+            }
         }
     }
+
+    m_reactors.clear();
+    m_resolver.reset();
+    m_logger.reset();
 }
 
 void
