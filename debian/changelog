@@ -1,3 +1,9 @@
+cocaine-framework-native (0.11.1.2) unstable; urgency=low
+
+  * Fix deadlock in service client.
+
+ -- Andrey Goryachev <bugsbunny@yandex-team.ru>  Tue, 06 May 2014 18:25:07 +0400
+
 cocaine-framework-native (0.11.1.1) unstable; urgency=low
 
   * Fix segmentation fault in service manager destructor.
