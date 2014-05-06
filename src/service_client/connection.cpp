@@ -273,9 +273,9 @@ service_connection_t::on_message(const cocaine::io::message_t& message) {
     if (it != m_sessions.end()) {
         it->second.stop_timer();
         detail::service::session_data_t data;
-        if (message.id() == io::event_traits<io::rpc::choke>::id) {
-            m_sessions.erase(it);
-        } else if (message.id() == io::event_traits<io::rpc::error>::id) {
+        if (message.id() == io::event_traits<io::rpc::choke>::id ||
+            message.id() == io::event_traits<io::rpc::error>::id)
+        {
             data = it->second;
             m_sessions.erase(it);
         } else {
