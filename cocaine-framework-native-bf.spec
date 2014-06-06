@@ -1,7 +1,7 @@
 Summary:    Cocaine - Native Framework
 Name:       cocaine-framework-native
-Version:    0.11.0.0
-Release:    1%{?dist}
+Version:    0.11.1.2
+Release:    2%{?dist}
 
 License:    GPLv2+
 Group:      System Environment/Libraries
