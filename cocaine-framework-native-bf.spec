@@ -6,7 +6,7 @@ Release:    2%{?dist}
 License:    GPLv2+
 Group:      System Environment/Libraries
 URL:        http://reverbrain.com
-Source0:    http://repo.reverbrain.com/sources/cocaine-framework-native/%{name}-%{version}.tar.bz2
+Source0:    %{name}-%{version}.tar.bz2
 BuildRoot:  %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
 BuildRequires:  boost-devel
