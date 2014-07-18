@@ -27,6 +27,7 @@ A simple framework to ease the development of native Cocaine apps
 Summary: Development files for %{name}
 Group: Development/Libraries
 Requires: %{name} = %{version}-%{release}
+Requires: libcocaine-core2-devel
 
 
 %description devel
