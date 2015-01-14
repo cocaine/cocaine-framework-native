@@ -43,13 +43,13 @@ TEST(LowLevelService, Connect) {
         acceptor.listen();
 
         barrier.wait();
-        port.store(endpoint.port());
+        port.store(acceptor.local_endpoint().port());
 
         boost::asio::ip::tcp::socket socket(server_loop);
         acceptor.accept(socket);
     });
 
-    std::future<void> f = task.get_future();
+    std::future<void> server_future = task.get_future();
     std::thread server_thread(std::move(task));
 
     loop_t client_loop;
@@ -65,7 +65,8 @@ TEST(LowLevelService, Connect) {
     low_level_service<cocaine::io::mock> service("mock", client_loop);
 
     boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::tcp::v4(), port);
-    service.connect(endpoint).get();
+    boost::future<void> future = service.connect(endpoint);
+    EXPECT_NO_THROW(future.get());
 
     EXPECT_TRUE(service.connected());
 
@@ -75,7 +76,7 @@ TEST(LowLevelService, Connect) {
     client_thread.join();
 
     server_thread.join();
-    EXPECT_NO_THROW(f.get());
+    EXPECT_NO_THROW(server_future.get());
 }
 
 // Usage:
