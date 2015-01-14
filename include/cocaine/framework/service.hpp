@@ -24,6 +24,10 @@ class low_level_service {
 
     loop_t& loop;
 public:
+    /*!
+     * \note the event loop reference should be valid until all asynchronous operations complete
+     * otherwise the behavior is undefined.
+     */
     low_level_service(std::string name, loop_t& loop) noexcept :
         loop(loop)
     {}
