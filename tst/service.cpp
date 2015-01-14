@@ -79,6 +79,28 @@ TEST(LowLevelService, Connect) {
     EXPECT_NO_THROW(server_future.get());
 }
 
+TEST(LowLevelService, ConnectOnInvalidPort) {
+    // ===== Set Up Stage =====
+    loop_t client_loop;
+    std::thread client_thread([&client_loop]{
+        loop_t::work work(client_loop);
+        client_loop.run();
+    });
+
+    // ===== Test Stage =====
+    low_level_service<cocaine::io::mock> service("mock", client_loop);
+
+    boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::tcp::v4(), 0);
+    boost::future<void> future = service.connect(endpoint);
+    EXPECT_THROW(future.get(), boost::system::system_error);
+
+    EXPECT_FALSE(service.connected());
+
+    // ===== Tear Down Stage =====
+    client_loop.stop();
+    client_thread.join();
+}
+
 // Usage:
     // auto chan = node.invoke<cocaine::io::node::list>(); // Nonblock, can throw.
     // auto tx = chan.tx.send<Method>(...);    // Block.
@@ -99,10 +121,8 @@ TEST(LowLevelService, Connect) {
 // Test recv traverse.
 // Test recv failed.
 /// Test connect.
-// Test connect failed.
-// Test async connect.
+/// Test connect failed.
 // Test async connect multiple times.
-// Test async connect failed.
 // Test reconnect on invalid connect.
 // Test timeout on connect.
 // Test timeout on invoke.
