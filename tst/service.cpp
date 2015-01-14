@@ -50,10 +50,10 @@ TEST(LowLevelService, Connect) {
     });
 
     std::future<void> f = task.get_future();
-    std::thread wthread(std::move(task));
+    std::thread server_thread(std::move(task));
 
     loop_t client_loop;
-    std::thread lthread([&client_loop]{
+    std::thread client_thread([&client_loop]{
         loop_t::work work(client_loop);
         client_loop.run();
     });
@@ -72,9 +72,9 @@ TEST(LowLevelService, Connect) {
     // ===== Tear Down Stage =====
     acceptor.close();
     client_loop.stop();
-    lthread.join();
+    client_thread.join();
 
-    wthread.join();
+    server_thread.join();
     EXPECT_NO_THROW(f.get());
 }
 
