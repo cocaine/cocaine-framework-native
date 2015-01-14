@@ -43,7 +43,7 @@ public:
         state(state_t::disconnected)
     {}
 
-    boost::future<void> connect(endpoint_t endpoint) {
+    boost::future<void> connect(const endpoint_t& endpoint) {
         std::shared_ptr<boost::promise<void>> promise(new boost::promise<void>());
         boost::future<void> future = promise->get_future();
 
