@@ -22,6 +22,14 @@ INCLUDE_DIRECTORIES(
 )
 LINK_DIRECTORIES(${CMAKE_SOURCE_DIR}/../cocaine-core/cocaine-core-build/)
 
+SET(Boost_USE_MULTITHREADED ON)
+SET(BOOST_COMPONENTS
+    system
+    thread
+)
+
+FIND_PACKAGE(Boost COMPONENTS ${BOOST_COMPONENTS} REQUIRED)
+
 SET(PROJECT cocaine-framework-cpp-tests)
 SET(HEADERS)
 SET(SOURCES main service)
@@ -32,6 +40,8 @@ ADD_EXECUTABLE(${PROJECT} ${SOURCES})
 ADD_DEPENDENCIES(${PROJECT} googlemock)
 
 TARGET_LINK_LIBRARIES(${PROJECT}
+    ${CMAKE_THREAD_LIBS_INIT}
+    ${Boost_LIBRARIES}
     cocaine-core
     gmock
     gtest

@@ -23,10 +23,10 @@ namespace framework {
 class dispatcher_t : public dispatch<cocaine::io::event_traits<io::locator::resolve>::upstream_type> {
     typedef dispatch<io::event_traits<io::locator::resolve>::upstream_type> super;
 
-    loop_t& loop;
+    asio::io_service& loop;
 
 public:
-    dispatcher_t(loop_t& loop) :
+    dispatcher_t(asio::io_service& loop) :
         super("resolve::dispatch"),
         loop(loop)
     {
