@@ -61,8 +61,10 @@ public:
             connection_queue.push_back(promise);
             state = state_t::connecting;
             // TODO: If the socket is broken it should be reinitialized under the mutex.
+            // TODO: This class should be valid after callback is completed.
             socket.async_connect(endpoint, [this](const boost::system::error_code& ec){
-                // This callback can be called from any thread.
+                // This callback can be called from any thread. The following mutex is guaranteed
+                // not to be locked at that moment.
                 std::lock_guard<std::mutex> lock(connection_queue_mutex);
                 if (ec) {
                     state = state_t::disconnected;
@@ -96,6 +98,10 @@ public:
         return promise->get_future();
     }
 
+    /*!
+     * \note the service does passive connection monitoring, e.g. it won't be immediately notified
+     * if the real connection has been lost, but after the next send/recv attempt.
+     */
     bool connected() const noexcept {
         return state == state_t::connected;
     }
