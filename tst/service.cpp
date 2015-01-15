@@ -101,6 +101,62 @@ TEST(LowLevelService, ConnectOnInvalidPort) {
     client_thread.join();
 }
 
+TEST(LowLevelService, ConnectMultipleTimesOnDisconnectedService) {
+    // ===== Set Up Stage =====
+    loop_t server_loop;
+    boost::asio::ip::tcp::acceptor acceptor(server_loop);
+
+    std::atomic<uint> port(0);
+    boost::barrier barrier(2);
+    std::packaged_task<void()> task([&server_loop, &acceptor, &barrier, &port]{
+        boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::tcp::v4(), port);
+        acceptor.open(endpoint.protocol());
+        acceptor.bind(endpoint);
+        acceptor.listen();
+
+        barrier.wait();
+        port.store(acceptor.local_endpoint().port());
+
+        boost::asio::ip::tcp::socket socket(server_loop);
+        acceptor.accept(socket);
+    });
+
+    std::future<void> server_future = task.get_future();
+    std::thread server_thread(std::move(task));
+
+    loop_t client_loop;
+    std::thread client_thread([&client_loop]{
+        loop_t::work work(client_loop);
+        client_loop.run();
+    });
+
+    barrier.wait();
+
+    // ===== Test Stage =====
+    low_level_service<cocaine::io::mock> service("mock", client_loop);
+
+    boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::tcp::v4(), port);
+    auto f1 = service.connect(endpoint).then([&service](boost::future<void> f){
+        EXPECT_NO_THROW(f.get());
+        EXPECT_TRUE(service.connected());
+    });
+
+    auto f2 = service.connect(endpoint).then([&service](boost::future<void> f){
+        EXPECT_NO_THROW(f.get());
+        EXPECT_TRUE(service.connected());
+    });
+
+    boost::wait_for_all(f1, f2);
+
+    // ===== Tear Down Stage =====
+    acceptor.close();
+    client_loop.stop();
+    client_thread.join();
+
+    server_thread.join();
+    EXPECT_NO_THROW(server_future.get());
+}
+
 // Usage:
     // auto chan = node.invoke<cocaine::io::node::list>(); // Nonblock, can throw.
     // auto tx = chan.tx.send<Method>(...);    // Block.
@@ -122,7 +178,8 @@ TEST(LowLevelService, ConnectOnInvalidPort) {
 // Test recv failed.
 /// Test connect.
 /// Test connect failed.
-// Test async connect multiple times.
+/// Test async connect multiple times.
+// Test async connect multiple times on connected service.
 // Test reconnect on invalid connect.
 // Test timeout on connect.
 // Test timeout on invoke.

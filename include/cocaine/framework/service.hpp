@@ -18,6 +18,12 @@ namespace framework {
 using loop_t = boost::asio::io_service;
 using endpoint_t = boost::asio::ip::tcp::endpoint;
 
+template<typename T>
+using promise_t = boost::promise<T>;
+
+template<typename T>
+using future_t = boost::future<T>;
+
 enum class state_t {
     disconnected,
     connecting,
@@ -32,6 +38,9 @@ class low_level_service {
 
     boost::asio::ip::tcp::socket socket;
     std::atomic<state_t> state;
+
+    mutable std::mutex connection_queue_mutex;
+    std::vector<std::shared_ptr<boost::promise<void>>> connection_queue;
 public:
     /*!
      * \note the event loop reference should be valid until all asynchronous operations complete
@@ -43,21 +52,48 @@ public:
         state(state_t::disconnected)
     {}
 
-    boost::future<void> connect(const endpoint_t& endpoint) {
-        std::shared_ptr<boost::promise<void>> promise(new boost::promise<void>());
-        boost::future<void> future = promise->get_future();
+    future_t<void> connect(const endpoint_t& endpoint) {
+        auto promise = std::make_shared<promise_t<void>>();
 
-        // If the socket is broken it should be reinitialized under the mutex.
-        socket.async_connect(endpoint, [this, promise](const boost::system::error_code& ec){
-            // This callback can be called from any thread.
-            if (ec) {
-                promise->set_exception(boost::system::system_error(ec));
-            } else {
-                state = state_t::connected;
-                promise->set_value();
-            }
-        });
-        return future;
+        std::lock_guard<std::mutex> lock(connection_queue_mutex);
+        switch (state.load()) {
+        case state_t::disconnected: {
+            connection_queue.push_back(promise);
+            state = state_t::connecting;
+            // TODO: If the socket is broken it should be reinitialized under the mutex.
+            socket.async_connect(endpoint, [this](const boost::system::error_code& ec){
+                // This callback can be called from any thread.
+                std::lock_guard<std::mutex> lock(connection_queue_mutex);
+                if (ec) {
+                    state = state_t::disconnected;
+                    for (auto promise : connection_queue) {
+                        promise->set_exception(boost::system::system_error(ec));
+                    }
+                    connection_queue.clear();
+                } else {
+                    state = state_t::connected;
+                    for (auto promise : connection_queue) {
+                        promise->set_value();
+                    }
+                    connection_queue.clear();
+                }
+            });
+            break;
+        }
+        case state_t::connecting: {
+            connection_queue.push_back(promise);
+            break;
+        }
+        case state_t::connected: {
+            // BOOST_ASSERT(connection_queue.empty());
+            // promise->set_value();
+            break;
+        }
+        default:
+            BOOST_ASSERT(false);
+        }
+
+        return promise->get_future();
     }
 
     bool connected() const noexcept {
