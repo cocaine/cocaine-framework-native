@@ -16,9 +16,9 @@ using namespace cocaine::framework;
 
 TEST(LowLevelService, Constructor) {
     loop_t loop;
-    low_level_service<cocaine::io::mock> node("mock", loop);
+    auto service = std::make_shared<low_level_service<cocaine::io::mock>>("mock", loop);
 
-    EXPECT_FALSE(node.connected());
+    EXPECT_FALSE(service->connected());
 
     static_assert(
         std::is_nothrow_constructible<low_level_service<cocaine::io::mock>, std::string, loop_t&>::value,
@@ -64,13 +64,13 @@ TEST(LowLevelService, Connect) {
     barrier.wait();
 
     // ===== Test Stage =====
-    low_level_service<cocaine::io::mock> service("mock", client_loop);
+    auto service = std::make_shared<low_level_service<cocaine::io::mock>>("mock", client_loop);
 
     boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::tcp::v4(), port);
-    boost::future<void> future = service.connect(endpoint);
+    boost::future<void> future = service->connect(endpoint);
     EXPECT_NO_THROW(future.get());
 
-    EXPECT_TRUE(service.connected());
+    EXPECT_TRUE(service->connected());
 
     // ===== Tear Down Stage =====
     acceptor.close();
@@ -90,13 +90,13 @@ TEST(LowLevelService, ConnectOnInvalidPort) {
     });
 
     // ===== Test Stage =====
-    low_level_service<cocaine::io::mock> service("mock", client_loop);
+    auto service = std::make_shared<low_level_service<cocaine::io::mock>>("mock", client_loop);
 
     boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::tcp::v4(), 0);
-    boost::future<void> future = service.connect(endpoint);
+    boost::future<void> future = service->connect(endpoint);
     EXPECT_THROW(future.get(), boost::system::system_error);
 
-    EXPECT_FALSE(service.connected());
+    EXPECT_FALSE(service->connected());
 
     // ===== Tear Down Stage =====
     client_loop.stop();
@@ -135,17 +135,17 @@ TEST(LowLevelService, ConnectMultipleTimesOnDisconnectedService) {
     barrier.wait();
 
     // ===== Test Stage =====
-    low_level_service<cocaine::io::mock> service("mock", client_loop);
+    auto service = std::make_shared<low_level_service<cocaine::io::mock>>("mock", client_loop);
 
     boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::tcp::v4(), port);
-    auto f1 = service.connect(endpoint).then([&service](boost::future<void> f){
+    auto f1 = service->connect(endpoint).then([&service](boost::future<void> f){
         EXPECT_NO_THROW(f.get());
-        EXPECT_TRUE(service.connected());
+        EXPECT_TRUE(service->connected());
     });
 
-    auto f2 = service.connect(endpoint).then([&service](boost::future<void> f){
+    auto f2 = service->connect(endpoint).then([&service](boost::future<void> f){
         EXPECT_NO_THROW(f.get());
-        EXPECT_TRUE(service.connected());
+        EXPECT_TRUE(service->connected());
     });
 
     boost::wait_for_all(f1, f2);
@@ -191,14 +191,14 @@ TEST(LowLevelService, ConnectOnConnectedService) {
     barrier.wait();
 
     // ===== Test Stage =====
-    low_level_service<cocaine::io::mock> service("mock", client_loop);
+    auto service = std::make_shared<low_level_service<cocaine::io::mock>>("mock", client_loop);
 
     boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::tcp::v4(), port);
-    service.connect(endpoint).get();
-    EXPECT_TRUE(service.connected());
+    service->connect(endpoint).get();
+    EXPECT_TRUE(service->connected());
 
-    EXPECT_NO_THROW(service.connect(endpoint).get());
-    EXPECT_TRUE(service.connected());
+    EXPECT_NO_THROW(service->connect(endpoint).get());
+    EXPECT_TRUE(service->connected());
 
     // ===== Tear Down Stage =====
     acceptor.close();
@@ -245,10 +245,10 @@ TEST(LowLevelService, RAIIOnConnect) {
     // ===== Test Stage =====
     boost::optional<future_t<void>> future;
     {
-        low_level_service<cocaine::io::mock> service("mock", client_loop);
+        auto service = std::make_shared<low_level_service<cocaine::io::mock>>("mock", client_loop);
 
         boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::tcp::v4(), port);
-        future = service.connect(endpoint);
+        future = service->connect(endpoint);
     }
     EXPECT_NO_THROW(future->get());
 
