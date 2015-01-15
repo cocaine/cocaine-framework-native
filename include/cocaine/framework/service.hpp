@@ -85,8 +85,8 @@ public:
             break;
         }
         case state_t::connected: {
-            // BOOST_ASSERT(connection_queue.empty());
-            // promise->set_value();
+             BOOST_ASSERT(connection_queue.empty());
+             promise->set_value();
             break;
         }
         default:
