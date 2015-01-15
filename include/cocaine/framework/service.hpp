@@ -32,9 +32,9 @@ enum class state_t {
 
 /*!
  * \note I can't guarantee lifetime safety in other way than by making this class living as shared
- * pointer. The reason is: in particular case the service's event loop runs in a separate thread,
- * other in that the service lives.
- * Thus no one can guarantee that all asynchronous operations are completed before the service
+ * pointer. The reason is: in particular case the connection's event loop runs in a separate
+ * thread, other in that the connection itself lives.
+ * Thus no one can guarantee that all asynchronous operations are completed before the connection
  * instance be destroyed.
  */
 class connection_t : public std::enable_shared_from_this<connection_t> {
