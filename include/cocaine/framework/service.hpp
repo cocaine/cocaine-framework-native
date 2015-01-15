@@ -37,30 +37,27 @@ enum class state_t {
  * Thus no one can guarantee that all asynchronous operations are completed before the service
  * instance be destroyed.
  */
-template<class T>
-class low_level_service : public std::enable_shared_from_this<low_level_service<T>> {
-    // TODO: Static Assert - T contains protocol tag.
-
+class connection_t : public std::enable_shared_from_this<connection_t> {
     loop_t& loop;
 
     boost::asio::ip::tcp::socket socket;
     std::atomic<state_t> state;
 
     mutable std::mutex connection_queue_mutex;
-    std::vector<std::shared_ptr<boost::promise<void>>> connection_queue;
+    std::vector<std::shared_ptr<boost::promise<void>>> connection_queue; // TODO: s/waiting/
 public:
     /*!
      * \note the event loop reference should be valid until all asynchronous operations complete
      * otherwise the behavior is undefined.
      */
-    low_level_service(std::string name, loop_t& loop) noexcept :
+    connection_t(loop_t& loop) noexcept :
         loop(loop),
         socket(loop),
         state(state_t::disconnected)
     {}
 
     future_t<void> connect(const endpoint_t& endpoint) {
-        auto promise = std::make_shared<promise_t<void>>();
+        auto promise = std::make_shared<promise_t<void>>(); // TODO: shared?
 
         std::lock_guard<std::mutex> lock(connection_queue_mutex);
         switch (state.load()) {
@@ -68,7 +65,10 @@ public:
             connection_queue.push_back(promise);
             state = state_t::connecting;
             // TODO: If the socket is broken it should be reinitialized under the mutex.
-            socket.async_connect(endpoint, std::bind(&low_level_service::on_connected, this->shared_from_this(), std::placeholders::_1));
+            socket.async_connect(
+                endpoint,
+                std::bind(&connection_t::on_connected, this->shared_from_this(), std::placeholders::_1)
+            );
             break;
         }
         case state_t::connecting: {
@@ -88,7 +88,7 @@ public:
     }
 
     /*!
-     * \note the service does passive connection monitoring, e.g. it won't be immediately notified
+     * \note the class does passive connection monitoring, e.g. it won't be immediately notified
      * if the real connection has been lost, but after the next send/recv attempt.
      */
     bool connected() const noexcept {
