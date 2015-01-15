@@ -12,7 +12,7 @@ bool connection_t::connected() const noexcept {
     return state == state_t::connected;
 }
 
-future_t<void> connection_t::connect(const endpoint_t& endpoint)  {
+future_t<void> connection_t::connect(const endpoint_t& endpoint) {
     promise_t<void> promise;
     auto future = promise.get_future();
 
