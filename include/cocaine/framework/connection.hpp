@@ -1,14 +1,11 @@
 #pragma once
 
-#include <string>
-
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/ip/tcp.hpp>
 
 #define BOOST_THREAD_PROVIDES_FUTURE
 #define BOOST_THREAD_PROVIDES_FUTURE_CONTINUATION
 #define BOOST_THREAD_PROVIDES_SIGNATURE_PACKAGED_TASK
-#include <boost/thread.hpp>
 #include <boost/thread/future.hpp>
 
 namespace cocaine {

@@ -3,6 +3,7 @@
 #include <type_traits>
 
 #include <boost/optional.hpp>
+#include <boost/thread/barrier.hpp>
 
 #include <gtest/gtest.h>
 
