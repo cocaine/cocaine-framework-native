@@ -2,6 +2,14 @@ IF(APPLE)
     SET(CMAKE_MACOSX_RPATH ON)
 ENDIF()
 
+SET(Boost_USE_MULTITHREADED ON)
+SET(BOOST_COMPONENTS
+    system
+    thread
+)
+
+FIND_PACKAGE(Boost COMPONENTS ${BOOST_COMPONENTS} REQUIRED)
+
 SET(PROJECT cocaine-framework-cpp)
 
 SET(HEADERS
@@ -17,6 +25,7 @@ SET(SOURCES
 PROJECT(${PROJECT})
 
 INCLUDE_DIRECTORIES(
+    ${CMAKE_SOURCE_DIR}/include/cocaine/framework
     ${CMAKE_SOURCE_DIR}/../cocaine-core/cocaine-core/include
     ${CMAKE_SOURCE_DIR}/../cocaine-core/cocaine-core/foreign/asio/asio/include
     ${CMAKE_SOURCE_DIR}/../cocaine-core/cocaine-core/foreign/blackhole/src
@@ -29,6 +38,7 @@ ADD_LIBRARY(${PROJECT} SHARED
 )
 
 TARGET_LINK_LIBRARIES(${PROJECT}
+    ${Boost_LIBRARIES}
     cocaine-core
 )
 

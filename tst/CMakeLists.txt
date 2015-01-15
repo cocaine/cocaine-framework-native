@@ -43,6 +43,7 @@ TARGET_LINK_LIBRARIES(${PROJECT}
     ${CMAKE_THREAD_LIBS_INIT}
     ${Boost_LIBRARIES}
     cocaine-core
+    cocaine-framework-cpp
     gmock
     gtest
     gmock_main
