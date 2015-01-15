@@ -44,7 +44,7 @@ class connection_t : public std::enable_shared_from_this<connection_t> {
     std::atomic<state_t> state;
 
     mutable std::mutex connection_queue_mutex;
-    std::vector<std::shared_ptr<boost::promise<void>>> connection_queue; // TODO: s/waiting/
+    std::vector<std::shared_ptr<promise_t<void>>> connection_queue; // TODO: s/waiting/
 public:
     /*!
      * \note the event loop reference should be valid until all asynchronous operations complete
