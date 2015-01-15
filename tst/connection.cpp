@@ -6,11 +6,7 @@
 
 #include <gtest/gtest.h>
 
-#include <cocaine/idl/node.hpp>
-
-#include <cocaine/framework/service.hpp>
-
-#include "mock.hpp"
+#include <cocaine/framework/connection.hpp>
 
 using namespace cocaine::framework;
 

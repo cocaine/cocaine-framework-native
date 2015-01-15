@@ -5,10 +5,14 @@ ENDIF()
 SET(PROJECT cocaine-framework-cpp)
 
 SET(HEADERS
-    ${CMAKE_SOURCE_DIR}/include/cocaine/framework/service)
+    ${CMAKE_SOURCE_DIR}/include/cocaine/framework/connection
+    ${CMAKE_SOURCE_DIR}/include/cocaine/framework/service
+)
 
 SET(SOURCES
-    service)
+    connection
+    service
+)
 
 PROJECT(${PROJECT})
 
