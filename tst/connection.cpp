@@ -263,35 +263,40 @@ TEST(Connection, RAIIOnConnect) {
 
     // service.detach(); // Now dtor won't block.
 
-/// Test service ctor.
+/// Test conn ctor.
+/// Test conn connect.
+/// Test conn connect failed.
+/// Test conn async connect multiple times.
+/// Test conn async connect multiple times when already connected.
+// Test service ctor.
 // Test service move ctor.
 // Test service dtor (waits).
 // Test service dtor after detach.
-// Test invoke.
-// Test send.
-// Test send traverse.
-// Test send failed.
-// Test recv.
-// Test recv traverse.
-// Test recv failed.
-/// Test connect.
-/// Test connect failed.
-/// Test async connect multiple times.
-/// Test async connect multiple times on connected service.
-// Test reconnect on invalid connect.
-// Test timeout on connect.
-// Test timeout on invoke.
-// Test timeout on send(?).
-// Test timeout on recv.
-// Strands will possibly be required.
-// On worker side serialize all callbacks through a single thread (may be configured).
-// Primitive wrapper.
-// Exception type guarantee.
+// Test service invoke.
+// Test service send.
+// Test service send traverse.
+// Test service send failed.
+// Test service recv.
+// Test service recv traverse.
+// Test service recv failed.
+// Test service connect.
+// Test service connect failed.
+// Test service async connect multiple times.
+// Test service async connect multiple times when already connected.
+// Test service reconnect on invalid connect.
+// Test service timeout on connect.
+// Test service timeout on invoke.
+// Test service timeout on send(?).
+// Test service timeout on recv.
+// \note Strands will possibly be required.
+// \note On worker side serialize all callbacks through a single thread (may be configured).
+// Primitive protocol wrapper (value/error).
+// \note Exception type guarantee.
 // Service manager with thread pool (io loop pool, actually).
 // GetService from SM.
 // GetService async from SM.
 // SM dtor.
-// Internal thread safety(?).
+// \note Internal thread safety.
 // Test return version number expected (through T).
 // Test error version mismatch.
 
