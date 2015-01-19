@@ -3,13 +3,10 @@
 #include <asio/io_service.hpp>
 #include <asio/ip/tcp.hpp>
 
-#define BOOST_THREAD_PROVIDES_FUTURE
-#define BOOST_THREAD_PROVIDES_FUTURE_CONTINUATION
-#define BOOST_THREAD_PROVIDES_SIGNATURE_PACKAGED_TASK
-#include <boost/thread/future.hpp>
-
 #include <cocaine/common.hpp>
 #include <cocaine/rpc/asio/channel.hpp>
+
+#include "cocaine/framework/util/future.hpp"
 
 namespace cocaine {
 
@@ -19,10 +16,10 @@ using loop_t = asio::io_service;
 using endpoint_t = asio::ip::tcp::endpoint;
 
 template<typename T>
-using promise_t = boost::promise<T>;
+using promise_t = promise<T>;
 
 template<typename T>
-using future_t = boost::future<T>;
+using future_t = future<T>;
 
 enum class state_t {
     disconnected,

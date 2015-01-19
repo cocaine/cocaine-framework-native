@@ -12,20 +12,33 @@ FIND_PACKAGE(Boost COMPONENTS ${BOOST_COMPONENTS} REQUIRED)
 
 SET(PROJECT cocaine-framework-cpp)
 
+SET(COCAINE_FRAMEWORK_INCLUDES_DIR ${CMAKE_SOURCE_DIR}/include/cocaine/framework)
+
 SET(HEADERS
-    ${CMAKE_SOURCE_DIR}/include/cocaine/framework/connection
-    ${CMAKE_SOURCE_DIR}/include/cocaine/framework/service
+    ${COCAINE_FRAMEWORK_INCLUDES_DIR}/connection
+    ${COCAINE_FRAMEWORK_INCLUDES_DIR}/service
+    ${COCAINE_FRAMEWORK_INCLUDES_DIR}/util/future.hpp
+    ${COCAINE_FRAMEWORK_INCLUDES_DIR}/util/future/error
+    ${COCAINE_FRAMEWORK_INCLUDES_DIR}/util/future/
+    ${COCAINE_FRAMEWORK_INCLUDES_DIR}/util/future/future_detail
+    ${COCAINE_FRAMEWORK_INCLUDES_DIR}/util/future/packaged_task
+    ${COCAINE_FRAMEWORK_INCLUDES_DIR}/util/future/promise
+    ${COCAINE_FRAMEWORK_INCLUDES_DIR}/util/future/shared_state
+    ${COCAINE_FRAMEWORK_INCLUDES_DIR}/util/future/traits
+    ${COCAINE_FRAMEWORK_INCLUDES_DIR}/util/future/utility
+    ${COCAINE_FRAMEWORK_INCLUDES_DIR}/util/future/variant
 )
 
 SET(SOURCES
     connection
     service
+    util/future/error
 )
 
 PROJECT(${PROJECT})
 
 INCLUDE_DIRECTORIES(
-    ${CMAKE_SOURCE_DIR}/include/cocaine/framework
+    ${CMAKE_SOURCE_DIR}/include
     SYSTEM ${CMAKE_SOURCE_DIR}/../cocaine-core/cocaine-core/include
     ${CMAKE_SOURCE_DIR}/../cocaine-core/cocaine-core/foreign/asio/asio/include
     ${CMAKE_SOURCE_DIR}/../cocaine-core/cocaine-core/foreign/blackhole/src

@@ -1,4 +1,4 @@
-#include "connection.hpp"
+#include "cocaine/framework/connection.hpp"
 
 namespace ph = std::placeholders;
 
@@ -45,7 +45,7 @@ future_t<void> connection_t::connect(const endpoint_t& endpoint) {
         socket = std::make_unique<socket_type>(loop);
         socket->async_connect(
             endpoint,
-            std::bind(&connection_t::on_connected, this->shared_from_this(), ph::_1)
+            std::bind(&connection_t::on_connected, shared_from_this(), ph::_1)
         );
 
         // The code above can throw std::bad_alloc, so here it is the right place to change
@@ -114,6 +114,8 @@ void connection_t::on_connected(const std::error_code& ec) {
             promise.set_value();
         }
         connection_queue.clear();
+
+        std::lock_guard<std::mutex> lock(channel_mutex);
         channel = std::make_shared<io::channel<protocol_type>>(std::move(socket));
     }
 }
