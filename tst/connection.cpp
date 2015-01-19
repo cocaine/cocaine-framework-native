@@ -7,6 +7,8 @@
 
 #include <gtest/gtest.h>
 
+#include <cocaine/idl/locator.hpp>
+
 #include <cocaine/framework/connection.hpp>
 
 using namespace cocaine::framework;
@@ -245,6 +247,66 @@ TEST(Connection, RAIIOnConnect) {
         future = conn->connect(endpoint);
     }
     EXPECT_NO_THROW(future->get());
+
+    // ===== Tear Down Stage =====
+    acceptor.close();
+    work.reset();
+    client_thread.join();
+
+    server_thread.join();
+    EXPECT_NO_THROW(server_future.get());
+}
+
+TEST(Connection, InvokeSendsProperMessage) {
+    // ===== Set Up Stage =====
+    loop_t server_loop;
+    boost::asio::ip::tcp::acceptor acceptor(server_loop);
+
+    std::atomic<uint> port(0);
+    boost::barrier barrier(2);
+    std::packaged_task<void()> task([&server_loop, &acceptor, &barrier, &port]{
+        boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::tcp::v4(), port);
+        acceptor.open(endpoint.protocol());
+        acceptor.bind(endpoint);
+        acceptor.listen();
+
+        barrier.wait();
+        port.store(acceptor.local_endpoint().port());
+
+        boost::asio::ip::tcp::socket socket(server_loop);
+        acceptor.accept(socket);
+
+        std::uint8_t buf[32];
+        auto size = socket.read_some(boost::asio::buffer(buf, 32));
+        EXPECT_EQ(9, size);
+
+        std::array<std::uint8_t, 9> expected = { 147, 1, 0, 145, 164, 110, 111, 100, 101 };
+        for (int i = 0; i < 9; ++i) {
+            EXPECT_EQ(expected[i], buf[i]);
+        }
+    });
+
+    std::future<void> server_future = task.get_future();
+    std::thread server_thread(std::move(task));
+
+    loop_t client_loop;
+    boost::optional<loop_t::work> work(client_loop);
+    std::thread client_thread([&client_loop, &work]{
+        client_loop.run();
+    });
+
+    // Here we wait until the server has been started.
+    barrier.wait();
+
+    // ===== Test Stage =====
+    auto conn = std::make_shared<connection_t>(client_loop);
+
+    boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::tcp::v4(), port);
+    boost::future<void> future = conn->connect(endpoint);
+    EXPECT_NO_THROW(future.get());
+
+    EXPECT_TRUE(conn->connected());
+    conn->invoke<cocaine::io::locator::resolve>("node");
 
     // ===== Tear Down Stage =====
     acceptor.close();
