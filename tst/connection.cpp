@@ -11,6 +11,8 @@
 
 #include <cocaine/framework/connection.hpp>
 
+namespace io = asio;
+
 using namespace cocaine::framework;
 
 TEST(Connection, Constructor) {
@@ -29,13 +31,13 @@ TEST(Connection, Connect) {
     // Note, that some rendezvous point is required to be sure, that the server has been started
     // when the client is trying to connect.
     loop_t server_loop;
-    boost::asio::ip::tcp::acceptor acceptor(server_loop);
+    io::ip::tcp::acceptor acceptor(server_loop);
 
     // An OS should select available port for us.
     std::atomic<uint> port(0);
     boost::barrier barrier(2);
     std::packaged_task<void()> task([&server_loop, &acceptor, &barrier, &port]{
-        boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::tcp::v4(), port);
+        io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
         acceptor.open(endpoint.protocol());
         acceptor.bind(endpoint);
         acceptor.listen();
@@ -43,7 +45,7 @@ TEST(Connection, Connect) {
         barrier.wait();
         port.store(acceptor.local_endpoint().port());
 
-        boost::asio::ip::tcp::socket socket(server_loop);
+        io::ip::tcp::socket socket(server_loop);
         acceptor.accept(socket);
     });
 
@@ -62,9 +64,8 @@ TEST(Connection, Connect) {
     // ===== Test Stage =====
     auto conn = std::make_shared<connection_t>(client_loop);
 
-    boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::tcp::v4(), port);
-    boost::future<void> future = conn->connect(endpoint);
-    EXPECT_NO_THROW(future.get());
+    io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
+    EXPECT_NO_THROW(conn->connect(endpoint).get());
 
     EXPECT_TRUE(conn->connected());
 
@@ -88,9 +89,9 @@ TEST(Connection, ConnectOnInvalidPort) {
     // ===== Test Stage =====
     auto conn = std::make_shared<connection_t>(loop);
 
-    boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::tcp::v4(), 0);
+    io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), 0);
     boost::future<void> future = conn->connect(endpoint);
-    EXPECT_THROW(future.get(), boost::system::system_error);
+    EXPECT_THROW(future.get(), std::system_error);
 
     EXPECT_FALSE(conn->connected());
 
@@ -102,12 +103,12 @@ TEST(Connection, ConnectOnInvalidPort) {
 TEST(Connection, ConnectMultipleTimesOnDisconnectedService) {
     // ===== Set Up Stage =====
     loop_t server_loop;
-    boost::asio::ip::tcp::acceptor acceptor(server_loop);
+    io::ip::tcp::acceptor acceptor(server_loop);
 
     std::atomic<uint> port(0);
     boost::barrier barrier(2);
     std::packaged_task<void()> task([&server_loop, &acceptor, &barrier, &port]{
-        boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::tcp::v4(), port);
+        io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
         acceptor.open(endpoint.protocol());
         acceptor.bind(endpoint);
         acceptor.listen();
@@ -115,7 +116,7 @@ TEST(Connection, ConnectMultipleTimesOnDisconnectedService) {
         barrier.wait();
         port.store(acceptor.local_endpoint().port());
 
-        boost::asio::ip::tcp::socket socket(server_loop);
+        io::ip::tcp::socket socket(server_loop);
         acceptor.accept(socket);
     });
 
@@ -133,7 +134,7 @@ TEST(Connection, ConnectMultipleTimesOnDisconnectedService) {
     // ===== Test Stage =====
     auto conn = std::make_shared<connection_t>(client_loop);
 
-    boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::tcp::v4(), port);
+    io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
     auto f1 = conn->connect(endpoint).then([&conn](boost::future<void> f){
         EXPECT_NO_THROW(f.get());
         EXPECT_TRUE(conn->connected());
@@ -158,12 +159,12 @@ TEST(Connection, ConnectMultipleTimesOnDisconnectedService) {
 TEST(Connection, ConnectOnConnectedService) {
     // ===== Set Up Stage =====
     loop_t server_loop;
-    boost::asio::ip::tcp::acceptor acceptor(server_loop);
+    io::ip::tcp::acceptor acceptor(server_loop);
 
     std::atomic<uint> port(0);
     boost::barrier barrier(2);
     std::packaged_task<void()> task([&server_loop, &acceptor, &barrier, &port]{
-        boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::tcp::v4(), port);
+        io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
         acceptor.open(endpoint.protocol());
         acceptor.bind(endpoint);
         acceptor.listen();
@@ -171,7 +172,7 @@ TEST(Connection, ConnectOnConnectedService) {
         barrier.wait();
         port.store(acceptor.local_endpoint().port());
 
-        boost::asio::ip::tcp::socket socket(server_loop);
+        io::ip::tcp::socket socket(server_loop);
         acceptor.accept(socket);
     });
 
@@ -189,7 +190,7 @@ TEST(Connection, ConnectOnConnectedService) {
     // ===== Test Stage =====
     auto conn = std::make_shared<connection_t>(client_loop);
 
-    boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::tcp::v4(), port);
+    io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
     conn->connect(endpoint).get();
     EXPECT_TRUE(conn->connected());
 
@@ -208,13 +209,13 @@ TEST(Connection, ConnectOnConnectedService) {
 TEST(Connection, RAIIOnConnect) {
     // ===== Set Up Stage =====
     loop_t server_loop;
-    boost::asio::ip::tcp::acceptor acceptor(server_loop);
+    io::ip::tcp::acceptor acceptor(server_loop);
 
     // An OS should select available port for us.
     std::atomic<uint> port(0);
     boost::barrier barrier(2);
     std::packaged_task<void()> task([&server_loop, &acceptor, &barrier, &port]{
-        boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::tcp::v4(), port);
+        io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
         acceptor.open(endpoint.protocol());
         acceptor.bind(endpoint);
         acceptor.listen();
@@ -222,7 +223,7 @@ TEST(Connection, RAIIOnConnect) {
         barrier.wait();
         port.store(acceptor.local_endpoint().port());
 
-        boost::asio::ip::tcp::socket socket(server_loop);
+        io::ip::tcp::socket socket(server_loop);
         acceptor.accept(socket);
     });
 
@@ -243,7 +244,7 @@ TEST(Connection, RAIIOnConnect) {
     {
         auto conn = std::make_shared<connection_t>(client_loop);
 
-        boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::tcp::v4(), port);
+        io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
         future = conn->connect(endpoint);
     }
     EXPECT_NO_THROW(future->get());
@@ -258,14 +259,23 @@ TEST(Connection, RAIIOnConnect) {
 }
 
 TEST(Connection, InvokeSendsProperMessage) {
+    // ===== Prepare =====
+    {
+        std::vector<std::uint8_t> expected = { 147, 1, 0, 145, 164, 110, 111, 100, 101 };
+        auto message = cocaine::io::encoded<
+            cocaine::io::locator::resolve
+        >(1, std::string("node")).data();
+        ASSERT_EQ(expected, std::vector<std::uint8_t>(message, message + 9));
+    }
+
     // ===== Set Up Stage =====
     loop_t server_loop;
-    boost::asio::ip::tcp::acceptor acceptor(server_loop);
+    io::ip::tcp::acceptor acceptor(server_loop);
 
     std::atomic<uint> port(0);
     boost::barrier barrier(2);
     std::packaged_task<void()> task([&server_loop, &acceptor, &barrier, &port]{
-        boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::tcp::v4(), port);
+        io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
         acceptor.open(endpoint.protocol());
         acceptor.bind(endpoint);
         acceptor.listen();
@@ -273,16 +283,16 @@ TEST(Connection, InvokeSendsProperMessage) {
         barrier.wait();
         port.store(acceptor.local_endpoint().port());
 
-        boost::asio::ip::tcp::socket socket(server_loop);
+        io::ip::tcp::socket socket(server_loop);
         acceptor.accept(socket);
 
-        std::uint8_t buf[32];
-        auto size = socket.read_some(boost::asio::buffer(buf, 32));
+        std::array<std::uint8_t, 32> actual;
+        auto size = socket.read_some(io::buffer(actual.data(), 32));
         EXPECT_EQ(9, size);
 
-        std::array<std::uint8_t, 9> expected = { 147, 1, 0, 145, 164, 110, 111, 100, 101 };
+        std::array<std::uint8_t, 9> expected = {{ 147, 1, 0, 145, 164, 110, 111, 100, 101 }};
         for (int i = 0; i < 9; ++i) {
-            EXPECT_EQ(expected[i], buf[i]);
+            EXPECT_EQ(expected[i], actual[i]);
         }
     });
 
@@ -301,17 +311,20 @@ TEST(Connection, InvokeSendsProperMessage) {
     // ===== Test Stage =====
     auto conn = std::make_shared<connection_t>(client_loop);
 
-    boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::tcp::v4(), port);
+    io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
     boost::future<void> future = conn->connect(endpoint);
     EXPECT_NO_THROW(future.get());
 
     EXPECT_TRUE(conn->connected());
-    conn->invoke<cocaine::io::locator::resolve>("node");
+    conn->invoke<cocaine::io::locator::resolve>(std::string("node"));
+    sleep(1);
 
+    std::cout << "after invoke" << std::endl;
     // ===== Tear Down Stage =====
     acceptor.close();
     work.reset();
     client_thread.join();
+    std::cout << "after join" << std::endl;
 
     server_thread.join();
     EXPECT_NO_THROW(server_future.get());
@@ -331,6 +344,9 @@ TEST(Connection, InvokeSendsProperMessage) {
 /// Test conn async connect multiple times.
 /// Test conn async connect multiple times when already connected.
 // Test conn reconnect (recreate broken socket).
+// Test conn invoke.
+// Test conn invoke - network error - notify client.
+// Test conn invoke - network error - notify all invokers.
 
 // Test service ctor.
 // Test service move ctor.

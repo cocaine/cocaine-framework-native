@@ -1,19 +1,22 @@
 #pragma once
 
-#include <boost/asio/io_service.hpp>
-#include <boost/asio/ip/tcp.hpp>
+#include <asio/io_service.hpp>
+#include <asio/ip/tcp.hpp>
 
 #define BOOST_THREAD_PROVIDES_FUTURE
 #define BOOST_THREAD_PROVIDES_FUTURE_CONTINUATION
 #define BOOST_THREAD_PROVIDES_SIGNATURE_PACKAGED_TASK
 #include <boost/thread/future.hpp>
 
+#include <cocaine/common.hpp>
+#include <cocaine/rpc/asio/channel.hpp>
+
 namespace cocaine {
 
 namespace framework {
 
-using loop_t = boost::asio::io_service;
-using endpoint_t = boost::asio::ip::tcp::endpoint;
+using loop_t = asio::io_service;
+using endpoint_t = asio::ip::tcp::endpoint;
 
 template<typename T>
 using promise_t = boost::promise<T>;
@@ -27,6 +30,7 @@ enum class state_t {
     connected
 };
 
+// TODO: It's a cocaine session actually, may be rename?
 /*!
  * \note I can't guarantee lifetime safety in other way than by making this class living as shared
  * pointer. The reason is: in particular case the connection's event loop runs in a separate
@@ -35,13 +39,24 @@ enum class state_t {
  * instance be destroyed.
  */
 class connection_t : public std::enable_shared_from_this<connection_t> {
+    typedef asio::ip::tcp protocol_type;
+    typedef protocol_type::socket socket_type;
+    typedef io::channel<protocol_type> channel_type;
+
     loop_t& loop;
 
-    boost::asio::ip::tcp::socket socket;
     std::atomic<state_t> state;
+    std::unique_ptr<socket_type> socket;
 
     mutable std::mutex connection_queue_mutex;
     std::vector<promise_t<void>> connection_queue;
+
+    std::atomic<std::uint64_t> counter;
+    std::shared_ptr<channel_type> channel;
+
+    mutable std::mutex channel_mutex;
+
+    class push_t;
 
 public:
     /*!
@@ -58,9 +73,21 @@ public:
 
     future_t<void> connect(const endpoint_t& endpoint);
 
+    template<class T, class... Args>
+    void invoke(Args&&... args);
+
+    void invoke(io::encoder_t::message_type&& message);
+
+    loop_t& io() const noexcept;
+
 private:
-    void on_connected(const boost::system::error_code& ec);
+    void on_connected(const std::error_code& ec);
 };
+
+template<class T, class... Args>
+void connection_t::invoke(Args&&... args) {
+    return invoke(io::encoded<T>(counter + 1, std::forward<Args>(args)...));
+}
 
 } // namespace framework
 

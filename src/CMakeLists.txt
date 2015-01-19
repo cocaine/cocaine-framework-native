@@ -26,7 +26,7 @@ PROJECT(${PROJECT})
 
 INCLUDE_DIRECTORIES(
     ${CMAKE_SOURCE_DIR}/include/cocaine/framework
-    ${CMAKE_SOURCE_DIR}/../cocaine-core/cocaine-core/include
+    SYSTEM ${CMAKE_SOURCE_DIR}/../cocaine-core/cocaine-core/include
     ${CMAKE_SOURCE_DIR}/../cocaine-core/cocaine-core/foreign/asio/asio/include
     ${CMAKE_SOURCE_DIR}/../cocaine-core/cocaine-core/foreign/blackhole/src
 )
@@ -40,6 +40,7 @@ ADD_LIBRARY(${PROJECT} SHARED
 TARGET_LINK_LIBRARIES(${PROJECT}
     ${Boost_LIBRARIES}
     cocaine-core
+    msgpack
 )
 
 SET_TARGET_PROPERTIES(${PROJECT} PROPERTIES
