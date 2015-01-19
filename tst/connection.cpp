@@ -256,10 +256,10 @@ TEST(Connection, RAIIOnConnect) {
 }
 
 // Usage:
-    // auto chan = node.invoke<cocaine::io::node::list>(); // Nonblock, can throw.
-    // auto tx = chan.tx.send<Method>(...);    // Block.
-    // auto ev = chan.rx.recv<Method>();    // Block.
-    // chan.rx.recv<Method>(visitor_t());   // Nonblock and unpacked.
+    // std::tie(tx, rx) = node.invoke<cocaine::io::node::list>(); // Nonblock, maybe noexcept.
+    // tx = tx.send<Method>(...); // Block, throws.
+    // future<T> ev = rx.recv<T>();    // Block, throws.
+    // rx.recv<Method>(visitor_t());   // Nonblock and unpacked.
 
     // service.detach(); // Now dtor won't block.
 
@@ -268,11 +268,16 @@ TEST(Connection, RAIIOnConnect) {
 /// Test conn connect failed.
 /// Test conn async connect multiple times.
 /// Test conn async connect multiple times when already connected.
+// Test conn reconnect (recreate broken socket).
+
 // Test service ctor.
 // Test service move ctor.
 // Test service dtor (waits).
 // Test service dtor after detach.
-// Test service invoke.
+// Test service invoke - server received proper message.
+// Test service invoke - server responds and the client receives and decodes proper message.
+// Test service invoke - server responds and the client receives improper message.
+// Test service invoke - server responds and the client receives an orphan message.
 // Test service send.
 // Test service send traverse.
 // Test service send failed.
