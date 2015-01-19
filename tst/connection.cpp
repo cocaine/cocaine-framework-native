@@ -282,11 +282,9 @@ TEST(Connection, RAIIOnConnect) {
 TEST(Connection, InvokeSendsProperMessage) {
     // ===== Prepare =====
     {
-        std::vector<std::uint8_t> expected = { 147, 1, 0, 145, 164, 110, 111, 100, 101 };
-        auto message = cocaine::io::encoded<
-            cocaine::io::locator::resolve
-        >(1, std::string("node")).data();
-        ASSERT_EQ(expected, std::vector<std::uint8_t>(message, message + 9));
+        std::vector<std::uint8_t> expected = {{ 147, 1, 0, 145, 164, 110, 111, 100, 101 }};
+        cocaine::io::encoded<cocaine::io::locator::resolve> message(1, std::string("node"));
+        EXPECT_EQ(expected, std::vector<std::uint8_t>(message.data(), message.data() + 9));
     }
 
     // ===== Set Up Stage =====
