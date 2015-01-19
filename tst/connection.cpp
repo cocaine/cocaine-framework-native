@@ -2,7 +2,6 @@
 #include <thread>
 #include <type_traits>
 
-#include <boost/optional.hpp>
 #include <boost/thread/barrier.hpp>
 
 #include <gtest/gtest.h>
@@ -14,6 +13,21 @@
 namespace io = asio;
 
 using namespace cocaine::framework;
+
+namespace testing {
+
+/// An OS should select available port for us.
+static std::uint16_t port() {
+    io::io_service loop;
+    io::ip::tcp::acceptor acceptor(loop);
+    io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), 0);
+    acceptor.open(endpoint.protocol());
+    acceptor.bind(endpoint);
+    acceptor.listen();
+    return acceptor.local_endpoint().port();
+}
+
+} // namespace testing
 
 TEST(Connection, Constructor) {
     loop_t loop;
@@ -53,7 +67,7 @@ TEST(Connection, Connect) {
     std::thread server_thread(std::move(task));
 
     loop_t client_loop;
-    boost::optional<loop_t::work> work(client_loop);
+    std::unique_ptr<loop_t::work> work(new loop_t::work(client_loop));
     std::thread client_thread([&client_loop, &work]{
         client_loop.run();
     });
@@ -82,7 +96,7 @@ TEST(Connection, Connect) {
 TEST(Connection, ConnectOnInvalidPort) {
     // ===== Set Up Stage =====
     loop_t loop;
-    boost::optional<loop_t::work> work(loop);
+    std::unique_ptr<loop_t::work> work(new loop_t::work(loop));
     std::thread client_thread([&loop, &work]{
         loop.run();
     });
@@ -125,7 +139,7 @@ TEST(Connection, ConnectMultipleTimesOnDisconnectedService) {
     std::thread server_thread(std::move(task));
 
     loop_t client_loop;
-    boost::optional<loop_t::work> work(client_loop);
+    std::unique_ptr<loop_t::work> work(new loop_t::work(client_loop));
     std::thread client_thread([&client_loop, &work]{
         client_loop.run();
     });
@@ -185,7 +199,7 @@ TEST(Connection, ConnectOnConnectedService) {
     std::thread server_thread(std::move(task));
 
     loop_t client_loop;
-    boost::optional<loop_t::work> work(client_loop);
+    std::unique_ptr<loop_t::work> work(new loop_t::work(client_loop));
     std::thread client_thread([&client_loop, &work]{
         client_loop.run();
     });
@@ -237,7 +251,7 @@ TEST(Connection, RAIIOnConnect) {
     std::thread server_thread(std::move(task));
 
     loop_t client_loop;
-    boost::optional<loop_t::work> work(client_loop);
+    std::unique_ptr<loop_t::work> work(new loop_t::work(client_loop));
     std::thread client_thread([&client_loop, &work]{
         client_loop.run();
     });
@@ -246,14 +260,14 @@ TEST(Connection, RAIIOnConnect) {
     barrier.wait();
 
     // ===== Test Stage =====
-    boost::optional<future_t<void>> future;
+    future_t<void> future;
     {
         auto conn = std::make_shared<connection_t>(client_loop);
 
         io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
-        future = conn->connect(endpoint);
+        future = std::move(conn->connect(endpoint));
     }
-    try { future->get(); } catch(std::exception e) { std::cout << e.what() << std::endl; }
+    try { future.get(); } catch(std::exception e) { std::cout << e.what() << std::endl; }
 //    EXPECT_NO_THROW(future->get());
 
     // ===== Tear Down Stage =====
@@ -307,7 +321,7 @@ TEST(Connection, InvokeSendsProperMessage) {
     std::thread server_thread(std::move(task));
 
     loop_t client_loop;
-    boost::optional<loop_t::work> work(client_loop);
+    std::unique_ptr<loop_t::work> work(new loop_t::work(client_loop));
     std::thread client_thread([&client_loop, &work]{
         client_loop.run();
     });
