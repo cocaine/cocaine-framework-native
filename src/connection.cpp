@@ -27,7 +27,8 @@ private:
 
 connection_t::connection_t(loop_t& loop) noexcept :
     loop(loop),
-    state(state_t::disconnected)
+    state(state_t::disconnected),
+    counter(0)
 {}
 
 bool connection_t::connected() const noexcept {
