@@ -90,7 +90,7 @@ TEST(Connection, ConnectOnInvalidPort) {
     auto conn = std::make_shared<connection_t>(loop);
 
     io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), 0);
-    boost::future<void> future = conn->connect(endpoint);
+    auto future = conn->connect(endpoint);
     EXPECT_THROW(future.get(), std::system_error);
 
     EXPECT_FALSE(conn->connected());
@@ -135,17 +135,18 @@ TEST(Connection, ConnectMultipleTimesOnDisconnectedService) {
     auto conn = std::make_shared<connection_t>(client_loop);
 
     io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
-    auto f1 = conn->connect(endpoint).then([&conn](boost::future<void> f){
         EXPECT_NO_THROW(f.get());
+    auto f1 = conn->connect(endpoint).then([&conn](future_t<void>& f){
         EXPECT_TRUE(conn->connected());
     });
 
-    auto f2 = conn->connect(endpoint).then([&conn](boost::future<void> f){
         EXPECT_NO_THROW(f.get());
+    auto f2 = conn->connect(endpoint).then([&conn](future_t<void>& f){
         EXPECT_TRUE(conn->connected());
     });
 
-    boost::wait_for_all(f1, f2);
+    f1.get();
+    f2.get();
 
     // ===== Tear Down Stage =====
     acceptor.close();
@@ -312,8 +313,8 @@ TEST(Connection, InvokeSendsProperMessage) {
     auto conn = std::make_shared<connection_t>(client_loop);
 
     io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
-    boost::future<void> future = conn->connect(endpoint);
     EXPECT_NO_THROW(future.get());
+    auto future = conn->connect(endpoint);
 
     EXPECT_TRUE(conn->connected());
     conn->invoke<cocaine::io::locator::resolve>(std::string("node"));
