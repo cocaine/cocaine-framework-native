@@ -49,8 +49,8 @@ TEST(Connection, Connect) {
     std::thread server_thread(std::move(task));
 
     loop_t client_loop;
-    std::thread client_thread([&client_loop]{
-        loop_t::work work(client_loop);
+    boost::optional<loop_t::work> work(client_loop);
+    std::thread client_thread([&client_loop, &work]{
         client_loop.run();
     });
 
@@ -68,7 +68,7 @@ TEST(Connection, Connect) {
 
     // ===== Tear Down Stage =====
     acceptor.close();
-    client_loop.stop();
+    work.reset();
     client_thread.join();
 
     server_thread.join();
@@ -77,14 +77,14 @@ TEST(Connection, Connect) {
 
 TEST(Connection, ConnectOnInvalidPort) {
     // ===== Set Up Stage =====
-    loop_t client_loop;
-    std::thread client_thread([&client_loop]{
-        loop_t::work work(client_loop);
-        client_loop.run();
+    loop_t loop;
+    boost::optional<loop_t::work> work(loop);
+    std::thread client_thread([&loop, &work]{
+        loop.run();
     });
 
     // ===== Test Stage =====
-    auto conn = std::make_shared<connection_t>(client_loop);
+    auto conn = std::make_shared<connection_t>(loop);
 
     boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::tcp::v4(), 0);
     boost::future<void> future = conn->connect(endpoint);
@@ -93,7 +93,7 @@ TEST(Connection, ConnectOnInvalidPort) {
     EXPECT_FALSE(conn->connected());
 
     // ===== Tear Down Stage =====
-    client_loop.stop();
+    work.reset();
     client_thread.join();
 }
 
@@ -121,8 +121,8 @@ TEST(Connection, ConnectMultipleTimesOnDisconnectedService) {
     std::thread server_thread(std::move(task));
 
     loop_t client_loop;
-    std::thread client_thread([&client_loop]{
-        loop_t::work work(client_loop);
+    boost::optional<loop_t::work> work(client_loop);
+    std::thread client_thread([&client_loop, &work]{
         client_loop.run();
     });
 
@@ -146,7 +146,7 @@ TEST(Connection, ConnectMultipleTimesOnDisconnectedService) {
 
     // ===== Tear Down Stage =====
     acceptor.close();
-    client_loop.stop();
+    work.reset();
     client_thread.join();
 
     server_thread.join();
@@ -177,8 +177,8 @@ TEST(Connection, ConnectOnConnectedService) {
     std::thread server_thread(std::move(task));
 
     loop_t client_loop;
-    std::thread client_thread([&client_loop]{
-        loop_t::work work(client_loop);
+    boost::optional<loop_t::work> work(client_loop);
+    std::thread client_thread([&client_loop, &work]{
         client_loop.run();
     });
 
@@ -196,7 +196,7 @@ TEST(Connection, ConnectOnConnectedService) {
 
     // ===== Tear Down Stage =====
     acceptor.close();
-    client_loop.stop();
+    work.reset();
     client_thread.join();
 
     server_thread.join();
@@ -228,8 +228,8 @@ TEST(Connection, RAIIOnConnect) {
     std::thread server_thread(std::move(task));
 
     loop_t client_loop;
-    std::thread client_thread([&client_loop]{
-        loop_t::work work(client_loop);
+    boost::optional<loop_t::work> work(client_loop);
+    std::thread client_thread([&client_loop, &work]{
         client_loop.run();
     });
 
@@ -248,7 +248,7 @@ TEST(Connection, RAIIOnConnect) {
 
     // ===== Tear Down Stage =====
     acceptor.close();
-    client_loop.stop();
+    work.reset();
     client_thread.join();
 
     server_thread.join();
