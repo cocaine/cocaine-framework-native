@@ -15,19 +15,12 @@ public:
         connection(connection)
     {}
 
-    ~push_t() {
-        std::cout << "~push_t()" << std::endl;
-    }
-
     void operator()() {
-        sleep(1);
-        std::cout << "write" << std::endl;
         connection->channel->writer->write(message, std::bind(&push_t::on_write, shared_from_this(), ph::_1));
     }
 
 private:
     void on_write(const std::error_code& ec) {
-        std::cout << ec.message() << std::endl;
         // TODO: Notify connection if any error occurred. It should disconnect all clients.
     }
 };

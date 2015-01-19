@@ -317,14 +317,11 @@ TEST(Connection, InvokeSendsProperMessage) {
 
     EXPECT_TRUE(conn->connected());
     conn->invoke<cocaine::io::locator::resolve>(std::string("node"));
-    sleep(1);
 
-    std::cout << "after invoke" << std::endl;
     // ===== Tear Down Stage =====
     acceptor.close();
     work.reset();
     client_thread.join();
-    std::cout << "after join" << std::endl;
 
     server_thread.join();
     EXPECT_NO_THROW(server_future.get());
