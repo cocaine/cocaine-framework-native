@@ -31,8 +31,14 @@ SET(BOOST_COMPONENTS
 FIND_PACKAGE(Boost COMPONENTS ${BOOST_COMPONENTS} REQUIRED)
 
 SET(PROJECT cocaine-framework-cpp-tests)
-SET(HEADERS)
+
+SET(HEADERS
+    util/net
+)
+
 SET(SOURCES
+    util/net
+
 #    main
     connection
 #    functional

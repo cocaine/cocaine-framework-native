@@ -1,4 +1,3 @@
-#include <future>
 #include <type_traits>
 
 #include <boost/thread.hpp>
@@ -10,26 +9,9 @@
 
 #include <cocaine/framework/connection.hpp>
 
-namespace io = asio;
+#include "util/net.hpp"
 
 using namespace cocaine::framework;
-
-namespace testing {
-
-static const std::uint64_t TIMEOUT = 1000;
-
-/// An OS should select available port for us.
-static std::uint16_t port() {
-    io::io_service loop;
-    io::ip::tcp::acceptor acceptor(loop);
-    io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), 0);
-    acceptor.open(endpoint.protocol());
-    acceptor.bind(endpoint);
-    acceptor.listen();
-    return acceptor.local_endpoint().port();
-}
-
-} // namespace testing
 
 TEST(Connection, Constructor) {
     loop_t loop;
@@ -48,7 +30,7 @@ TEST(Connection, Connect) {
     // when the client is trying to connect.
 
     // An OS should select available port for us.
-    std::uint16_t port = testing::port();
+    const std::uint16_t port = testing::util::port();
     boost::barrier barrier(2);
     boost::thread server_thread([port, &barrier]{
         loop_t loop;
@@ -61,7 +43,7 @@ TEST(Connection, Connect) {
         barrier.wait();
 
         io::deadline_timer timer(loop);
-        timer.expires_from_now(boost::posix_time::milliseconds(testing::TIMEOUT));
+        timer.expires_from_now(boost::posix_time::milliseconds(testing::util::TIMEOUT));
         timer.async_wait([&acceptor](const std::error_code& ec){
             EXPECT_EQ(io::error::operation_aborted, ec);
             acceptor.cancel();
@@ -122,7 +104,7 @@ TEST(Connection, ConnectOnInvalidPort) {
 
 TEST(Connection, ConnectMultipleTimesOnDisconnectedService) {
     // ===== Set Up Stage =====
-    std::uint16_t port = testing::port();
+    const std::uint16_t port = testing::util::port();
     boost::barrier barrier(2);
     boost::thread server_thread([port, &barrier]{
         loop_t loop;
@@ -135,7 +117,7 @@ TEST(Connection, ConnectMultipleTimesOnDisconnectedService) {
         barrier.wait();
 
         io::deadline_timer timer(loop);
-        timer.expires_from_now(boost::posix_time::milliseconds(testing::TIMEOUT));
+        timer.expires_from_now(boost::posix_time::milliseconds(testing::util::TIMEOUT));
         timer.async_wait([&acceptor](const std::error_code& ec){
             EXPECT_EQ(io::error::operation_aborted, ec);
             acceptor.cancel();
@@ -183,7 +165,7 @@ TEST(Connection, ConnectMultipleTimesOnDisconnectedService) {
 
 TEST(Connection, ConnectOnConnectedService) {
     // ===== Set Up Stage =====
-    const std::uint16_t port = testing::port();
+    const std::uint16_t port = testing::util::port();
     boost::barrier barrier(2);
     boost::thread server_thread([port, &barrier]{
         loop_t loop;
@@ -196,7 +178,7 @@ TEST(Connection, ConnectOnConnectedService) {
         barrier.wait();
 
         io::deadline_timer timer(loop);
-        timer.expires_from_now(boost::posix_time::milliseconds(testing::TIMEOUT));
+        timer.expires_from_now(boost::posix_time::milliseconds(testing::util::TIMEOUT));
         timer.async_wait([&acceptor](const std::error_code& ec){
             EXPECT_EQ(io::error::operation_aborted, ec);
             acceptor.cancel();
@@ -237,7 +219,7 @@ TEST(Connection, ConnectOnConnectedService) {
 
 TEST(Connection, RAIIOnConnect) {
     // ===== Set Up Stage =====
-    const std::uint16_t port = testing::port();
+    const std::uint16_t port = testing::util::port();
     boost::barrier barrier(2);
     boost::thread server_thread([port, &barrier]{
         loop_t loop;
@@ -250,7 +232,7 @@ TEST(Connection, RAIIOnConnect) {
         barrier.wait();
 
         io::deadline_timer timer(loop);
-        timer.expires_from_now(boost::posix_time::milliseconds(testing::TIMEOUT));
+        timer.expires_from_now(boost::posix_time::milliseconds(testing::util::TIMEOUT));
         timer.async_wait([&acceptor](const std::error_code& ec){
             EXPECT_EQ(io::error::operation_aborted, ec);
             acceptor.cancel();
@@ -300,7 +282,7 @@ TEST(Encoder, InvokeEvent) {
 
 TEST(Connection, InvokeSendsProperMessage) {
     // ===== Set Up Stage =====
-    const std::uint16_t port = testing::port();
+    const std::uint16_t port = testing::util::port();
     boost::barrier barrier(2);
     boost::thread server_thread([port, &barrier]{
         loop_t loop;
@@ -313,7 +295,7 @@ TEST(Connection, InvokeSendsProperMessage) {
         barrier.wait();
 
         io::deadline_timer timer(loop);
-        timer.expires_from_now(boost::posix_time::milliseconds(testing::TIMEOUT));
+        timer.expires_from_now(boost::posix_time::milliseconds(testing::util::TIMEOUT));
         timer.async_wait([&acceptor](const std::error_code& ec){
             EXPECT_EQ(io::error::operation_aborted, ec);
             acceptor.cancel();
@@ -377,7 +359,7 @@ TEST(Connection, InvokeSendsProperMessage) {
 /// Test conn async connect multiple times.
 /// Test conn async connect multiple times when already connected.
 // Test conn reconnect (recreate broken socket).
-// Test conn invoke.
+/// Test conn invoke.
 // Test conn invoke - network error - notify client.
 // Test conn invoke - network error - notify all invokers.
 
