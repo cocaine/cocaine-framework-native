@@ -1,5 +1,3 @@
-#include <thread>
-
 #include <gtest/gtest.h>
 
 #include <cocaine/idl/node.hpp>
