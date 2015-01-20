@@ -102,6 +102,7 @@ void connection_t::on_connected(const std::error_code& ec) {
     // This callback can be called from any thread. The following mutex is guaranteed not to be
     // locked at that moment.
     std::lock_guard<std::mutex> lock(connection_queue_mutex);
+    BOOST_ASSERT(state_t::connecting == state);
     if (ec) {
         state = state_t::disconnected;
         for (auto& promise : connection_queue) {
