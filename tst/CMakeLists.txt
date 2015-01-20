@@ -35,7 +35,7 @@ SET(HEADERS)
 SET(SOURCES
 #    main
     connection
-    functional
+#    functional
 )
 
 PROJECT(${PROJECT})
