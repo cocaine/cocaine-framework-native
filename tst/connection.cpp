@@ -306,7 +306,7 @@ TEST(Connection, InvokeSendsProperMessage) {
         acceptor.async_accept(socket, [&timer, &socket, &actual](const std::error_code&){
             timer.cancel();
 
-            socket.async_read_some(io::buffer(actual.data(), actual.size()), [&actual](const std::error_code& ec, size_t size){
+            socket.async_read_some(io::buffer(actual), [&actual](const std::error_code& ec, size_t size){
                 EXPECT_EQ(9, size);
                 EXPECT_EQ(0, ec.value());
 
