@@ -62,23 +62,27 @@ struct packable<U, 1> {
 /// streaming<T> -> variant<chunk<T>::type, error::type, choke::type>
 ///              -> variant<T, tuple<int, string>, void>
 template<class T>
-struct cf_result_of;
+struct result_of;
 
 template<class T>
-struct cf_result_of<io::primitive_tag<T>> {
+struct result_of<io::primitive_tag<T>> {
     typedef typename packable<T>::type value_type;
     typedef typename packable<typename io::primitive<T>::error::argument_type>::type error_type;
 
-    typedef boost::mpl::vector<value_type, error_type> type;
+    typedef boost::variant<value_type, error_type> type;
 };
+
+// TODO: Not implemented yet.
+template<class T>
+struct result_of<io::streaming_tag<T>>;
 
 } // namespace detail
 
 template<class Event>
-struct cf_result_of {
-    typedef typename io::event_traits<Event>::upstream_type upstream_type;
-
-    typedef typename detail::cf_result_of<upstream_type>::type type;
+struct result_of {
+    typedef typename detail::result_of<
+        typename io::event_traits<Event>::upstream_type
+    >::type type;
 };
 
 using loop_t = asio::io_service;
@@ -94,32 +98,35 @@ template<class Event> class channel_t;
 
 template<class Event>
 struct functor {
-    typedef typename cf_result_of<Event>::type result_adt;
-
-    typedef typename boost::make_variant_over<
-        result_adt
-    >::type result_type;
+    typedef typename result_of<Event>::type result_type;
 
     std::vector<std::function<result_type(const msgpack::object&)>>& visitors;
 
-    template<class T>
-    void
-    operator()(const T&) {
-        visitors.push_back([](const msgpack::object& message){
-            std::tuple<T> args;
-            io::type_traits<std::tuple<T>>::unpack(message, args);
-            return std::get<0>(args);
-        });
-    }
+    template<typename T>
+    struct unpacker {
+        static
+        T
+        unpack(const msgpack::object& message) {
+            std::tuple<T> result;
+            io::type_traits<std::tuple<T>>::unpack(message, result);
+            return std::get<0>(result);
+        }
+    };
 
-    template<class... Args>
-    void
-    operator()(const std::tuple<Args...>&) {
-        visitors.push_back([](const msgpack::object& message){
-            std::tuple<Args...> args;
-            io::type_traits<std::tuple<Args...>>::unpack(message, args);
-            return args;
-        });
+    template<typename... Args>
+    struct unpacker<std::tuple<Args...>> {
+        static
+        std::tuple<Args...>
+        unpack(const msgpack::object& message) {
+            std::tuple<Args...> result;
+            io::type_traits<std::tuple<Args...>>::unpack(message, result);
+            return result;
+        }
+    };
+
+    template<class T>
+    void operator()(const T&) {
+        visitors.emplace_back(&functor::unpacker<T>::unpack);
     }
 };
 
@@ -127,11 +134,8 @@ template<class Event>
 class receiver {
     friend class channel_t<Event>;
 
-    typedef typename cf_result_of<Event>::type result_adt;
-
-    typedef typename boost::make_variant_over<
-        result_adt
-    >::type result_type;
+    typedef typename result_of<Event>::type result_type;
+    typedef typename result_type::types result_type_list;
 
     std::mutex mutex;
     std::queue<result_type> queue;
@@ -142,7 +146,7 @@ class receiver {
 
 public:
     receiver() {
-        boost::mpl::for_each<result_adt>(functor<Event> { visitors } );
+        boost::mpl::for_each<result_type_list>(functor<Event> { visitors } );
     }
 
     // TODO: Return improved variant with typechecking.
@@ -164,7 +168,7 @@ public:
 private:
     void push(io::decoder_t::message_type&& message) {
         const auto id = message.type();
-        if (id >= boost::mpl::size<result_adt>::value) {
+        if (id >= boost::mpl::size<result_type_list>::value) {
             // TODO: What to do? Notify the user, I think.
             return;
         }
