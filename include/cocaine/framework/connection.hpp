@@ -34,32 +34,40 @@ namespace cocaine {
 
 namespace framework {
 
+template<typename T> struct deduced_type;
+
 namespace detail {
 
+/*!
+ * Transforms a typelist sequence to a single movable argument type.
+ *
+ * If the sequence contains a single element of type T, than the result type will be T.
+ * Otherwise the sequence will be transformed into a tuple.
+ *
+ * sequence<T, U...> -> std::tuple<T, U...>,
+ * sequence<T>       -> T.
+ */
 template<class U, size_t = boost::mpl::size<U>::value>
-struct fold_typelist {
+struct packable {
     typedef typename tuple::fold<U>::type type;
 };
 
 template<class U>
-struct fold_typelist<U, 1> {
+struct packable<U, 1> {
     typedef typename boost::mpl::front<U>::type type;
 };
 
-/// primitive<T> -> variant<value<T>::type, error::type> -> variant<T, tuple<int, string>>
-/// streaming<T> -> variant<chunk<T>::type, error::type, choke::type> -> variant<T, tuple<int, string>, void>
+/// primitive<T> -> variant<value<T>::type, error::type>
+///              -> variant<T, tuple<int, string>>
+/// streaming<T> -> variant<chunk<T>::type, error::type, choke::type>
+///              -> variant<T, tuple<int, string>, void>
 template<class T>
 struct cf_result_of;
 
 template<class T>
 struct cf_result_of<io::primitive_tag<T>> {
-    typedef typename fold_typelist<
-        typename io::event_traits<typename io::primitive<T>::value>::argument_type
-    >::type value_type;
-
-    typedef typename fold_typelist<
-        typename io::event_traits<typename io::primitive<T>::error>::argument_type
-    >::type error_type;
+    typedef typename packable<T>::type value_type;
+    typedef typename packable<typename io::primitive<T>::error::argument_type>::type error_type;
 
     typedef boost::mpl::vector<value_type, error_type> type;
 };
@@ -82,8 +90,6 @@ using promise_t = promise<T>;
 template<typename T>
 using future_t = future<T>;
 
-template<typename T> struct deduced_type;
-
 template<class Event> class channel_t;
 
 template<class Event>
@@ -95,11 +101,6 @@ struct functor {
     >::type result_type;
 
     std::vector<std::function<result_type(const msgpack::object&)>>& visitors;
-
-    template<typename... Args>
-    std::tuple<Args...> unwrap(std::tuple<Args...>& t) {
-        return t;
-    }
 
     template<class T>
     void
