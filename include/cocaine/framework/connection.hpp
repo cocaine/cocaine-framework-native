@@ -163,12 +163,13 @@ public:
 
 private:
     void push(io::decoder_t::message_type&& message) {
-        if (message.type() >= boost::mpl::size<result_adt>::value) {
+        const auto id = message.type();
+        if (id >= boost::mpl::size<result_adt>::value) {
             // TODO: What to do? Notify the user, I think.
             return;
         }
 
-        auto payload = visitors[message.type()](message.args());
+        auto payload = visitors[id](message.args());
 
         std::lock_guard<std::mutex> lock(mutex);
         if (pending.empty()) {
