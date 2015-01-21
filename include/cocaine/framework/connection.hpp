@@ -97,11 +97,30 @@ using future_t = future<T>;
 template<class Event> class channel_t;
 
 template<class Event>
-struct functor {
+class slot_unpacker {
     typedef typename result_of<Event>::type result_type;
+    typedef std::function<result_type(const msgpack::object&)> function_type;
 
-    std::vector<std::function<result_type(const msgpack::object&)>>& visitors;
+public:
+    static std::vector<function_type> generate() {
+        std::vector<function_type> result;
+        boost::mpl::for_each<typename result_type::types>(slot_unpacker<Event>(result));
+        return result;
+    }
 
+    template<class T>
+    void operator()(const T&) {
+        unpackers.emplace_back(&slot_unpacker::unpacker<T>::unpack);
+    }
+
+private:
+    std::vector<function_type>& unpackers;
+
+    slot_unpacker(std::vector<function_type>& unpackers) :
+        unpackers(unpackers)
+    {}
+
+private:
     template<typename T>
     struct unpacker {
         static
@@ -123,32 +142,25 @@ struct functor {
             return result;
         }
     };
-
-    template<class T>
-    void operator()(const T&) {
-        visitors.emplace_back(&functor::unpacker<T>::unpack);
-    }
 };
 
 template<class Event>
 class receiver {
-    friend class channel_t<Event>;
+    typedef Event event_type;
+    friend class channel_t<event_type>;
 
-    typedef typename result_of<Event>::type result_type;
-    typedef typename result_type::types result_type_list;
+    typedef typename result_of<event_type>::type result_type;
+    typedef typename result_type::types result_typelist;
+
+    typedef std::function<result_type(const msgpack::object&)> unpacker_type;
 
     std::mutex mutex;
     std::queue<result_type> queue;
     std::queue<promise_t<result_type>> pending;
 
-    // static vector of visitors.
-    std::vector<std::function<result_type(const msgpack::object&)>> visitors;
+    static const std::vector<unpacker_type> visitors;
 
 public:
-    receiver() {
-        boost::mpl::for_each<result_type_list>(functor<Event> { visitors } );
-    }
-
     // TODO: Return improved variant with typechecking.
     future_t<result_type> recv() {
         promise_t<result_type> promise;
@@ -168,7 +180,7 @@ public:
 private:
     void push(io::decoder_t::message_type&& message) {
         const auto id = message.type();
-        if (id >= boost::mpl::size<result_type_list>::value) {
+        if (id >= boost::mpl::size<result_typelist>::value) {
             // TODO: What to do? Notify the user, I think.
             return;
         }
@@ -185,6 +197,9 @@ private:
         }
     }
 };
+
+template<class Event>
+const std::vector<typename receiver<Event>::unpacker_type> receiver<Event>::visitors = slot_unpacker<Event>::generate();
 
 class basic_channel_t {
     std::uint64_t id;
