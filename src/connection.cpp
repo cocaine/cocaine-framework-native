@@ -28,7 +28,7 @@ private:
 connection_t::connection_t(loop_t& loop) noexcept :
     loop(loop),
     state(state_t::disconnected),
-    counter(0)
+    counter(1)
 {}
 
 bool connection_t::connected() const noexcept {
@@ -71,31 +71,12 @@ future_t<void> connection_t::connect(const endpoint_t& endpoint) {
 }
 
 void connection_t::invoke(io::encoder_t::message_type&& message) {
-    // Increase counter atomically.
-    counter++;
-
-    // Create and insert channel [lock].
-    // TODO: Lock.
-    // TODO: Check if the channel is already exists.
-    // TODO: Unlock.
-
-    // Make handler, that should live until the message completely sent.
-
-    std::lock_guard<std::mutex> lock(channel_mutex);
     loop.dispatch(
         std::bind(
             &push_t::operator(),
             std::make_shared<push_t>(std::move(message), shared_from_this())
         )
     );
-
-    // Register read callback.
-    // Write message.
-    // Return tx [channel handler, or upstream].
-}
-
-loop_t& connection_t::io() const noexcept {
-    return loop;
 }
 
 void connection_t::on_connected(const std::error_code& ec) {
@@ -118,5 +99,25 @@ void connection_t::on_connected(const std::error_code& ec) {
 
         std::lock_guard<std::mutex> lock(channel_mutex);
         channel = std::make_shared<io::channel<protocol_type>>(std::move(socket));
+        channel->reader->read(message, std::bind(&connection_t::on_read, shared_from_this(), ph::_1));
     }
+}
+
+void connection_t::on_read(const std::error_code& ec) {
+    if (ec) {
+        // TODO: If ec != 0 => notify all channels about this error and clear channel map.
+        return;
+    }
+
+    auto channels = this->channels.synchronize();
+    auto it = channels->find(message.span());
+    if (it == channels->end()) {
+        // TODO: Log that received an orphan message.
+    } else {
+        it->second->process(std::move(message));
+        // It should check message id. If ok - put in the queue. [Overhead on copy]
+        // [Maybe] If dispatch is present - try to send to it (1 time).
+    }
+
+    // TODO: Continue reading if (!ec).
 }

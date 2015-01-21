@@ -3,9 +3,13 @@
 #include <boost/thread.hpp>
 #include <boost/thread/barrier.hpp>
 
+#include <asio/write.hpp>
+
 #include <gtest/gtest.h>
 
+#include <cocaine/dynamic.hpp>
 #include <cocaine/idl/locator.hpp>
+#include <cocaine/idl/node.hpp>
 
 #include <cocaine/framework/connection.hpp>
 
@@ -345,13 +349,93 @@ TEST(Connection, InvokeSendsProperMessage) {
     server_thread.join();
 }
 
-// Usage:
-    // std::tie(tx, rx) = node.invoke<cocaine::io::node::list>(); // Nonblock, maybe noexcept.
-    // tx = tx.send<Method>(...); // Block, throws.
-    // future<T> ev = rx.recv<T>();    // Block, throws.
-    // rx.recv<Method>(visitor_t());   // Nonblock and unpacked.
+TEST(Connection, DecodeIncomingMessage) {
+    // ===== Set Up Stage =====
+    const std::uint16_t port = testing::util::port();
+    boost::barrier barrier(2);
+    boost::thread server_thread([port, &barrier]{
+        loop_t loop;
+        io::ip::tcp::acceptor acceptor(loop);
+        io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
+        acceptor.open(endpoint.protocol());
+        acceptor.bind(endpoint);
+        acceptor.listen();
 
-    // service.detach(); // Now dtor won't block.
+        barrier.wait();
+
+        io::deadline_timer timer(loop);
+        timer.expires_from_now(boost::posix_time::milliseconds(testing::util::TIMEOUT));
+        timer.async_wait([&acceptor](const std::error_code& ec){
+            EXPECT_EQ(io::error::operation_aborted, ec);
+            acceptor.cancel();
+        });
+
+        // The following sequence is an encoded [1, 0, [['echo', 'http']]] struct, which is the
+        // real response from Node service's 'list' request.
+        // The caller service must properly unpack it and return to the user.
+        const std::array<std::uint8_t, 15> buf = {
+            { 147, 1, 0, 145, 146, 164, 101, 99, 104, 111, 164, 104, 116, 116, 112 }
+        };
+        io::ip::tcp::socket socket(loop);
+        acceptor.async_accept(socket, [&timer, &socket, &buf](const std::error_code&){
+            timer.cancel();
+
+            io::async_write(socket, io::buffer(buf), [](const std::error_code& ec, size_t size){
+                EXPECT_EQ(0, ec.value());
+                EXPECT_EQ(15, size);
+            });
+        });
+
+        EXPECT_NO_THROW(loop.run());
+    });
+
+    loop_t loop;
+    std::unique_ptr<loop_t::work> work(new loop_t::work(loop));
+    boost::thread client_thread([&loop]{
+        EXPECT_NO_THROW(loop.run());
+    });
+
+    // Here we wait until the server has been started.
+    barrier.wait();
+
+    const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
+
+    // ===== Test Stage =====
+    auto conn = std::make_shared<connection_t>(loop);
+    conn->connect(endpoint).get();
+    auto rx = conn->invoke<cocaine::io::node::list>();
+    auto res = rx->recv().get();
+    auto apps = boost::get<cocaine::dynamic_t>(res);
+    EXPECT_EQ(cocaine::dynamic_t(std::vector<cocaine::dynamic_t>({ "echo", "http" })), apps);
+
+    // ===== Tear Down Stage =====
+    work.reset();
+    client_thread.join();
+
+    server_thread.join();
+}
+
+// Usage:
+//  Service:
+//    std::tie(tx, rx) = node.invoke<cocaine::io::node::list>(); // Nonblock, maybe noexcept.
+//    tx = tx.send<Method>(...); // Block, throws.
+//    future<T> ev = rx.recv<T>();    // Block, throws.
+//    rx.recv<Method>(visitor_t());   // Nonblock and unpacked.
+//
+//    service.detach(); // Now dtor won't block.
+//
+//  Connection:
+//    std::tie(tx, rx) = conn->invoke<I>().get();
+//    std::tie(rx, res) = rx.recv<T>().get();
+//    tx = tx.send<M>(); // May chain: tx.send<M1>().send<M2>();
+//
+//  Wrappers:
+//    Primitive: conn->invoke<M>(args).get() -> value | error
+//    Sequenced: conn->invoke<M>(args).get() -> rx<T, U, ...>
+//    Streaming: conn->invoke<T>(args).get() -> (tx, rx).
+//      rx.recv() -> T | E | C where T == dispatch_type, E - error type, C - choke.
+//      rx.recv<T>() -> T | throw exception.
+//      May throw error (network or protocol) or be exhaused (throw exception after E | C).
 
 /// Test conn ctor.
 /// Test conn connect.
@@ -360,6 +444,7 @@ TEST(Connection, InvokeSendsProperMessage) {
 /// Test conn async connect multiple times when already connected.
 // Test conn reconnect (recreate broken socket).
 /// Test conn invoke.
+// Test conn invoke multiple times - channel id must be increased.
 // Test conn invoke - network error - notify client.
 // Test conn invoke - network error - notify all invokers.
 
