@@ -17,6 +17,7 @@ SET(COCAINE_FRAMEWORK_INCLUDES_DIR ${CMAKE_SOURCE_DIR}/include/cocaine/framework
 SET(HEADERS
     ${COCAINE_FRAMEWORK_INCLUDES_DIR}/common
     ${COCAINE_FRAMEWORK_INCLUDES_DIR}/connection
+    ${COCAINE_FRAMEWORK_INCLUDES_DIR}/detail/log
     ${COCAINE_FRAMEWORK_INCLUDES_DIR}/service
     ${COCAINE_FRAMEWORK_INCLUDES_DIR}/util/future.hpp
     ${COCAINE_FRAMEWORK_INCLUDES_DIR}/util/future/error
@@ -31,6 +32,7 @@ SET(HEADERS
 
 SET(SOURCES
     connection
+    log
     service
     util/future/error
 )
