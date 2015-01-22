@@ -11,6 +11,7 @@
 #include <cocaine/dynamic.hpp>
 #include <cocaine/idl/locator.hpp>
 #include <cocaine/idl/node.hpp>
+#include <cocaine/idl/streaming.hpp>
 
 #include <cocaine/framework/connection.hpp>
 
@@ -644,24 +645,76 @@ TEST(Connection, InvokeMultipleTimesWhileServerClosesConnection) {
     EXPECT_THROW(rx2->recv().get(), std::system_error);
 }
 
+TEST(Connection, SendSendsProperMessage) {
+    // ===== Set Up Stage =====
+    const std::uint16_t port = testing::util::port();
+    server_t server(port, [](io::ip::tcp::acceptor& acceptor, loop_t& loop){
+        io::deadline_timer timer(loop);
+        timer.expires_from_now(boost::posix_time::milliseconds(testing::util::TIMEOUT));
+        timer.async_wait([&acceptor](const std::error_code& ec){
+            EXPECT_EQ(io::error::operation_aborted, ec);
+            acceptor.cancel();
+        });
+
+        std::array<std::uint8_t, 24> actual;
+        io::ip::tcp::socket socket(loop);
+        acceptor.async_accept(socket, [&timer, &socket, &actual](const std::error_code&){
+            timer.cancel();
+            timer.expires_from_now(boost::posix_time::milliseconds(testing::util::TIMEOUT));
+            timer.async_wait([&socket](const std::error_code& ec){
+                EXPECT_EQ(io::error::operation_aborted, ec);
+                socket.cancel();
+            });
+
+            io::async_read(socket, io::buffer(actual), [&actual](const std::error_code& ec, size_t size){
+                EXPECT_EQ(24, size);
+                EXPECT_EQ(0, ec.value());
+
+                std::array<std::uint8_t, 9> invoke = {{ 147, 1, 0, 145, 164, 112, 105, 110, 103 }};
+                std::array<std::uint8_t, 15> send =  {{ 147, 1, 0, 145, 170, 108, 101,  32, 109, 101, 115, 115, 97, 103, 101 }};
+                for (int i = 0; i < 9; ++i) {
+                    EXPECT_EQ(invoke[i], actual[i]);
+                }
+
+                for (int i = 0; i < 9; ++i) {
+                    EXPECT_EQ(send[i], actual[9 + i]);
+                }
+            });
+        });
+
+        EXPECT_NO_THROW(loop.run());
+    });
+
+    client_t client;
+
+    const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
+
+    // ===== Test Stage =====
+    auto conn = std::make_shared<connection_t>(client.loop());
+    conn->connect(endpoint).get();
+//    std::tie(tx, std::ignore) = conn->invoke<cocaine::io::app::enqueue>(std::string("ping"));
+//    tx->send<cocaine::io::streaming::chunk>(std::string("le message"));
+}
+
 // Usage:
-//  Service:
-//    std::tie(tx, rx) = node.invoke<cocaine::io::node::list>(); // Nonblock, maybe noexcept.
-//    tx = tx.send<Method>(...); // Block, throws.
-//    future<T> ev = rx.recv<T>();    // Block, throws.
-//    rx.recv<Method>(visitor_t());   // Nonblock and unpacked.
+//  Connection - The base class, does almost all the job:
+//    std::tie(tx, rx) = conn->invoke<E>();
+//    std::tie(rx, res) = rx.recv();
+//    tx = tx.send<C>(); // May chain: tx.send<C1>().send<C2>();
 //
-//    service.detach(); // Now dtor won't block.
+//  Service - Proxy with auto resolving and RAII style:
+//    std::tie(tx, rx) = node.invoke<E>(); // Nonblock.
+//    tx = tx.send<C>(...);                // Nonblock, returns the following Sender<...>. May throw.
+//    std::tie(rx, res) = rx.recv();       // Returns tuple with the following Receiver<...> and Future<V>. No throw.
 //
-//  Connection:
-//    std::tie(tx, rx) = conn->invoke<I>().get();
-//    std::tie(rx, res) = rx.recv<T>().get();
-//    tx = tx.send<M>(); // May chain: tx.send<M1>().send<M2>();
+//    service.detach(); // Now the service's destrucor won't block.
 //
 //  Wrappers:
-//    Primitive: conn->invoke<M>(args).get() -> value | error
-//    Sequenced: conn->invoke<M>(args).get() -> rx<T, U, ...>
-//    Streaming: conn->invoke<T>(args).get() -> (tx, rx).
+//    Primitive + void Dispatch [almost all services]:
+//      conn->invoke<M>(args).get() -> value | error
+//    Sequenced + void Dispatch [not implemented]:
+//      conn->invoke<M>(args).get() -> Receiver<T, U, ...>
+//    Streaming: conn->invoke<M>(args) -> (tx, rx).
 //      rx.recv() -> T | E | C where T == dispatch_type, E - error type, C - choke.
 //      rx.recv<T>() -> T | throw exception.
 //      May throw error (network or protocol) or be exhaused (throw exception after E | C).
@@ -676,6 +729,8 @@ TEST(Connection, InvokeMultipleTimesWhileServerClosesConnection) {
 /// Test conn invoke multiple times - channel id must be increased.
 /// Test conn invoke - network error - notify client.
 /// Test conn invoke - network error - notify all invokers.
+// Test conn invoke and send - ok.
+// Test conn invoke and send - error - notify.
 
 // Test service ctor.
 // Test service move ctor.
