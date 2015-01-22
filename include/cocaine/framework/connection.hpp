@@ -187,8 +187,6 @@ public:
 
 private:
     void push(io::decoder_t::message_type&& message) {
-        BOOST_ASSERT(state == state_t::open);
-
         const auto id = message.type();
         if (id >= boost::mpl::size<result_typelist>::value) {
             // TODO: What to do? Notify the user, I think.
@@ -198,6 +196,8 @@ private:
         auto payload = visitors[id](message.args());
 
         std::lock_guard<std::mutex> lock(mutex);
+        BOOST_ASSERT(!broken);
+
         if (pending.empty()) {
             queue.push(payload);
         } else {
