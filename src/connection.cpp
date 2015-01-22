@@ -104,6 +104,7 @@ void connection_t::on_connected(const std::error_code& ec) {
 }
 
 void connection_t::on_read(const std::error_code& ec) {
+    BH_LOG(detail::logger, detail::debug, "read event: %s", ec.message().c_str());
     if (ec) {
         // TODO: If ec != 0 => notify all channels about this error and clear channel map.
         return;

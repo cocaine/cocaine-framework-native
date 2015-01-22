@@ -1,6 +1,7 @@
 #pragma once
 
 #include <blackhole/logger.hpp>
+#include <blackhole/macro.hpp>
 
 namespace cocaine {
 
@@ -8,14 +9,16 @@ namespace framework {
 
 namespace detail {
 
-enum class level_t {
+enum level_t {
     debug,
     info,
     warn,
     error
 };
 
-static blackhole::verbose_logger_t<level_t> logger();
+blackhole::verbose_logger_t<cocaine::framework::detail::level_t> create();
+
+static const blackhole::verbose_logger_t<level_t> logger = create();
 
 }
 
