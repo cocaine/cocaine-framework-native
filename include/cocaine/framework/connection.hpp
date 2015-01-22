@@ -309,6 +309,8 @@ public:
         const auto id = counter++;
         auto message = io::encoded<T>(id, std::forward<Args>(args)...);
         auto channel = std::make_shared<channel_t<T>>(id);
+
+        // TODO: Do not insert mute channels.
         channels->insert(std::make_pair(id, channel));
         invoke(std::move(message));
         return channel->rx;
