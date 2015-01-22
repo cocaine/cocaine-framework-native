@@ -17,6 +17,53 @@
 
 using namespace cocaine::framework;
 
+class server_t {
+    boost::thread server_thread;
+
+public:
+    server_t(std::uint16_t port, std::function<void(io::ip::tcp::acceptor&, loop_t&)> fn) {
+        boost::barrier barrier(2);
+        server_thread = std::move(boost::thread([port, fn, &barrier]{
+            loop_t loop;
+            io::ip::tcp::acceptor acceptor(loop);
+            io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
+            acceptor.open(endpoint.protocol());
+            acceptor.bind(endpoint);
+            acceptor.listen();
+
+            barrier.wait();
+
+            fn(acceptor, loop);
+        }));
+        barrier.wait();
+    }
+
+    ~server_t() {
+        server_thread.join();
+    }
+};
+
+class client_t {
+    loop_t io;
+    std::unique_ptr<loop_t::work> work;
+    boost::thread thread;
+
+public:
+    client_t() :
+        work(new loop_t::work(io)),
+        thread([this]{ io.run(); })
+    {}
+
+    ~client_t() {
+        work.reset();
+        thread.join();
+    }
+
+    loop_t& loop() {
+        return io;
+    }
+};
+
 TEST(Connection, Constructor) {
     loop_t loop;
     auto conn = std::make_shared<connection_t>(loop);
@@ -479,17 +526,7 @@ TEST(Connection, InvokeWhileServerClosesConnection) {
 TEST(Connection, InvokeWhileConnectionResetByPeer) {
     // ===== Set Up Stage =====
     const std::uint16_t port = testing::util::port();
-    boost::barrier barrier(2);
-    boost::thread server_thread([port, &barrier]{
-        loop_t loop;
-        io::ip::tcp::acceptor acceptor(loop);
-        io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
-        acceptor.open(endpoint.protocol());
-        acceptor.bind(endpoint);
-        acceptor.listen();
-
-        barrier.wait();
-
+    server_t server(port, [](io::ip::tcp::acceptor& acceptor, loop_t& loop){
         io::deadline_timer timer(loop);
         timer.expires_from_now(boost::posix_time::milliseconds(testing::util::TIMEOUT));
         timer.async_wait([&acceptor](const std::error_code& ec){
@@ -509,30 +546,17 @@ TEST(Connection, InvokeWhileConnectionResetByPeer) {
         EXPECT_NO_THROW(loop.run());
     });
 
-    loop_t loop;
-    std::unique_ptr<loop_t::work> work(new loop_t::work(loop));
-    boost::thread client_thread([&loop]{
-        loop.run();
-    });
-
-    // Here we wait until the server has been started.
-    barrier.wait();
+    client_t client;
 
     const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
 
     // ===== Test Stage =====
-    auto conn = std::make_shared<connection_t>(loop);
+    auto conn = std::make_shared<connection_t>(client.loop());
     conn->connect(endpoint).get();
 
     std::shared_ptr<receiver<cocaine::io::locator::resolve>> rx;
     rx = conn->invoke<cocaine::io::locator::resolve>(std::string("node"));
     EXPECT_THROW(rx->recv().get(), std::system_error);
-
-    // ===== Tear Down Stage =====
-    work.reset();
-    client_thread.join();
-
-    server_thread.join();
 }
 
 // Usage:
