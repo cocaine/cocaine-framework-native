@@ -194,7 +194,7 @@ private:
             return;
         }
 
-        auto payload = visitors[id](message.args());
+        const auto payload = visitors[id](message.args());
 
         std::lock_guard<std::mutex> lock(mutex);
         COCAINE_ASSERT(!broken);
