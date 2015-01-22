@@ -1,5 +1,7 @@
 #include "cocaine/framework/connection.hpp"
 
+#include "cocaine/framework/detail/log.hpp"
+
 namespace ph = std::placeholders;
 
 using namespace cocaine;
@@ -105,12 +107,16 @@ void connection_t::on_connected(const std::error_code& ec) {
 
 void connection_t::on_read(const std::error_code& ec) {
     BH_LOG(detail::logger, detail::debug, "read event: %s", ec.message().c_str());
+
+    auto channels = this->channels.synchronize();
     if (ec) {
-        // TODO: If ec != 0 => notify all channels about this error and clear channel map.
+        for (auto channel : *channels) {
+            channel.second->error(ec);
+        }
+        channels->clear();
         return;
     }
 
-    auto channels = this->channels.synchronize();
     auto it = channels->find(message.span());
     if (it == channels->end()) {
         // TODO: Log that received an orphan message.

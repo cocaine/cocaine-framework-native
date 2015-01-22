@@ -404,10 +404,70 @@ TEST(Connection, DecodeIncomingMessage) {
     // ===== Test Stage =====
     auto conn = std::make_shared<connection_t>(loop);
     conn->connect(endpoint).get();
-    auto rx = conn->invoke<cocaine::io::node::list>();
+    std::shared_ptr<receiver<cocaine::io::node::list>> rx;
+    rx = conn->invoke<cocaine::io::node::list>();
     auto res = rx->recv().get();
     auto apps = boost::get<cocaine::dynamic_t>(res);
     EXPECT_EQ(cocaine::dynamic_t(std::vector<cocaine::dynamic_t>({ "echo", "http" })), apps);
+
+    // ===== Tear Down Stage =====
+    work.reset();
+    client_thread.join();
+
+    server_thread.join();
+}
+
+TEST(Connection, InvokeWhileServerClosesConnection) {
+    // ===== Set Up Stage =====
+    const std::uint16_t port = testing::util::port();
+    boost::barrier barrier(2);
+    boost::thread server_thread([port, &barrier]{
+        loop_t loop;
+        io::ip::tcp::acceptor acceptor(loop);
+        io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
+        acceptor.open(endpoint.protocol());
+        acceptor.bind(endpoint);
+        acceptor.listen();
+
+        barrier.wait();
+
+        io::deadline_timer timer(loop);
+        timer.expires_from_now(boost::posix_time::milliseconds(testing::util::TIMEOUT));
+        timer.async_wait([&acceptor](const std::error_code& ec){
+            EXPECT_EQ(io::error::operation_aborted, ec);
+            acceptor.cancel();
+        });
+
+        std::array<std::uint8_t, 32> actual;
+        io::ip::tcp::socket socket(loop);
+        acceptor.async_accept(socket, [&timer, &socket, &actual](const std::error_code&){
+            timer.cancel();
+
+            socket.shutdown(asio::ip::tcp::socket::shutdown_both);
+            socket.close();
+        });
+
+        EXPECT_NO_THROW(loop.run());
+    });
+
+    loop_t loop;
+    std::unique_ptr<loop_t::work> work(new loop_t::work(loop));
+    boost::thread client_thread([&loop]{
+        loop.run();
+    });
+
+    // Here we wait until the server has been started.
+    barrier.wait();
+
+    const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
+
+    // ===== Test Stage =====
+    auto conn = std::make_shared<connection_t>(loop);
+    conn->connect(endpoint).get();
+
+    std::shared_ptr<receiver<cocaine::io::locator::resolve>> rx;
+    rx = conn->invoke<cocaine::io::locator::resolve>(std::string("node"));
+    EXPECT_THROW(rx->recv().get(), std::system_error);
 
     // ===== Tear Down Stage =====
     work.reset();

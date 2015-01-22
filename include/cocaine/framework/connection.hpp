@@ -154,19 +154,30 @@ class receiver {
 
     typedef std::function<result_type(const msgpack::object&)> unpacker_type;
 
+    enum class state_t {
+        open,
+        broken
+    };
+
     std::mutex mutex;
+    state_t state;
     std::queue<result_type> queue;
     std::queue<promise_t<result_type>> pending;
 
     static const std::vector<unpacker_type> visitors;
 
 public:
+    receiver() :
+        state(state_t::open)
+    {}
+
     // TODO: Return improved variant with typechecking.
     future_t<result_type> recv() {
         promise_t<result_type> promise;
         auto future = promise.get_future();
 
         std::lock_guard<std::mutex> lock(mutex);
+        // TODO: Check state.
         if (queue.empty()) {
             pending.push(std::move(promise));
         } else {
@@ -179,6 +190,8 @@ public:
 
 private:
     void push(io::decoder_t::message_type&& message) {
+        BOOST_ASSERT(state == state_t::open);
+
         const auto id = message.type();
         if (id >= boost::mpl::size<result_typelist>::value) {
             // TODO: What to do? Notify the user, I think.
@@ -196,6 +209,16 @@ private:
             pending.pop();
         }
     }
+
+    void error(const std::error_code& ec) {
+        std::lock_guard<std::mutex> lock(mutex);
+        state = state_t::broken;
+        while (!pending.empty()) {
+            auto promise = std::move(pending.front());
+            promise.set_exception(std::system_error(ec));
+            pending.pop();
+        }
+    }
 };
 
 template<class Event>
@@ -209,6 +232,7 @@ public:
     virtual ~basic_channel_t() {}
 
     virtual void process(io::decoder_t::message_type&& message) = 0;
+    virtual void error(const std::error_code& ec) = 0;
 };
 
 template<class Event>
@@ -224,12 +248,10 @@ public:
     void process(io::decoder_t::message_type&& message) {
         rx->push(std::move(message));
     }
-};
 
-enum class state_t {
-    disconnected,
-    connecting,
-    connected
+    void error(const std::error_code& ec) {
+        rx->error(ec);
+    }
 };
 
 // TODO: It's a cocaine session actually, may be rename?
@@ -244,6 +266,12 @@ class connection_t : public std::enable_shared_from_this<connection_t> {
     typedef asio::ip::tcp protocol_type;
     typedef protocol_type::socket socket_type;
     typedef io::channel<protocol_type> channel_type;
+
+    enum class state_t {
+        disconnected,
+        connecting,
+        connected
+    };
 
     loop_t& loop;
 
