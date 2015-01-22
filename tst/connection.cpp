@@ -559,6 +559,45 @@ TEST(Connection, InvokeWhileConnectionResetByPeer) {
     EXPECT_THROW(rx->recv().get(), std::system_error);
 }
 
+TEST(Connection, InvokeMultipleTimesWhileServerClosesConnection) {
+    // ===== Set Up Stage =====
+    const std::uint16_t port = testing::util::port();
+    server_t server(port, [](io::ip::tcp::acceptor& acceptor, loop_t& loop){
+        io::deadline_timer timer(loop);
+        timer.expires_from_now(boost::posix_time::milliseconds(testing::util::TIMEOUT));
+        timer.async_wait([&acceptor](const std::error_code& ec){
+            EXPECT_EQ(io::error::operation_aborted, ec);
+            acceptor.cancel();
+        });
+
+        std::array<std::uint8_t, 32> actual;
+        io::ip::tcp::socket socket(loop);
+        acceptor.async_accept(socket, [&timer, &socket, &actual](const std::error_code&){
+            timer.cancel();
+
+            socket.shutdown(asio::ip::tcp::socket::shutdown_both);
+            socket.close();
+        });
+
+        EXPECT_NO_THROW(loop.run());
+    });
+
+    client_t client;
+
+    const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
+
+    // ===== Test Stage =====
+    auto conn = std::make_shared<connection_t>(client.loop());
+    conn->connect(endpoint).get();
+
+    std::shared_ptr<receiver<cocaine::io::locator::resolve>> rx1, rx2;
+    rx1 = conn->invoke<cocaine::io::locator::resolve>(std::string("node"));
+    rx2 = conn->invoke<cocaine::io::locator::resolve>(std::string("node"));
+
+    EXPECT_THROW(rx1->recv().get(), std::system_error);
+    EXPECT_THROW(rx2->recv().get(), std::system_error);
+}
+
 // Usage:
 //  Service:
 //    std::tie(tx, rx) = node.invoke<cocaine::io::node::list>(); // Nonblock, maybe noexcept.

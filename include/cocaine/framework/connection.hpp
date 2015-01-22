@@ -154,30 +154,27 @@ class receiver {
 
     typedef std::function<result_type(const msgpack::object&)> unpacker_type;
 
-    enum class state_t {
-        open,
-        broken
-    };
+    boost::optional<std::error_code> broken;
 
     std::mutex mutex;
-    state_t state;
     std::queue<result_type> queue;
     std::queue<promise_t<result_type>> pending;
 
     static const std::vector<unpacker_type> visitors;
 
 public:
-    receiver() :
-        state(state_t::open)
-    {}
-
     // TODO: Return improved variant with typechecking.
     future_t<result_type> recv() {
         promise_t<result_type> promise;
         auto future = promise.get_future();
 
         std::lock_guard<std::mutex> lock(mutex);
-        // TODO: Check state.
+        if (broken) {
+            BOOST_ASSERT(queue.empty());
+            promise.set_exception(std::system_error(broken.get()));
+            return future;
+        }
+
         if (queue.empty()) {
             pending.push(std::move(promise));
         } else {
@@ -212,7 +209,7 @@ private:
 
     void error(const std::error_code& ec) {
         std::lock_guard<std::mutex> lock(mutex);
-        state = state_t::broken;
+        broken = ec;
         while (!pending.empty()) {
             auto promise = std::move(pending.front());
             promise.set_exception(std::system_error(ec));
