@@ -380,6 +380,7 @@ TEST(Connection, DecodeIncomingMessage) {
         acceptor.async_accept(socket, [&timer, &socket, &buf](const std::error_code&){
             timer.cancel();
 
+            // \note sometimes a race condition can occur - the socket should be read first.
             io::async_write(socket, io::buffer(buf), [](const std::error_code& ec, size_t size){
                 EXPECT_EQ(0, ec.value());
                 EXPECT_EQ(15, size);
