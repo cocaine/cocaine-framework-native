@@ -565,7 +565,7 @@ TEST(Connection, InvokeWhileConnectionResetByPeer) {
 // Test conn reconnect (recreate broken socket).
 /// Test conn invoke.
 // Test conn invoke multiple times - channel id must be increased.
-// Test conn invoke - network error - notify client.
+/// Test conn invoke - network error - notify client.
 // Test conn invoke - network error - notify all invokers.
 
 // Test service ctor.
