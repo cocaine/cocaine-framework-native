@@ -3,6 +3,7 @@
 #include <boost/thread.hpp>
 #include <boost/thread/barrier.hpp>
 
+#include <asio/read.hpp>
 #include <asio/write.hpp>
 
 #include <gtest/gtest.h>
@@ -396,6 +397,51 @@ TEST(Connection, InvokeSendsProperMessage) {
     server_thread.join();
 }
 
+TEST(Connection, InvokeMultipleTimesSendsProperMessages) {
+    // ===== Set Up Stage =====
+    const std::uint16_t port = testing::util::port();
+    server_t server(port, [](io::ip::tcp::acceptor& acceptor, loop_t& loop){
+        io::deadline_timer timer(loop);
+        timer.expires_from_now(boost::posix_time::milliseconds(testing::util::TIMEOUT));
+        timer.async_wait([&acceptor](const std::error_code& ec){
+            EXPECT_EQ(io::error::operation_aborted, ec);
+            acceptor.cancel();
+        });
+
+        std::array<std::uint8_t, 18> actual;
+        io::ip::tcp::socket socket(loop);
+        acceptor.async_accept(socket, [&timer, &socket, &actual](const std::error_code&){
+            timer.cancel();
+
+            io::async_read(socket, io::buffer(actual), [&actual](const std::error_code& ec, size_t size){
+                EXPECT_EQ(18, size);
+                EXPECT_EQ(0, ec.value());
+
+                std::array<std::uint8_t, 9> expected1 = {{ 147, 1, 0, 145, 164, 110, 111, 100, 101 }};
+                std::array<std::uint8_t, 9> expected2 = {{ 147, 2, 0, 145, 164, 101,  99, 104, 111 }};
+                for (int i = 0; i < 9; ++i) {
+                    EXPECT_EQ(expected1[i], actual[i]);
+                }
+                for (int i = 0; i < 9; ++i) {
+                    EXPECT_EQ(expected2[i], actual[9 + i]);
+                }
+            });
+        });
+
+        EXPECT_NO_THROW(loop.run());
+    });
+
+    client_t client;
+
+    const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
+
+    // ===== Test Stage =====
+    auto conn = std::make_shared<connection_t>(client.loop());
+    conn->connect(endpoint).get();
+    conn->invoke<cocaine::io::locator::resolve>(std::string("node"));
+    conn->invoke<cocaine::io::locator::resolve>(std::string("echo"));
+}
+
 TEST(Connection, DecodeIncomingMessage) {
     // ===== Set Up Stage =====
     const std::uint16_t port = testing::util::port();
@@ -627,9 +673,9 @@ TEST(Connection, InvokeMultipleTimesWhileServerClosesConnection) {
 /// Test conn async connect multiple times when already connected.
 // Test conn reconnect (recreate broken socket).
 /// Test conn invoke.
-// Test conn invoke multiple times - channel id must be increased.
+/// Test conn invoke multiple times - channel id must be increased.
 /// Test conn invoke - network error - notify client.
-// Test conn invoke - network error - notify all invokers.
+/// Test conn invoke - network error - notify all invokers.
 
 // Test service ctor.
 // Test service move ctor.
