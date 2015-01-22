@@ -170,7 +170,8 @@ public:
 
         std::lock_guard<std::mutex> lock(mutex);
         if (broken) {
-            BOOST_ASSERT(queue.empty());
+            COCAINE_ASSERT(queue.empty());
+
             promise.set_exception(std::system_error(broken.get()));
             return future;
         }
@@ -196,7 +197,7 @@ private:
         auto payload = visitors[id](message.args());
 
         std::lock_guard<std::mutex> lock(mutex);
-        BOOST_ASSERT(!broken);
+        COCAINE_ASSERT(!broken);
 
         if (pending.empty()) {
             queue.push(payload);

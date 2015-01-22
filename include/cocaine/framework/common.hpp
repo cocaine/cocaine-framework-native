@@ -37,6 +37,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     #include <cstdatomic>
 #endif
 
+#define COCAINE_ASSERT(expr) assert((expr))
+
 namespace cocaine { namespace framework {
 
 template<class Exception>

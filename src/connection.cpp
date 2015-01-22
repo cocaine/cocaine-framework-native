@@ -61,12 +61,12 @@ future_t<void> connection_t::connect(const endpoint_t& endpoint) {
         break;
     }
     case state_t::connected: {
-         BOOST_ASSERT(connection_queue.empty());
+         COCAINE_ASSERT(connection_queue.empty());
          promise.set_value();
         break;
     }
     default:
-        BOOST_ASSERT(false);
+        COCAINE_ASSERT(false);
     }
 
     return future;
@@ -85,7 +85,7 @@ void connection_t::on_connected(const std::error_code& ec) {
     // This callback can be called from any thread. The following mutex is guaranteed not to be
     // locked at that moment.
     std::lock_guard<std::mutex> lock(connection_queue_mutex);
-    BOOST_ASSERT(state_t::connecting == state);
+    COCAINE_ASSERT(state_t::connecting == state);
     if (ec) {
         state = state_t::disconnected;
         for (auto& promise : connection_queue) {
