@@ -150,8 +150,6 @@ void connection_t::on_read(const std::error_code& ec) {
         BH_LOG(detail::logger, detail::warn, "dropping an orphan span %llu message", message.span());
     } else {
         it->second->process(std::move(message));
-        // It should check message id. If ok - put in the queue. [Overhead on copy]
-        // [Maybe] If dispatch is present - try to send to it (1 time).
     }
 
     channel->reader->read(message, std::bind(&connection_t::on_read, shared_from_this(), ph::_1));

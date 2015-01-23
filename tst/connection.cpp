@@ -891,7 +891,7 @@ TEST(Connection, SilentlyDropOrphanMessageButContinueToListen) {
 /// Test conn invoke - network error on read - notify client.
 /// Test conn invoke - network error on read - notify all invokers.
 /// Test conn invoke and send - ok.
-// Test conn invoke and send - error - notify.
+/// Test conn invoke and send - error - notify.
 // Test conn invoke and send multiple times - error - notify only once.
 
 // Test service ctor.
