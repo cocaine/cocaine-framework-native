@@ -72,13 +72,21 @@ future_t<void> connection_t::connect(const endpoint_t& endpoint) {
     return future;
 }
 
-void connection_t::invoke(io::encoder_t::message_type&& message) {
-    loop.dispatch(
-        std::bind(
-            &push_t::operator(),
-            std::make_shared<push_t>(std::move(message), shared_from_this())
-        )
-    );
+void connection_t::push(std::uint64_t span, io::encoder_t::message_type&& message) {
+    auto channels = this->channels.synchronize();
+    auto it = channels->find(span);
+    if (it == channels->end()) {
+        // TODO: Throw a typed exception.
+        throw std::runtime_error("trying to send message through non-registered channel");
+    }
+
+    // TODO: Traverse in a typed sender.
+    push(std::move(message));
+}
+
+void connection_t::push(io::encoder_t::message_type&& message) {
+    const auto action = std::make_shared<push_t>(std::move(message), shared_from_this());
+    loop.dispatch(std::bind(&push_t::operator(), action));
 }
 
 void connection_t::on_connected(const std::error_code& ec) {

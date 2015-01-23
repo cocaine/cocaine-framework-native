@@ -19,6 +19,7 @@
 #include <cocaine/rpc/asio/channel.hpp>
 #include <cocaine/idl/primitive.hpp>
 #include <cocaine/rpc/result_of.hpp>
+#include <cocaine/rpc/queue.hpp>
 #include <cocaine/tuple.hpp>
 
 #include <cocaine/traits/dynamic.hpp>
@@ -30,11 +31,15 @@
 
 #include "cocaine/framework/util/future.hpp"
 
+/// \note temporary for debugging purposes.
+template<typename T> struct deduced_type;
+
 namespace cocaine {
 
 namespace framework {
 
-template<typename T> struct deduced_type;
+// Forwards.
+class connection_t;
 
 namespace detail {
 
@@ -72,9 +77,11 @@ struct result_of<io::primitive_tag<T>> {
     typedef boost::variant<value_type, error_type> type;
 };
 
-// TODO: Not implemented yet.
 template<class T>
-struct result_of<io::streaming_tag<T>>;
+struct result_of<io::streaming_tag<T>> {
+// TODO: Not implemented yet.
+    typedef boost::variant<bool> type;
+};
 
 } // namespace detail
 
@@ -144,8 +151,34 @@ private:
     };
 };
 
+// TODO: maybe basic_sender without type information and traversing?
+
+// app::enqueue - allows [write | error | close]
+//   write - -//-,
+//   error - void,
+//   close - void.
+class basic_sender_t {
+    std::uint64_t id;
+    std::shared_ptr<connection_t> connection;
+
+public:
+    basic_sender_t(std::uint64_t id, std::shared_ptr<connection_t> connection) :
+        id(id),
+        connection(connection)
+    {}
+
+    /*!
+     * \todo \throw encoding_error if failed to encode the arguments given.
+     * \todo \throw invalid_state_error if sender is in invalid state, for example after connection
+     * lose (but shouldn't we try to reconnect then?)
+     */
+    template<class Event, class... Args>
+    void
+    send(Args&&... args);
+};
+
 template<class Event>
-class receiver {
+class basic_receiver_t {
     typedef Event event_type;
     friend class channel_t<event_type>;
 
@@ -220,7 +253,7 @@ private:
 };
 
 template<class Event>
-const std::vector<typename receiver<Event>::unpacker_type> receiver<Event>::visitors = slot_unpacker<Event>::generate();
+const std::vector<typename basic_receiver_t<Event>::unpacker_type> basic_receiver_t<Event>::visitors = slot_unpacker<Event>::generate();
 
 class basic_channel_t {
     std::uint64_t id;
@@ -236,11 +269,14 @@ public:
 template<class Event>
 class channel_t : public basic_channel_t {
 public:
-    std::shared_ptr<receiver<Event>> rx;
+    // TODO: May be weak!
+    std::shared_ptr<basic_sender_t> tx;
+    std::shared_ptr<basic_receiver_t<Event>> rx;
 
-    channel_t(std::uint64_t id) :
+    channel_t(std::uint64_t id, std::shared_ptr<basic_sender_t> tx) :
         basic_channel_t(id),
-        rx(new receiver<Event>())
+        tx(tx),
+        rx(new basic_receiver_t<Event>())
     {}
 
     void process(io::decoder_t::message_type&& message) {
@@ -305,23 +341,36 @@ public:
     future_t<void> connect(const endpoint_t& endpoint);
 
     template<class T, class... Args>
-    std::shared_ptr<receiver<T>> invoke(Args&&... args) {
+    std::tuple<std::shared_ptr<basic_sender_t>, std::shared_ptr<basic_receiver_t<T>>>
+    invoke(Args&&... args) {
         const auto id = counter++;
         auto message = io::encoded<T>(id, std::forward<Args>(args)...);
-        auto channel = std::make_shared<channel_t<T>>(id);
+        auto tx = std::make_shared<basic_sender_t>(id, shared_from_this());
+        auto channel = std::make_shared<channel_t<T>>(id, tx);
 
         // TODO: Do not insert mute channels.
         channels->insert(std::make_pair(id, channel));
-        invoke(std::move(message));
-        return channel->rx;
+        push(std::move(message));
+        return std::make_tuple(channel->tx, channel->rx);
+    }
+
+    void push(std::uint64_t span, io::encoder_t::message_type&& message);
+
+    std::shared_ptr<basic_channel_t> revoke(std::uint64_t span) {
+        return nullptr;
     }
 
 private:
-    void invoke(io::encoder_t::message_type&& message);
+    void push(io::encoder_t::message_type&& message);
 
     void on_connected(const std::error_code& ec);
     void on_read(const std::error_code& ec);
 };
+
+template<class Event, class... Args>
+void basic_sender_t::send(Args&&... args) {
+    connection->push(id, io::encoded<Event>(id, std::forward<Args>(args)...));
+}
 
 } // namespace framework
 

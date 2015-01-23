@@ -498,8 +498,8 @@ TEST(Connection, DecodeIncomingMessage) {
     // ===== Test Stage =====
     auto conn = std::make_shared<connection_t>(loop);
     conn->connect(endpoint).get();
-    std::shared_ptr<receiver<cocaine::io::node::list>> rx;
-    rx = conn->invoke<cocaine::io::node::list>();
+    std::shared_ptr<basic_receiver_t<cocaine::io::node::list>> rx;
+    std::tie(std::ignore, rx) = conn->invoke<cocaine::io::node::list>();
     auto res = rx->recv().get();
     auto apps = boost::get<cocaine::dynamic_t>(res);
     EXPECT_EQ(cocaine::dynamic_t(std::vector<cocaine::dynamic_t>({ "echo", "http" })), apps);
@@ -559,8 +559,8 @@ TEST(Connection, InvokeWhileServerClosesConnection) {
     auto conn = std::make_shared<connection_t>(loop);
     conn->connect(endpoint).get();
 
-    std::shared_ptr<receiver<cocaine::io::locator::resolve>> rx;
-    rx = conn->invoke<cocaine::io::locator::resolve>(std::string("node"));
+    std::shared_ptr<basic_receiver_t<cocaine::io::locator::resolve>> rx;
+    std::tie(std::ignore, rx) = conn->invoke<cocaine::io::locator::resolve>(std::string("node"));
     EXPECT_THROW(rx->recv().get(), std::system_error);
 
     // ===== Tear Down Stage =====
@@ -601,8 +601,8 @@ TEST(Connection, InvokeWhileConnectionResetByPeer) {
     auto conn = std::make_shared<connection_t>(client.loop());
     conn->connect(endpoint).get();
 
-    std::shared_ptr<receiver<cocaine::io::locator::resolve>> rx;
-    rx = conn->invoke<cocaine::io::locator::resolve>(std::string("node"));
+    std::shared_ptr<basic_receiver_t<cocaine::io::locator::resolve>> rx;
+    std::tie(std::ignore, rx) = conn->invoke<cocaine::io::locator::resolve>(std::string("node"));
     EXPECT_THROW(rx->recv().get(), std::system_error);
 }
 
@@ -637,9 +637,9 @@ TEST(Connection, InvokeMultipleTimesWhileServerClosesConnection) {
     auto conn = std::make_shared<connection_t>(client.loop());
     conn->connect(endpoint).get();
 
-    std::shared_ptr<receiver<cocaine::io::locator::resolve>> rx1, rx2;
-    rx1 = conn->invoke<cocaine::io::locator::resolve>(std::string("node"));
-    rx2 = conn->invoke<cocaine::io::locator::resolve>(std::string("node"));
+    std::shared_ptr<basic_receiver_t<cocaine::io::locator::resolve>> rx1, rx2;
+    std::tie(std::ignore, rx1) = conn->invoke<cocaine::io::locator::resolve>(std::string("node"));
+    std::tie(std::ignore, rx2) = conn->invoke<cocaine::io::locator::resolve>(std::string("node"));
 
     EXPECT_THROW(rx1->recv().get(), std::system_error);
     EXPECT_THROW(rx2->recv().get(), std::system_error);
@@ -666,7 +666,8 @@ TEST(Connection, SendSendsProperMessage) {
                 socket.cancel();
             });
 
-            io::async_read(socket, io::buffer(actual), [&actual](const std::error_code& ec, size_t size){
+            io::async_read(socket, io::buffer(actual), [&timer, &actual](const std::error_code& ec, size_t size){
+                timer.cancel();
                 EXPECT_EQ(24, size);
                 EXPECT_EQ(0, ec.value());
 
@@ -692,8 +693,14 @@ TEST(Connection, SendSendsProperMessage) {
     // ===== Test Stage =====
     auto conn = std::make_shared<connection_t>(client.loop());
     conn->connect(endpoint).get();
-//    std::tie(tx, std::ignore) = conn->invoke<cocaine::io::app::enqueue>(std::string("ping"));
-//    tx->send<cocaine::io::streaming::chunk>(std::string("le message"));
+    std::shared_ptr<basic_sender_t> tx;
+    std::tie(tx, std::ignore) = conn->invoke<cocaine::io::app::enqueue>(std::string("ping"));
+    typedef cocaine::io::protocol<
+        cocaine::io::event_traits<
+            cocaine::io::app::enqueue
+        >::dispatch_type
+    >::scope protocol;
+    tx->send<protocol::chunk>(std::string("le message"));
 }
 
 // Usage:
