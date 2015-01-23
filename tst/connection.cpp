@@ -570,6 +570,49 @@ TEST(Connection, InvokeWhileServerClosesConnection) {
     server_thread.join();
 }
 
+TEST(Connection, InvokeWhenServerClosesConnectionBeforeMessageNotWrittenYet) {
+    // ===== Set Up Stage =====
+    const std::uint16_t port = testing::util::port();
+    boost::barrier barrier(2);
+    server_t server(port, [&barrier](io::ip::tcp::acceptor& acceptor, loop_t& loop){
+        io::deadline_timer timer(loop);
+        timer.expires_from_now(boost::posix_time::milliseconds(testing::util::TIMEOUT));
+        timer.async_wait([&acceptor](const std::error_code& ec){
+            EXPECT_EQ(io::error::operation_aborted, ec);
+            acceptor.cancel();
+        });
+
+        std::array<std::uint8_t, 32> actual;
+        io::ip::tcp::socket socket(loop);
+        acceptor.async_accept(socket, [&timer, &socket, &actual, &barrier](const std::error_code&){
+            timer.cancel();
+
+            socket.shutdown(asio::ip::tcp::socket::shutdown_both);
+            socket.close();
+
+            barrier.wait();
+        });
+
+        EXPECT_NO_THROW(loop.run());
+    });
+
+    client_t client;
+
+    const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
+
+    // ===== Test Stage =====
+    auto conn = std::make_shared<connection_t>(client.loop());
+    conn->connect(endpoint).get();
+
+    // After the following statement the session's socket should be disconnected, which results in
+    // write error.
+    barrier.wait();
+
+    std::shared_ptr<basic_receiver_t<cocaine::io::locator::resolve>> rx;
+    std::tie(std::ignore, rx) = conn->invoke<cocaine::io::locator::resolve>(std::string("node"));
+    EXPECT_THROW(rx->recv().get(), std::system_error);
+}
+
 TEST(Connection, InvokeWhileConnectionResetByPeer) {
     // ===== Set Up Stage =====
     const std::uint16_t port = testing::util::port();
@@ -734,10 +777,12 @@ TEST(Connection, SendSendsProperMessage) {
 // Test conn reconnect (recreate broken socket).
 /// Test conn invoke.
 /// Test conn invoke multiple times - channel id must be increased.
-/// Test conn invoke - network error - notify client.
-/// Test conn invoke - network error - notify all invokers.
+// Test conn invoke - network error on write - notify client.
+/// Test conn invoke - network error on read - notify client.
+/// Test conn invoke - network error on read - notify all invokers.
 /// Test conn invoke and send - ok.
 // Test conn invoke and send - error - notify.
+// Test conn invoke and send multiple times - error - notify only once.
 
 // Test service ctor.
 // Test service move ctor.

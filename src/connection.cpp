@@ -18,12 +18,19 @@ public:
     {}
 
     void operator()() {
+//        if (!connection->channel) {
+//            throw
+//        }
+
         connection->channel->writer->write(message, std::bind(&push_t::on_write, shared_from_this(), ph::_1));
     }
 
 private:
     void on_write(const std::error_code& ec) {
-        // TODO: Notify connection if any error occurred. It should disconnect all clients.
+        BH_LOG(detail::logger, detail::debug, "write event: %s", ec.message().c_str());
+        if (ec && ec != asio::error::operation_aborted) {
+            connection->disconnect();
+        }
     }
 };
 
@@ -70,6 +77,15 @@ future_t<void> connection_t::connect(const endpoint_t& endpoint) {
     }
 
     return future;
+}
+
+void connection_t::disconnect() {
+    std::lock_guard<std::mutex> lock(connection_queue_mutex);
+    COCAINE_ASSERT(channel);
+
+    channel.reset();
+
+    state = state_t::disconnected;
 }
 
 void connection_t::push(std::uint64_t span, io::encoder_t::message_type&& message) {

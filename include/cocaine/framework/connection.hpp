@@ -340,6 +340,8 @@ public:
 
     future_t<void> connect(const endpoint_t& endpoint);
 
+    void disconnect();
+
     template<class T, class... Args>
     std::tuple<std::shared_ptr<basic_sender_t>, std::shared_ptr<basic_receiver_t<T>>>
     invoke(Args&&... args) {
