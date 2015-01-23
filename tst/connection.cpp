@@ -888,10 +888,12 @@ TEST(Connection, SilentlyDropOrphanMessageButContinueToListen) {
 /// Test conn invoke.
 /// Test conn invoke multiple times - channel id must be increased.
 /// Test conn invoke - network error on write - notify client.
+/// Test conn invoke and recv - ok.
+// Test conn invoke and recv invalid message, then valid.
 /// Test conn invoke - network error on read - notify client.
 /// Test conn invoke - network error on read - notify all invokers.
 /// Test conn invoke and send - ok.
-/// Test conn invoke and send - error - notify.
+/// Test conn invoke and send - error - notify client.
 // Test conn invoke and send multiple times - error - notify only once.
 
 // Test service ctor.
