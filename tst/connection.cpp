@@ -736,7 +736,7 @@ TEST(Connection, SendSendsProperMessage) {
 /// Test conn invoke multiple times - channel id must be increased.
 /// Test conn invoke - network error - notify client.
 /// Test conn invoke - network error - notify all invokers.
-// Test conn invoke and send - ok.
+/// Test conn invoke and send - ok.
 // Test conn invoke and send - error - notify.
 
 // Test service ctor.
