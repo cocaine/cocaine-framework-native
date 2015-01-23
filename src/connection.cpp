@@ -29,7 +29,7 @@ public:
 
 private:
     void on_write(const std::error_code& ec) {
-        BH_LOG(detail::logger, detail::debug, "write event: %s", ec.message().c_str());
+        CF_LOG(detail::logger, detail::debug, "write event: %s", ec.message().c_str());
         if (ec) {
             connection->disconnect(ec);
         }
@@ -137,7 +137,7 @@ void connection_t::on_connected(const std::error_code& ec) {
 }
 
 void connection_t::on_read(const std::error_code& ec) {
-    BH_LOG(detail::logger, detail::debug, "read event: %s", ec.message().c_str());
+    CF_LOG(detail::logger, detail::debug, "read event: %s", ec.message().c_str());
 
     if (ec) {
         disconnect(ec);
@@ -147,7 +147,7 @@ void connection_t::on_read(const std::error_code& ec) {
     auto channels = this->channels.synchronize();
     auto it = channels->find(message.span());
     if (it == channels->end()) {
-        BH_LOG(detail::logger, detail::warn, "dropping an orphan span %llu message", message.span());
+        CF_LOG(detail::logger, detail::warn, "dropping an orphan span %llu message", message.span());
     } else {
         it->second->process(std::move(message));
     }

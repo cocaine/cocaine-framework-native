@@ -3,6 +3,8 @@
 #include <blackhole/logger.hpp>
 #include <blackhole/macro.hpp>
 
+#define CF_LOG(...)
+
 namespace cocaine {
 
 namespace framework {
