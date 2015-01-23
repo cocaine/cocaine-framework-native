@@ -84,17 +84,9 @@ TEST(Connection, Connect) {
 
     // An OS should select available port for us.
     const std::uint16_t port = testing::util::port();
-    boost::barrier barrier(2);
-    boost::thread server_thread([port, &barrier]{
-        loop_t loop;
-        io::ip::tcp::acceptor acceptor(loop);
-        io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
-        acceptor.open(endpoint.protocol());
-        acceptor.bind(endpoint);
-        acceptor.listen();
+    const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
 
-        barrier.wait();
-
+    server_t server(port, [](io::ip::tcp::acceptor& acceptor, loop_t& loop){
         io::deadline_timer timer(loop);
         timer.expires_from_now(boost::posix_time::milliseconds(testing::util::TIMEOUT));
         timer.async_wait([&acceptor](const std::error_code& ec){
@@ -110,49 +102,23 @@ TEST(Connection, Connect) {
         EXPECT_NO_THROW(loop.run());
     });
 
-
-    loop_t loop;
-    std::unique_ptr<loop_t::work> work(new loop_t::work(loop));
-    boost::thread client_thread([&loop]{
-        EXPECT_NO_THROW(loop.run());
-    });
-
-    // Here we wait until the server has been started.
-    barrier.wait();
+    client_t client;
 
     // ===== Test Stage =====
-    auto conn = std::make_shared<connection_t>(loop);
-
-    io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
+    auto conn = std::make_shared<connection_t>(client.loop());
     EXPECT_NO_THROW(conn->connect(endpoint).get());
     EXPECT_TRUE(conn->connected());
-
-    // ===== Tear Down Stage =====
-    work.reset();
-    client_thread.join();
-
-    server_thread.join();
 }
 
 TEST(Connection, ConnectOnInvalidPort) {
-    // ===== Set Up Stage =====
-    loop_t loop;
-    std::unique_ptr<loop_t::work> work(new loop_t::work(loop));
-    boost::thread thread([&loop]{
-        loop.run();
-    });
+    const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), 0);
+
+    client_t client;
 
     // ===== Test Stage =====
-    auto conn = std::make_shared<connection_t>(loop);
-
-    io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), 0);
+    auto conn = std::make_shared<connection_t>(client.loop());
     EXPECT_THROW(conn->connect(endpoint).get(), std::system_error);
-
     EXPECT_FALSE(conn->connected());
-
-    // ===== Tear Down Stage =====
-    work.reset();
-    thread.join();
 }
 
 TEST(Connection, ConnectMultipleTimesOnDisconnectedService) {
