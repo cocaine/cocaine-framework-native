@@ -340,7 +340,7 @@ public:
 
     future_t<void> connect(const endpoint_t& endpoint);
 
-    void disconnect();
+    void disconnect(const std::error_code& ec);
 
     template<class T, class... Args>
     std::tuple<std::shared_ptr<basic_sender_t>, std::shared_ptr<basic_receiver_t<T>>>

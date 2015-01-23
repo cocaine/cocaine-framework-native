@@ -20,18 +20,18 @@ public:
     void operator()() {
         // \note not necessary to lock, because all channel manipulations are made in single thread.
         std::lock_guard<std::mutex> lock(connection->channel_mutex);
-        if (!connection->channel) {
-            throw std::runtime_error("not connected");
+        if (connection->channel) {
+            connection->channel->writer->write(message, std::bind(&push_t::on_write, shared_from_this(), ph::_1));
+        } else {
+            connection->disconnect(asio::error::not_connected);
         }
-
-        connection->channel->writer->write(message, std::bind(&push_t::on_write, shared_from_this(), ph::_1));
     }
 
 private:
     void on_write(const std::error_code& ec) {
         BH_LOG(detail::logger, detail::debug, "write event: %s", ec.message().c_str());
         if (ec) {
-            connection->disconnect();
+            connection->disconnect(ec);
         }
     }
 };
@@ -81,10 +81,18 @@ future_t<void> connection_t::connect(const endpoint_t& endpoint) {
     return future;
 }
 
-void connection_t::disconnect() {
+void connection_t::disconnect(const std::error_code& ec) {
+    COCAINE_ASSERT(ec);
+
     std::lock_guard<std::mutex> lock(connection_queue_mutex);
     channel.reset();
     state = state_t::disconnected;
+
+    auto channels = this->channels.synchronize();
+    for (auto channel : *channels) {
+        channel.second->error(ec);
+    }
+    channels->clear();
 }
 
 void connection_t::push(std::uint64_t span, io::encoder_t::message_type&& message) {
@@ -100,8 +108,8 @@ void connection_t::push(std::uint64_t span, io::encoder_t::message_type&& messag
 }
 
 void connection_t::push(io::encoder_t::message_type&& message) {
-    const auto action = std::make_shared<push_t>(std::move(message), shared_from_this());
-    loop.dispatch(std::bind(&push_t::operator(), action));
+    loop.dispatch(std::bind(&push_t::operator(),
+                            std::make_shared<push_t>(std::move(message), shared_from_this())));
 }
 
 void connection_t::on_connected(const std::error_code& ec) {
@@ -131,17 +139,12 @@ void connection_t::on_connected(const std::error_code& ec) {
 void connection_t::on_read(const std::error_code& ec) {
     BH_LOG(detail::logger, detail::debug, "read event: %s", ec.message().c_str());
 
-    auto channels = this->channels.synchronize();
     if (ec) {
-        for (auto channel : *channels) {
-            channel.second->error(ec);
-        }
-        channels->clear();
-
-        disconnect();
+        disconnect(ec);
         return;
     }
 
+    auto channels = this->channels.synchronize();
     auto it = channels->find(message.span());
     if (it == channels->end()) {
         // TODO: Log that received an orphan message.
