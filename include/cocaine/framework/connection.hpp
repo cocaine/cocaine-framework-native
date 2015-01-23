@@ -25,8 +25,8 @@
 #include <cocaine/traits/endpoint.hpp>
 #include <cocaine/traits/graph.hpp>
 #include <cocaine/traits/tuple.hpp>
-#include "cocaine/traits/map.hpp"
-#include "cocaine/traits/vector.hpp"
+#include <cocaine/traits/map.hpp>
+#include <cocaine/traits/vector.hpp>
 
 #include "cocaine/framework/util/future.hpp"
 
