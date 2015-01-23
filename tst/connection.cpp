@@ -810,6 +810,53 @@ TEST(Connection, SendOnClosedSocket) {
     EXPECT_THROW(rx->recv().get(), std::system_error);
 }
 
+TEST(Connection, SilentlyDropOrphanMessageButContinueToListen) {
+    // ===== Set Up Stage =====
+    const std::uint16_t port = testing::util::port();
+    server_t server(port, [](io::ip::tcp::acceptor& acceptor, loop_t& loop){
+        io::deadline_timer timer(loop);
+        timer.expires_from_now(boost::posix_time::milliseconds(testing::util::TIMEOUT));
+        timer.async_wait([&acceptor](const std::error_code& ec){
+            EXPECT_EQ(io::error::operation_aborted, ec);
+            acceptor.cancel();
+        });
+
+        std::array<io::const_buffer, 2> bufs = {
+            io::buffer(std::array<std::uint8_t, 15> {
+                { 147, 2, 0, 145, 146, 164, 101, 99, 104, 111, 164, 104, 116, 116, 112 }
+            }),
+            io::buffer(std::array<std::uint8_t, 15> {
+                { 147, 1, 0, 145, 146, 164, 101, 99, 104, 111, 164, 104, 116, 116, 112 }
+            })
+        };
+        io::ip::tcp::socket socket(loop);
+        acceptor.async_accept(socket, [&timer, &socket, &bufs](const std::error_code&){
+            timer.cancel();
+
+            // \note sometimes a race condition can occur - the socket should be read first.
+            io::async_write(socket, bufs, [](const std::error_code& ec, size_t size){
+                EXPECT_EQ(0, ec.value());
+                EXPECT_EQ(30, size);
+            });
+        });
+
+        EXPECT_NO_THROW(loop.run());
+    });
+
+    client_t client;
+
+    const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
+
+    // ===== Test Stage =====
+    auto conn = std::make_shared<connection_t>(client.loop());
+    conn->connect(endpoint).get();
+    std::shared_ptr<basic_receiver_t<cocaine::io::node::list>> rx;
+    std::tie(std::ignore, rx) = conn->invoke<cocaine::io::node::list>();
+    auto res = rx->recv().get();
+    auto apps = boost::get<cocaine::dynamic_t>(res);
+    EXPECT_EQ(cocaine::dynamic_t(std::vector<cocaine::dynamic_t>({ "echo", "http" })), apps);
+}
+
 // Usage:
 //  Connection - The base class, does almost all the job:
 //    std::tie(tx, rx) = conn->invoke<E>();
