@@ -18,9 +18,11 @@ public:
     {}
 
     void operator()() {
-//        if (!connection->channel) {
-//            throw
-//        }
+        // \note not necessary to lock, because all channel manipulations are made in single thread.
+        std::lock_guard<std::mutex> lock(connection->channel_mutex);
+        if (!connection->channel) {
+            throw std::runtime_error("not connected");
+        }
 
         connection->channel->writer->write(message, std::bind(&push_t::on_write, shared_from_this(), ph::_1));
     }
@@ -28,7 +30,7 @@ public:
 private:
     void on_write(const std::error_code& ec) {
         BH_LOG(detail::logger, detail::debug, "write event: %s", ec.message().c_str());
-        if (ec && ec != asio::error::operation_aborted) {
+        if (ec) {
             connection->disconnect();
         }
     }
@@ -81,10 +83,7 @@ future_t<void> connection_t::connect(const endpoint_t& endpoint) {
 
 void connection_t::disconnect() {
     std::lock_guard<std::mutex> lock(connection_queue_mutex);
-    COCAINE_ASSERT(channel);
-
     channel.reset();
-
     state = state_t::disconnected;
 }
 
@@ -138,6 +137,8 @@ void connection_t::on_read(const std::error_code& ec) {
             channel.second->error(ec);
         }
         channels->clear();
+
+        disconnect();
         return;
     }
 
