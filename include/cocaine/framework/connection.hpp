@@ -154,13 +154,13 @@ class receiver {
 
     typedef std::function<result_type(const msgpack::object&)> unpacker_type;
 
+    static const std::vector<unpacker_type> visitors;
+
     boost::optional<std::error_code> broken;
 
     std::mutex mutex;
     std::queue<result_type> queue;
     std::queue<promise_t<result_type>> pending;
-
-    static const std::vector<unpacker_type> visitors;
 
 public:
     // TODO: Return improved variant with typechecking.
