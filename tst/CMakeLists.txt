@@ -41,6 +41,7 @@ SET(SOURCES
 
 #    main
     connection
+    session
 #    functional
 )
 
