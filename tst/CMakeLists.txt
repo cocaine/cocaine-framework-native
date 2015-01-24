@@ -39,7 +39,6 @@ SET(HEADERS
 SET(SOURCES
     util/net
 
-#    main
     connection
     session
 #    functional
