@@ -88,7 +88,7 @@ TEST(basic_connection_t, ConnectMultipleTimesResultsInError) {
             flag++;
         });
 
-        conn->connect(endpoint, [&flag, &conn](const std::error_code& ec) {
+        conn->connect(endpoint, [&flag, conn](const std::error_code& ec) {
             EXPECT_EQ(io::error::in_progress, ec);
             flag++;
         });
