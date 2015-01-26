@@ -41,11 +41,13 @@ TEST(basic_connection_t, Connect) {
         client_t client;
 
         // ===== Test Stage =====
-        auto conn = std::make_shared<basic_connection_t>(client.loop());
-        conn->connect(endpoint, [&flag, conn](const std::error_code& ec) {
-            EXPECT_EQ(0, ec.value());
-            EXPECT_TRUE(conn->connected());
-            flag = true;
+        client.loop().post([&client, &flag, endpoint]{
+            auto conn = std::make_shared<basic_connection_t>(client.loop());
+            conn->connect(endpoint, [&flag, conn](const std::error_code& ec) {
+                EXPECT_EQ(0, ec.value());
+                EXPECT_TRUE(conn->connected());
+                flag = true;
+            });
         });
     }
 
@@ -81,16 +83,18 @@ TEST(basic_connection_t, ConnectMultipleTimesResultsInError) {
         client_t client;
 
         // ===== Test Stage =====
-        auto conn = std::make_shared<basic_connection_t>(client.loop());
-        conn->connect(endpoint, [&flag, conn](const std::error_code& ec) {
-            EXPECT_EQ(0, ec.value());
-            EXPECT_TRUE(conn->connected());
-            flag++;
-        });
+        client.loop().post([&client, &flag, endpoint]{
+            auto conn = std::make_shared<basic_connection_t>(client.loop());
+            conn->connect(endpoint, [&flag, conn](const std::error_code& ec) {
+                EXPECT_EQ(0, ec.value());
+                EXPECT_TRUE(conn->connected());
+                flag++;
+            });
 
-        conn->connect(endpoint, [&flag, conn](const std::error_code& ec) {
-            EXPECT_EQ(io::error::in_progress, ec);
-            flag++;
+            conn->connect(endpoint, [&flag, conn](const std::error_code& ec) {
+                EXPECT_EQ(io::error::in_progress, ec);
+                flag++;
+            });
         });
 
         barrier.wait();
@@ -125,16 +129,18 @@ TEST(basic_connection_t, ConnectAfterConnectedResultsInError) {
         client_t client;
 
         // ===== Test Stage =====
-        auto conn = std::make_shared<basic_connection_t>(client.loop());
-        conn->connect(endpoint, [&flag, conn, &endpoint](const std::error_code& ec) {
-            EXPECT_EQ(0, ec.value());
-            EXPECT_TRUE(conn->connected());
-            flag++;
-
-            conn->connect(endpoint, [&flag, conn](const std::error_code& ec) {
+        client.loop().post([&client, &flag, endpoint]{
+            auto conn = std::make_shared<basic_connection_t>(client.loop());
+            conn->connect(endpoint, [&flag, conn, &endpoint](const std::error_code& ec) {
+                EXPECT_EQ(0, ec.value());
                 EXPECT_TRUE(conn->connected());
-                EXPECT_EQ(io::error::already_connected, ec);
                 flag++;
+
+                conn->connect(endpoint, [&flag, conn](const std::error_code& ec) {
+                    EXPECT_TRUE(conn->connected());
+                    EXPECT_EQ(io::error::already_connected, ec);
+                    flag++;
+                });
             });
         });
     }
