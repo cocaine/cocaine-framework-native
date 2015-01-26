@@ -1,7 +1,7 @@
 #include <type_traits>
 
-#include <boost/thread.hpp>
 #include <boost/thread/barrier.hpp>
+#include <boost/thread/thread.hpp>
 
 #include <asio/read.hpp>
 #include <asio/write.hpp>
@@ -100,12 +100,12 @@ TEST(Connection, ConnectMultipleTimesOnDisconnectedService) {
 
     // ===== Test Stage =====
     auto conn = std::make_shared<connection_t>(client.loop());
-    auto f1 = conn->connect(endpoint).then([&conn](future_t<void>& f){
+    auto f1 = conn->connect(endpoint).then([&conn](future_t<void> f){
         EXPECT_NO_THROW(f.get());
         EXPECT_TRUE(conn->connected());
     });
 
-    auto f2 = conn->connect(endpoint).then([&conn](future_t<void>& f){
+    auto f2 = conn->connect(endpoint).then([&conn](future_t<void> f){
         EXPECT_NO_THROW(f.get());
         EXPECT_TRUE(conn->connected());
     });

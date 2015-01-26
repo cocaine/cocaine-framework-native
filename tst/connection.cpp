@@ -2,7 +2,7 @@
 
 #include <gtest/gtest.h>
 
-#include <cocaine/framework/connection.hpp>
+#include <cocaine/framework/connection_.hpp>
 
 #include "util/net.hpp"
 
