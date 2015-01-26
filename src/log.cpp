@@ -1,3 +1,5 @@
+#ifdef CF_USE_INTERNAL_LOGGING
+
 #include <blackhole/formatter/string.hpp>
 #include <blackhole/sink/stream.hpp>
 
@@ -23,3 +25,5 @@ blackhole::verbose_logger_t<cocaine::framework::detail::level_t> cocaine::framew
     logger.add_frontend(std::move(frontend));
     return logger;
 }
+
+#endif
