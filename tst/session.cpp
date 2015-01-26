@@ -13,23 +13,23 @@
 #include <cocaine/idl/node.hpp>
 #include <cocaine/idl/streaming.hpp>
 
-#include <cocaine/framework/connection.hpp>
+#include <cocaine/framework/session.hpp>
 
 #include "util/net.hpp"
 
 using namespace cocaine::framework;
 using namespace testing::util;
 
-TEST(Connection, Constructor) {
+TEST(basic_session_t, Constructor) {
     loop_t loop;
-    auto conn = std::make_shared<connection_t>(loop);
+    auto conn = std::make_shared<basic_session_t>(loop);
 
     EXPECT_FALSE(conn->connected());
 
-    static_assert(std::is_nothrow_constructible<connection_t, loop_t&>::value, "must be noexcept");
+    static_assert(std::is_nothrow_constructible<basic_session_t, loop_t&>::value, "must be noexcept");
 }
 
-TEST(Connection, Connect) {
+TEST(basic_session_t, Connect) {
     // ===== Set Up Stage =====
     // We create a TCP server in separate thread and wait for incoming connection. After accepting
     // just close the socket.
@@ -59,23 +59,23 @@ TEST(Connection, Connect) {
     client_t client;
 
     // ===== Test Stage =====
-    auto conn = std::make_shared<connection_t>(client.loop());
+    auto conn = std::make_shared<basic_session_t>(client.loop());
     EXPECT_NO_THROW(conn->connect(endpoint).get());
     EXPECT_TRUE(conn->connected());
 }
 
-TEST(Connection, ConnectOnInvalidPort) {
+TEST(basic_session_t, ConnectOnInvalidPort) {
     const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), 0);
 
     client_t client;
 
     // ===== Test Stage =====
-    auto conn = std::make_shared<connection_t>(client.loop());
+    auto conn = std::make_shared<basic_session_t>(client.loop());
     EXPECT_THROW(conn->connect(endpoint).get(), std::system_error);
     EXPECT_FALSE(conn->connected());
 }
 
-TEST(Connection, ConnectMultipleTimesOnDisconnectedService) {
+TEST(basic_session_t, ConnectMultipleTimesOnDisconnectedService) {
     // ===== Set Up Stage =====
     const std::uint16_t port = testing::util::port();
     const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
@@ -99,7 +99,7 @@ TEST(Connection, ConnectMultipleTimesOnDisconnectedService) {
     client_t client;
 
     // ===== Test Stage =====
-    auto conn = std::make_shared<connection_t>(client.loop());
+    auto conn = std::make_shared<basic_session_t>(client.loop());
     auto f1 = conn->connect(endpoint).then([&conn](future_t<void> f){
         EXPECT_NO_THROW(f.get());
         EXPECT_TRUE(conn->connected());
@@ -114,7 +114,7 @@ TEST(Connection, ConnectMultipleTimesOnDisconnectedService) {
     f2.get();
 }
 
-TEST(Connection, ConnectOnConnectedService) {
+TEST(basic_session_t, ConnectOnConnectedService) {
     // ===== Set Up Stage =====
     const std::uint16_t port = testing::util::port();
     const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
@@ -138,14 +138,14 @@ TEST(Connection, ConnectOnConnectedService) {
     client_t client;
 
     // ===== Test Stage =====
-    auto conn = std::make_shared<connection_t>(client.loop());
+    auto conn = std::make_shared<basic_session_t>(client.loop());
     conn->connect(endpoint).get();
 
     EXPECT_NO_THROW(conn->connect(endpoint).get());
     EXPECT_TRUE(conn->connected());
 }
 
-TEST(Connection, RAIIOnConnect) {
+TEST(basic_session_t, RAIIOnConnect) {
     // ===== Set Up Stage =====
     const std::uint16_t port = testing::util::port();
     const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
@@ -171,7 +171,7 @@ TEST(Connection, RAIIOnConnect) {
     // ===== Test Stage =====
     future_t<void> future;
     {
-        auto conn = std::make_shared<connection_t>(client.loop());
+        auto conn = std::make_shared<basic_session_t>(client.loop());
         future = std::move(conn->connect(endpoint));
     }
     EXPECT_NO_THROW(future.get());
@@ -185,7 +185,7 @@ TEST(Encoder, InvokeEvent) {
     EXPECT_EQ(expected, std::vector<std::uint8_t>(message.data(), message.data() + 9));
 }
 
-TEST(Connection, InvokeSendsProperMessage) {
+TEST(basic_session_t, InvokeSendsProperMessage) {
     // ===== Set Up Stage =====
     const std::uint16_t port = testing::util::port();
     const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
@@ -220,13 +220,13 @@ TEST(Connection, InvokeSendsProperMessage) {
     client_t client;
 
     // ===== Test Stage =====
-    auto conn = std::make_shared<connection_t>(client.loop());
+    auto conn = std::make_shared<basic_session_t>(client.loop());
     conn->connect(endpoint).get();
     EXPECT_TRUE(conn->connected());
     conn->invoke<cocaine::io::locator::resolve>(std::string("node"));
 }
 
-TEST(Connection, InvokeMultipleTimesSendsProperMessages) {
+TEST(basic_session_t, InvokeMultipleTimesSendsProperMessages) {
     // ===== Set Up Stage =====
     const std::uint16_t port = testing::util::port();
     const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
@@ -265,13 +265,13 @@ TEST(Connection, InvokeMultipleTimesSendsProperMessages) {
     client_t client;
 
     // ===== Test Stage =====
-    auto conn = std::make_shared<connection_t>(client.loop());
+    auto conn = std::make_shared<basic_session_t>(client.loop());
     conn->connect(endpoint).get();
     conn->invoke<cocaine::io::locator::resolve>(std::string("node"));
     conn->invoke<cocaine::io::locator::resolve>(std::string("echo"));
 }
 
-TEST(Connection, DecodeIncomingMessage) {
+TEST(basic_session_t, DecodeIncomingMessage) {
     // ===== Set Up Stage =====
     const std::uint16_t port = testing::util::port();
     const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
@@ -307,7 +307,7 @@ TEST(Connection, DecodeIncomingMessage) {
     client_t client;
 
     // ===== Test Stage =====
-    auto conn = std::make_shared<connection_t>(client.loop());
+    auto conn = std::make_shared<basic_session_t>(client.loop());
     conn->connect(endpoint).get();
     std::shared_ptr<basic_receiver_t<cocaine::io::node::list>> rx;
     std::tie(std::ignore, rx) = conn->invoke<cocaine::io::node::list>();
@@ -316,7 +316,7 @@ TEST(Connection, DecodeIncomingMessage) {
     EXPECT_EQ(cocaine::dynamic_t(std::vector<cocaine::dynamic_t>({ "echo", "http" })), apps);
 }
 
-TEST(Connection, InvokeWhileServerClosesConnection) {
+TEST(basic_session_t, InvokeWhileServerClosesConnection) {
     // ===== Set Up Stage =====
     const std::uint16_t port = testing::util::port();
     const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
@@ -344,7 +344,7 @@ TEST(Connection, InvokeWhileServerClosesConnection) {
     client_t client;
 
     // ===== Test Stage =====
-    auto conn = std::make_shared<connection_t>(client.loop());
+    auto conn = std::make_shared<basic_session_t>(client.loop());
     conn->connect(endpoint).get();
 
     std::shared_ptr<basic_receiver_t<cocaine::io::locator::resolve>> rx;
@@ -352,7 +352,7 @@ TEST(Connection, InvokeWhileServerClosesConnection) {
     EXPECT_THROW(rx->recv().get(), std::system_error);
 }
 
-TEST(Connection, InvokeWhenServerClosesConnectionBeforeMessageNotWrittenYet) {
+TEST(basic_session_t, InvokeWhenServerClosesConnectionBeforeMessageNotWrittenYet) {
     // ===== Set Up Stage =====
     const std::uint16_t port = testing::util::port();
     const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
@@ -383,7 +383,7 @@ TEST(Connection, InvokeWhenServerClosesConnectionBeforeMessageNotWrittenYet) {
     client_t client;
 
     // ===== Test Stage =====
-    auto conn = std::make_shared<connection_t>(client.loop());
+    auto conn = std::make_shared<basic_session_t>(client.loop());
     conn->connect(endpoint).get();
 
     // After the following statement the session's socket should be disconnected, which results in
@@ -395,7 +395,7 @@ TEST(Connection, InvokeWhenServerClosesConnectionBeforeMessageNotWrittenYet) {
     EXPECT_THROW(rx->recv().get(), std::system_error);
 }
 
-TEST(Connection, InvokeWhileConnectionResetByPeer) {
+TEST(basic_session_t, InvokeWhileConnectionResetByPeer) {
     // ===== Set Up Stage =====
     const std::uint16_t port = testing::util::port();
     const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
@@ -423,7 +423,7 @@ TEST(Connection, InvokeWhileConnectionResetByPeer) {
     client_t client;
 
     // ===== Test Stage =====
-    auto conn = std::make_shared<connection_t>(client.loop());
+    auto conn = std::make_shared<basic_session_t>(client.loop());
     conn->connect(endpoint).get();
 
     std::shared_ptr<basic_receiver_t<cocaine::io::locator::resolve>> rx;
@@ -431,7 +431,7 @@ TEST(Connection, InvokeWhileConnectionResetByPeer) {
     EXPECT_THROW(rx->recv().get(), std::system_error);
 }
 
-TEST(Connection, InvokeMultipleTimesWhileServerClosesConnection) {
+TEST(basic_session_t, InvokeMultipleTimesWhileServerClosesConnection) {
     // ===== Set Up Stage =====
     const std::uint16_t port = testing::util::port();
     const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
@@ -459,7 +459,7 @@ TEST(Connection, InvokeMultipleTimesWhileServerClosesConnection) {
     client_t client;
 
     // ===== Test Stage =====
-    auto conn = std::make_shared<connection_t>(client.loop());
+    auto conn = std::make_shared<basic_session_t>(client.loop());
     conn->connect(endpoint).get();
 
     std::shared_ptr<basic_receiver_t<cocaine::io::locator::resolve>> rx1, rx2;
@@ -470,7 +470,7 @@ TEST(Connection, InvokeMultipleTimesWhileServerClosesConnection) {
     EXPECT_THROW(rx2->recv().get(), std::system_error);
 }
 
-TEST(Connection, SendSendsProperMessage) {
+TEST(basic_session_t, SendSendsProperMessage) {
     // ===== Set Up Stage =====
     const std::uint16_t port = testing::util::port();
     const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
@@ -516,7 +516,7 @@ TEST(Connection, SendSendsProperMessage) {
     client_t client;
 
     // ===== Test Stage =====
-    auto conn = std::make_shared<connection_t>(client.loop());
+    auto conn = std::make_shared<basic_session_t>(client.loop());
     conn->connect(endpoint).get();
     std::shared_ptr<basic_sender_t> tx;
     std::tie(tx, std::ignore) = conn->invoke<cocaine::io::app::enqueue>(std::string("ping"));
@@ -528,7 +528,7 @@ TEST(Connection, SendSendsProperMessage) {
     tx->send<protocol::chunk>(std::string("le message"));
 }
 
-TEST(Connection, SendOnClosedSocket) {
+TEST(basic_session_t, SendOnClosedSocket) {
     // ===== Set Up Stage =====
     boost::barrier barrier(2);
     const std::uint16_t port = testing::util::port();
@@ -574,7 +574,7 @@ TEST(Connection, SendOnClosedSocket) {
     client_t client;
 
     // ===== Test Stage =====
-    auto conn = std::make_shared<connection_t>(client.loop());
+    auto conn = std::make_shared<basic_session_t>(client.loop());
     conn->connect(endpoint).get();
     std::shared_ptr<basic_sender_t> tx;
     std::shared_ptr<basic_receiver_t<cocaine::io::app::enqueue>> rx;
@@ -592,7 +592,7 @@ TEST(Connection, SendOnClosedSocket) {
     EXPECT_THROW(rx->recv().get(), std::system_error);
 }
 
-TEST(Connection, SilentlyDropOrphanMessageButContinueToListen) {
+TEST(basic_session_t, SilentlyDropOrphanMessageButContinueToListen) {
     // ===== Set Up Stage =====
     const std::uint16_t port = testing::util::port();
     const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
@@ -630,7 +630,7 @@ TEST(Connection, SilentlyDropOrphanMessageButContinueToListen) {
     client_t client;
 
     // ===== Test Stage =====
-    auto conn = std::make_shared<connection_t>(client.loop());
+    auto conn = std::make_shared<basic_session_t>(client.loop());
     conn->connect(endpoint).get();
     std::shared_ptr<basic_receiver_t<cocaine::io::node::list>> rx;
     std::tie(std::ignore, rx) = conn->invoke<cocaine::io::node::list>();
@@ -640,7 +640,7 @@ TEST(Connection, SilentlyDropOrphanMessageButContinueToListen) {
 }
 
 // Usage:
-//  Connection - The base class, does almost all the job:
+//  basic_session_t - The base class, does almost all the job:
 //    std::tie(tx, rx) = conn->invoke<E>();
 //    std::tie(rx, res) = rx.recv();
 //    tx = tx.send<C>(); // May chain: tx.send<C1>().send<C2>();
