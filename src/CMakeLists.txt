@@ -61,7 +61,7 @@ TARGET_LINK_LIBRARIES(${PROJECT}
 )
 
 SET_TARGET_PROPERTIES(${PROJECT} PROPERTIES
-    COMPILE_FLAGS "-std=c++0x -Wall -pedantic -Wextra -Winit-self -Wconversion -Wno-sign-conversion -Weffc++ -Wold-style-cast -Woverloaded-virtual -Wctor-dtor-privacy -Wnon-virtual-dtor"
+    COMPILE_FLAGS "-std=c++0x -Wall -pedantic -Wextra -Winit-self -Wconversion -Wno-sign-conversion -Wold-style-cast -Woverloaded-virtual -Wctor-dtor-privacy -Wnon-virtual-dtor"
 )
 
 ADD_DEFINITIONS(-std=c++11)
