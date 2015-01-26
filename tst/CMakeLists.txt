@@ -40,7 +40,7 @@ SET(SOURCES
     util/net
 
     connection
-    session
+#    session
 #    functional
 )
 
