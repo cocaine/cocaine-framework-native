@@ -31,11 +31,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 #include <exception>
 #include <utility>
 
-#if defined(__clang__) || defined(HAVE_GCC46)
-    #include <atomic>
-#else
-    #include <cstdatomic>
-#endif
+#include <atomic>
 
 #define COCAINE_ASSERT(expr) assert((expr))
 
