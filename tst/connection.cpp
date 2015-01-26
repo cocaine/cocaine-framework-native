@@ -147,3 +147,28 @@ TEST(basic_connection_t, ConnectAfterConnectedResultsInError) {
 
     EXPECT_EQ(2, flag);
 }
+
+TEST(basic_connection_t, DisconnectWhileConnecting) {
+    const std::uint16_t port = testing::util::port();
+    const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
+
+    std::atomic<bool> flag(false);
+
+    {
+        client_t client;
+
+        // ===== Test Stage =====
+        client.loop().post([&client, &flag, endpoint]{
+            auto conn = std::make_shared<basic_connection_t>(client.loop());
+            conn->connect(endpoint, [&flag, conn](const std::error_code& ec) {
+                EXPECT_EQ(io::error::operation_aborted, ec);
+                EXPECT_FALSE(conn->connected());
+                flag = true;
+            });
+
+            conn->disconnect();
+        });
+    }
+
+    EXPECT_TRUE(flag);
+}

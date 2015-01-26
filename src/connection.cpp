@@ -44,7 +44,6 @@ void basic_connection_t::connect(const endpoint_t& endpoint, callback_type callb
 }
 
 void basic_connection_t::disconnect() {
-    state = state_t::disconnected;
     channel.reset();
 }
 
@@ -70,8 +69,7 @@ void basic_connection_t::write(const io::encoder_t::message_type& message, callb
     }
 }
 
-void basic_connection_t::on_connect(const std::error_code& ec, callback_type callback)  {
-    COCAINE_ASSERT(channel);
+void basic_connection_t::on_connect(const std::error_code& ec, callback_type callback) {
     COCAINE_ASSERT(state == state_t::connecting);
 
     if (ec) {
