@@ -99,7 +99,7 @@ TEST(basic_connection_t, ConnectMultipleTimesResultsInError) {
     EXPECT_EQ(2, flag);
 }
 
-TEST(basic_channel_t, ConnectAfterConnectedResultsInError) {
+TEST(basic_connection_t, ConnectAfterConnectedResultsInError) {
     const std::uint16_t port = testing::util::port();
     const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
 
