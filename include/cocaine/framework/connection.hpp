@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <functional>
+#include <unordered_map>
 
 #include <asio/ip/tcp.hpp>
 
@@ -42,6 +43,11 @@ public:
     state_t state;
     std::unique_ptr<channel_type> channel;
 
+    // This map represents active callbacks holder. There is a better way to achieve the same
+    // functionality - call user callbacks even if the operation is aborted, but who cares.
+    std::uint64_t counter;
+    std::unordered_map<std::uint64_t, callback_type> pending;
+
 public:
     basic_connection_t(loop_t& loop);
 
@@ -56,8 +62,9 @@ public:
     void write(const io::encoder_t::message_type& message, callback_type callback);
 
 private:
+    void cancel();
     void on_connect(const std::error_code& ec, callback_type callback);
-    void on_readwrite(const std::error_code& ec, callback_type callback);
+    void on_readwrite(const std::error_code& ec, std::uint64_t token);
 };
 
 }

@@ -45,13 +45,17 @@ void basic_connection_t::connect(const endpoint_t& endpoint, callback_type callb
 
 void basic_connection_t::disconnect() {
     channel.reset();
+    loop.post(std::bind(&basic_connection_t::cancel, shared_from_this()));
 }
 
 void basic_connection_t::read(io::decoder_t::message_type& message, callback_type callback) {
     if (channel) {
+        auto current = counter++;
+        pending[current] = callback;
+
         channel->reader->read(
             message,
-            std::bind(&basic_connection_t::on_readwrite, shared_from_this(), ph::_1, std::move(callback))
+            std::bind(&basic_connection_t::on_readwrite, shared_from_this(), ph::_1, current)
         );
     } else {
         loop.post(std::bind(callback, io_provider::error::not_connected));
@@ -60,13 +64,26 @@ void basic_connection_t::read(io::decoder_t::message_type& message, callback_typ
 
 void basic_connection_t::write(const io::encoder_t::message_type& message, callback_type callback) {
     if (channel) {
+        auto current = counter++;
+        pending[current] = callback;
+
         channel->writer->write(
             message,
-            std::bind(&basic_connection_t::on_readwrite, shared_from_this(), ph::_1, std::move(callback))
+            std::bind(&basic_connection_t::on_readwrite, shared_from_this(), ph::_1, current)
         );
     } else {
         loop.post(std::bind(callback, io_provider::error::not_connected));
     }
+}
+
+void basic_connection_t::cancel() {
+    state = state_t::disconnected;
+
+    for (auto it = pending.begin(); it != pending.end(); ++it) {
+        it->second(io_provider::error::operation_aborted);
+    }
+
+    pending.clear();
 }
 
 void basic_connection_t::on_connect(const std::error_code& ec, callback_type callback) {
@@ -82,11 +99,16 @@ void basic_connection_t::on_connect(const std::error_code& ec, callback_type cal
     callback(ec);
 }
 
-void basic_connection_t::on_readwrite(const std::error_code& ec, callback_type callback) {
+void basic_connection_t::on_readwrite(const std::error_code& ec, std::uint64_t token) {
     if (ec) {
         state = state_t::disconnected;
         channel.reset();
     }
 
-    callback(ec);
+    auto it = pending.find(token);
+    COCAINE_ASSERT(it != pending.end());
+
+    pending.erase(it);
+
+    it->second(ec);
 }
