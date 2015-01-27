@@ -69,7 +69,7 @@ TEST(basic_session_t, Connect) {
 }
 
 TEST(basic_session_t, ConnectOnInvalidPort) {
-    const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), 0);
+    const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), 1);
 
     client_t client;
 
