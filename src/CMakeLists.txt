@@ -2,6 +2,8 @@ IF(APPLE)
     SET(CMAKE_MACOSX_RPATH ON)
 ENDIF()
 
+SET(CMAKE_BUILD_TYPE "Debug")
+
 SET(Boost_USE_MULTITHREADED ON)
 SET(BOOST_COMPONENTS
     system
@@ -51,7 +53,6 @@ INCLUDE_DIRECTORIES(
     ${CMAKE_SOURCE_DIR}/../cocaine-core/cocaine-core/foreign/asio/asio/include
     ${CMAKE_SOURCE_DIR}/../cocaine-core/cocaine-core/foreign/blackhole/src
 )
-LINK_DIRECTORIES(${CMAKE_SOURCE_DIR}/../cocaine-core/cocaine-core-build/)
 
 ADD_LIBRARY(${PROJECT} SHARED
     ${HEADERS}
@@ -60,7 +61,6 @@ ADD_LIBRARY(${PROJECT} SHARED
 
 TARGET_LINK_LIBRARIES(${PROJECT}
     ${Boost_LIBRARIES}
-    cocaine-core
     msgpack
 )
 
