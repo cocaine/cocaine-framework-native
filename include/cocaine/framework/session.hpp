@@ -14,6 +14,7 @@
 #define BOOST_THREAD_PROVIDES_FUTURE
 #define BOOST_THREAD_PROVIDES_FUTURE_CONTINUATION
 #include <boost/thread/future.hpp>
+// Race Condition: https://svn.boost.org/trac/boost/ticket/10478
 
 #include <asio/io_service.hpp>
 #include <asio/ip/tcp.hpp>
