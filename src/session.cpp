@@ -117,6 +117,7 @@ void basic_session_t::on_connected(const std::error_code& ec) {
     // locked at that moment.
     std::lock_guard<std::mutex> lock(connection_queue_mutex);
     COCAINE_ASSERT(state_t::connecting == state);
+    CF_LOG(detail::logger, detail::debug, "connect event: %s", ec.message().c_str());
     if (ec) {
         state = state_t::disconnected;
         for (auto& promise : connection_queue) {
