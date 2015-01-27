@@ -1,9 +1,9 @@
+#include "cocaine/framework/detail/log.hpp"
+
 #ifdef CF_USE_INTERNAL_LOGGING
 
 #include <blackhole/formatter/string.hpp>
 #include <blackhole/sink/stream.hpp>
-
-#include "cocaine/framework/detail/log.hpp"
 
 blackhole::verbose_logger_t<cocaine::framework::detail::level_t> cocaine::framework::detail::create() {
     blackhole::verbose_logger_t<cocaine::framework::detail::level_t> logger(cocaine::framework::detail::level_t::debug);
