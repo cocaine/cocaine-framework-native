@@ -1,4 +1,4 @@
-#include <thread>
+#include <boost/thread/barrier.hpp>
 
 #include <gtest/gtest.h>
 

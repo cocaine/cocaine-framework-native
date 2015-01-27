@@ -2,7 +2,8 @@
 
 #include <cstdint>
 
-#include <boost/thread.hpp>
+#include <boost/thread/barrier.hpp>
+#include <boost/thread/thread.hpp>
 
 #include <asio.hpp>
 
@@ -38,6 +39,7 @@ public:
 
             fn(acceptor, loop);
         }));
+
         barrier.wait();
     }
 
@@ -54,7 +56,7 @@ class client_t {
 public:
     client_t() :
         work(new loop_t::work(io)),
-        thread([this]{ io.run(); })
+        thread(std::bind(static_cast<std::size_t(loop_t::*)()>(&loop_t::run), std::ref(io)))
     {}
 
     ~client_t() {
