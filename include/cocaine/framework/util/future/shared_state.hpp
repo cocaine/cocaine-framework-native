@@ -83,7 +83,7 @@ public:
     void
     set_exception(std::exception_ptr e) {
         std::unique_lock<std::mutex> lock(m_access_mutex);
-        if (!ready()) {
+        if (!ready(lock)) {
             m_result.template set<exception_tag>(e);
             make_ready(lock);
         } else {
@@ -94,7 +94,7 @@ public:
     void
     try_set_exception(std::exception_ptr e) {
         std::unique_lock<std::mutex> lock(m_access_mutex);
-        if (!ready()) {
+        if (!ready(lock)) {
             m_result.template set<exception_tag>(e);
             make_ready(lock);
         }
@@ -104,7 +104,7 @@ public:
     void
     set_value(Args2&&... args) {
         std::unique_lock<std::mutex> lock(this->m_access_mutex);
-        if (!this->ready()) {
+        if (!this->ready(lock)) {
             this->m_result.template set<value_tag>(std::forward<Args2>(args)...);
             this->make_ready(lock);
         } else {
@@ -116,7 +116,7 @@ public:
     void
     try_set_value(Args2&&... args) {
         std::unique_lock<std::mutex> lock(this->m_access_mutex);
-        if (!this->ready()) {
+        if (!this->ready(lock)) {
             this->m_result.template set<value_tag>(std::forward<Args2>(args)...);
             this->make_ready(lock);
         }
@@ -136,7 +136,7 @@ public:
     void
     wait() {
         std::unique_lock<std::mutex> lock(m_access_mutex);
-        while (!ready()) {
+        while (!ready(lock)) {
             m_ready.wait(lock);
         }
     }
@@ -157,6 +157,12 @@ public:
 
     bool
     ready() const {
+        std::unique_lock<std::mutex> lock(m_access_mutex);
+        return !m_result.empty();
+    }
+
+    bool
+    ready(std::unique_lock<std::mutex>&) const {
         return !m_result.empty();
     }
 
@@ -164,7 +170,7 @@ public:
     void
     set_callback(F&& callback) {
         std::unique_lock<std::mutex> lock(m_access_mutex);
-        if (this->ready()) {
+        if (this->ready(lock)) {
             lock.unlock();
             callback();
         } else {
@@ -188,7 +194,7 @@ private:
 
     std::function<void()> m_callback;
 
-    std::mutex m_access_mutex;
+    mutable std::mutex m_access_mutex;
     std::condition_variable m_ready;
 
     std::atomic<int> m_promise_counter;
