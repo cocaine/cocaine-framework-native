@@ -36,6 +36,7 @@
 
 #include "cocaine/framework/common.hpp"
 #include "cocaine/framework/config.hpp"
+#include "cocaine/framework/util/future.hpp"
 
 /// \note temporary for debugging purposes.
 template<typename T> struct deduced_type;
@@ -99,10 +100,10 @@ struct result_of {
 };
 
 template<typename T>
-using promise_t = boost::promise<T>;
+using promise_t = promise<T>;
 
 template<typename T>
-using future_t = boost::future<T>;
+using future_t = future<T>;
 
 template<class Event> class channel_t;
 
