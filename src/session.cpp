@@ -7,6 +7,7 @@ namespace ph = std::placeholders;
 using namespace cocaine;
 using namespace cocaine::framework;
 
+//! \note single shot.
 class basic_session_t::push_t : public std::enable_shared_from_this<push_t> {
     io::encoder_t::message_type message;
     std::shared_ptr<basic_session_t> connection;
