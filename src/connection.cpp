@@ -6,7 +6,8 @@ using namespace cocaine::framework;
 
 basic_connection_t::basic_connection_t(loop_t& loop) :
     loop(loop),
-    state(state_t::disconnected)
+    state(state_t::disconnected),
+    counter(0)
 {}
 
 bool basic_connection_t::connected() const {
