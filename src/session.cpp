@@ -11,28 +11,33 @@ using namespace cocaine::framework;
 class basic_session_t::push_t : public std::enable_shared_from_this<push_t> {
     io::encoder_t::message_type message;
     std::shared_ptr<basic_session_t> connection;
+    promise_t<void> h;
 
 public:
-    explicit push_t(io::encoder_t::message_type&& message, std::shared_ptr<basic_session_t> connection) :
+    explicit push_t(io::encoder_t::message_type&& message, std::shared_ptr<basic_session_t> connection, promise_t<void>&& h) :
         message(std::move(message)),
-        connection(connection)
+        connection(connection),
+        h(std::move(h))
     {}
 
     void operator()() {
-        // \note not necessary to lock, because all channel manipulations are made in single thread.
-        std::lock_guard<std::mutex> lock(connection->channel_mutex);
+        std::lock_guard<std::mutex> lock(connection->mutex);
         if (connection->channel) {
             connection->channel->writer->write(message, std::bind(&push_t::on_write, shared_from_this(), ph::_1));
         } else {
-            connection->disconnect(asio::error::not_connected);
+            h.set_exception(std::system_error(io_provider::error::not_connected));
         }
     }
 
 private:
     void on_write(const std::error_code& ec) {
         CF_LOG(detail::logger, detail::debug, "write event: %s", ec.message().c_str());
+
         if (ec) {
             connection->disconnect(ec);
+            h.set_exception(std::system_error(ec));
+        } else {
+            h.set_value();
         }
     }
 };
@@ -47,32 +52,36 @@ bool basic_session_t::connected() const noexcept {
     return state == state_t::connected;
 }
 
-future_t<void> basic_session_t::connect(const endpoint_t& endpoint) {
-    promise_t<void> promise;
+auto basic_session_t::connect(const endpoint_t& endpoint) -> future_t<std::error_code> {
+    promise_t<std::error_code> promise;
     auto future = promise.get_future();
 
-    std::lock_guard<std::mutex> lock(connection_queue_mutex);
+    std::lock_guard<std::mutex> lock(mutex);
     switch (state.load()) {
     case state_t::disconnected: {
-        socket = std::make_unique<socket_type>(loop);
-        socket->async_connect(
-            endpoint,
-            std::bind(&basic_session_t::on_connected, shared_from_this(), ph::_1)
-        );
+        std::unique_ptr<socket_type> socket(new socket_type(loop));
+        socket->open(endpoint.protocol());
+
+        channel.reset(new channel_type(std::move(socket)));
 
         // The code above can throw std::bad_alloc, so here it is the right place to change
         // current object's state.
-        connection_queue.emplace_back(std::move(promise));
+        // ???
         state = state_t::connecting;
+
+        channel->socket->async_connect(
+            endpoint,
+            std::bind(&basic_session_t::on_connect, shared_from_this(), ph::_1, std::move(promise))
+        );
+
         break;
     }
     case state_t::connecting: {
-        connection_queue.emplace_back(std::move(promise));
+        promise.set_value(io_provider::error::already_started);
         break;
     }
     case state_t::connected: {
-         COCAINE_ASSERT(connection_queue.empty());
-         promise.set_value();
+        promise.set_value(io_provider::error::already_connected);
         break;
     }
     default:
@@ -83,9 +92,9 @@ future_t<void> basic_session_t::connect(const endpoint_t& endpoint) {
 }
 
 void basic_session_t::disconnect(const std::error_code& ec) {
-    COCAINE_ASSERT(ec);
+    COCAINE_ASSERT(ec); // TODO: Throw invalid_argument.
 
-    std::lock_guard<std::mutex> lock(connection_queue_mutex);
+    std::lock_guard<std::mutex> lock(mutex);
     channel.reset();
     state = state_t::disconnected;
 
@@ -96,7 +105,7 @@ void basic_session_t::disconnect(const std::error_code& ec) {
     channels->clear();
 }
 
-void basic_session_t::push(std::uint64_t span, io::encoder_t::message_type&& message) {
+auto basic_session_t::push(std::uint64_t span, io::encoder_t::message_type&& message) -> future_t<void> {
     auto channels = this->channels.synchronize();
     auto it = channels->find(span);
     if (it == channels->end()) {
@@ -105,37 +114,33 @@ void basic_session_t::push(std::uint64_t span, io::encoder_t::message_type&& mes
     }
 
     // TODO: Traverse in a typed sender.
-    push(std::move(message));
+    return push(std::move(message));
 }
 
-void basic_session_t::push(io::encoder_t::message_type&& message) {
-    loop.dispatch(std::bind(&push_t::operator(),
-                            std::make_shared<push_t>(std::move(message), shared_from_this())));
+auto basic_session_t::push(io::encoder_t::message_type&& message) -> future_t<void> {
+    promise_t<void> p;
+    auto f = p.get_future();
+
+    loop.post(std::bind(&push_t::operator(),
+                        std::make_shared<push_t>(std::move(message), shared_from_this(), std::move(p))));
+    return f;
 }
 
-void basic_session_t::on_connected(const std::error_code& ec) {
-    // This callback can be called from any thread. The following mutex is guaranteed not to be
-    // locked at that moment.
-    std::lock_guard<std::mutex> lock(connection_queue_mutex);
+void basic_session_t::on_connect(const std::error_code& ec, promise_t<std::error_code>& promise) {
     COCAINE_ASSERT(state_t::connecting == state);
+
     CF_LOG(detail::logger, detail::debug, "connect event: %s", ec.message().c_str());
+
+    std::lock_guard<std::mutex> lock(mutex);
     if (ec) {
         state = state_t::disconnected;
-        for (auto& promise : connection_queue) {
-            promise.set_exception(std::system_error(ec));
-        }
-        connection_queue.clear();
+        channel.reset();
     } else {
         state = state_t::connected;
-        for (auto& promise : connection_queue) {
-            promise.set_value();
-        }
-        connection_queue.clear();
-
-        std::lock_guard<std::mutex> lock(channel_mutex);
-        channel = std::make_shared<io::channel<protocol_type>>(std::move(socket));
         channel->reader->read(message, std::bind(&basic_session_t::on_read, shared_from_this(), ph::_1));
     }
+
+    promise.set_value(ec);
 }
 
 void basic_session_t::on_read(const std::error_code& ec) {
@@ -154,5 +159,6 @@ void basic_session_t::on_read(const std::error_code& ec) {
         it->second->process(std::move(message));
     }
 
+    std::lock_guard<std::mutex> lock(mutex);
     channel->reader->read(message, std::bind(&basic_session_t::on_read, shared_from_this(), ph::_1));
 }

@@ -22,13 +22,18 @@ static const std::uint64_t TIMEOUT = 1000;
 std::uint16_t port();
 
 class server_t {
-    boost::thread server_thread;
+    loop_t loop;
+    std::unique_ptr<loop_t::work> work;
+    boost::thread thread;
 
 public:
-    server_t(std::uint16_t port, std::function<void(io::ip::tcp::acceptor&, loop_t&)> fn) {
+    std::vector<std::shared_ptr<io::ip::tcp::socket>> sockets;
+
+    server_t(std::uint16_t port, std::function<void(io::ip::tcp::acceptor&, loop_t&)> fn) :
+        work(new loop_t::work(loop))
+    {
         boost::barrier barrier(2);
-        server_thread = std::move(boost::thread([port, fn, &barrier]{
-            loop_t loop;
+        thread = std::move(boost::thread([this, port, fn, &barrier]{
             io::ip::tcp::acceptor acceptor(loop);
             io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
             acceptor.open(endpoint.protocol());
@@ -44,7 +49,12 @@ public:
     }
 
     ~server_t() {
-        server_thread.join();
+        work.reset();
+        thread.join();
+    }
+
+    void stop() {
+        work.reset();
     }
 };
 

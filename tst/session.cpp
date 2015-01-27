@@ -9,7 +9,6 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
-#include <cocaine/dynamic.hpp>
 #include <cocaine/idl/locator.hpp>
 #include <cocaine/idl/node.hpp>
 #include <cocaine/idl/streaming.hpp>
@@ -45,16 +44,9 @@ TEST(basic_session_t, Connect) {
     const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
 
     server_t server(port, [](io::ip::tcp::acceptor& acceptor, loop_t& loop){
-        io::deadline_timer timer(loop);
-        timer.expires_from_now(boost::posix_time::milliseconds(testing::util::TIMEOUT));
-        timer.async_wait([&acceptor](const std::error_code& ec){
-            EXPECT_EQ(io::error::operation_aborted, ec);
-            acceptor.cancel();
-        });
-
         io::ip::tcp::socket socket(loop);
-        acceptor.async_accept(socket, [&timer](const std::error_code&){
-            timer.cancel();
+        acceptor.async_accept(socket, [](const std::error_code& ec){
+            EXPECT_EQ(0, ec.value());
         });
 
         EXPECT_NO_THROW(loop.run());
@@ -64,8 +56,11 @@ TEST(basic_session_t, Connect) {
 
     // ===== Test Stage =====
     auto session = std::make_shared<basic_session_t>(client.loop());
-    EXPECT_NO_THROW(session->connect(endpoint).get());
+    auto future = session->connect(endpoint);
+    EXPECT_EQ(std::error_code(), future.get());
     EXPECT_TRUE(session->connected());
+
+    server.stop();
 }
 
 TEST(basic_session_t, ConnectOnInvalidPort) {
@@ -75,7 +70,8 @@ TEST(basic_session_t, ConnectOnInvalidPort) {
 
     // ===== Test Stage =====
     auto session = std::make_shared<basic_session_t>(client.loop());
-    EXPECT_THROW(session->connect(endpoint).get(), std::system_error);
+    auto future = session->connect(endpoint);
+    EXPECT_EQ(io::error::connection_refused, future.get());
     EXPECT_FALSE(session->connected());
 }
 
@@ -85,16 +81,9 @@ TEST(basic_session_t, ConnectMultipleTimesOnDisconnectedService) {
     const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
 
     server_t server(port, [](io::ip::tcp::acceptor& acceptor, loop_t& loop){
-        io::deadline_timer timer(loop);
-        timer.expires_from_now(boost::posix_time::milliseconds(testing::util::TIMEOUT));
-        timer.async_wait([&acceptor](const std::error_code& ec){
-            EXPECT_EQ(io::error::operation_aborted, ec);
-            acceptor.cancel();
-        });
-
         io::ip::tcp::socket socket(loop);
-        acceptor.async_accept(socket, [&timer](const std::error_code&){
-            timer.cancel();
+        acceptor.async_accept(socket, [](const std::error_code& ec){
+            EXPECT_EQ(0, ec.value());
         });
 
         EXPECT_NO_THROW(loop.run());
@@ -104,18 +93,19 @@ TEST(basic_session_t, ConnectMultipleTimesOnDisconnectedService) {
 
     // ===== Test Stage =====
     auto session = std::make_shared<basic_session_t>(client.loop());
-    auto f1 = session->connect(endpoint).then([&session](future_t<void> f){
-        EXPECT_NO_THROW(f.get());
+    auto f1 = session->connect(endpoint).then([&session](future_t<std::error_code>& f){
+        EXPECT_EQ(std::error_code(), f.get());
         EXPECT_TRUE(session->connected());
     });
 
-    auto f2 = session->connect(endpoint).then([&session](future_t<void> f){
-        EXPECT_NO_THROW(f.get());
-        EXPECT_TRUE(session->connected());
+    auto f2 = session->connect(endpoint).then([&session](future_t<std::error_code>& f){
+        EXPECT_THAT(f.get(), AnyOf(io::error::already_started, io::error::already_connected));
     });
 
     f1.get();
     f2.get();
+
+    server.stop();
 }
 
 TEST(basic_session_t, ConnectOnConnectedService) {
@@ -123,17 +113,11 @@ TEST(basic_session_t, ConnectOnConnectedService) {
     const std::uint16_t port = testing::util::port();
     const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
 
+    //! \note the server should run in its main function scope until the end of the test.
     server_t server(port, [](io::ip::tcp::acceptor& acceptor, loop_t& loop){
-        io::deadline_timer timer(loop);
-        timer.expires_from_now(boost::posix_time::milliseconds(testing::util::TIMEOUT));
-        timer.async_wait([&acceptor](const std::error_code& ec){
-            EXPECT_EQ(io::error::operation_aborted, ec);
-            acceptor.cancel();
-        });
-
         io::ip::tcp::socket socket(loop);
-        acceptor.async_accept(socket, [&timer](const std::error_code&){
-            timer.cancel();
+        acceptor.async_accept(socket, [](const std::error_code& ec){
+            EXPECT_EQ(0, ec.value());
         });
 
         EXPECT_NO_THROW(loop.run());
@@ -145,26 +129,23 @@ TEST(basic_session_t, ConnectOnConnectedService) {
     auto session = std::make_shared<basic_session_t>(client.loop());
     session->connect(endpoint).get();
 
-    EXPECT_NO_THROW(session->connect(endpoint).get());
+    auto future = session->connect(endpoint);
+    EXPECT_EQ(io::error::already_connected, future.get());
     EXPECT_TRUE(session->connected());
+
+    server.stop();
 }
 
+//! \brief Test, that the connect future is valid even after session destruction.
 TEST(basic_session_t, RAIIOnConnect) {
     // ===== Set Up Stage =====
     const std::uint16_t port = testing::util::port();
     const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
 
     server_t server(port, [](io::ip::tcp::acceptor& acceptor, loop_t& loop){
-        io::deadline_timer timer(loop);
-        timer.expires_from_now(boost::posix_time::milliseconds(testing::util::TIMEOUT));
-        timer.async_wait([&acceptor](const std::error_code& ec){
-            EXPECT_EQ(io::error::operation_aborted, ec);
-            acceptor.cancel();
-        });
-
         io::ip::tcp::socket socket(loop);
-        acceptor.async_accept(socket, [&timer](const std::error_code&){
-            timer.cancel();
+        acceptor.async_accept(socket, [](const std::error_code& ec){
+            EXPECT_EQ(0, ec.value());
         });
 
         EXPECT_NO_THROW(loop.run());
@@ -173,12 +154,14 @@ TEST(basic_session_t, RAIIOnConnect) {
     client_t client;
 
     // ===== Test Stage =====
-    future_t<void> future;
+    future_t<std::error_code> future;
     {
         auto session = std::make_shared<basic_session_t>(client.loop());
         future = std::move(session->connect(endpoint));
     }
-    EXPECT_NO_THROW(future.get());
+    EXPECT_EQ(std::error_code(), future.get());
+
+    server.stop();
 }
 
 TEST(Encoder, InvokeEvent) {
@@ -195,19 +178,10 @@ TEST(basic_session_t, InvokeSendsProperMessage) {
     const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
 
     server_t server(port, [](io::ip::tcp::acceptor& acceptor, loop_t& loop){
-        io::deadline_timer timer(loop);
-        timer.expires_from_now(boost::posix_time::milliseconds(testing::util::TIMEOUT));
-        timer.async_wait([&acceptor](const std::error_code& ec){
-            EXPECT_EQ(io::error::operation_aborted, ec);
-            acceptor.cancel();
-        });
-
-        std::array<std::uint8_t, 32> actual;
+        std::array<std::uint8_t, 9> actual;
         io::ip::tcp::socket socket(loop);
-        acceptor.async_accept(socket, [&timer, &socket, &actual](const std::error_code&){
-            timer.cancel();
-
-            socket.async_read_some(io::buffer(actual), [&actual](const std::error_code& ec, size_t size){
+        acceptor.async_accept(socket, [&socket, &actual](const std::error_code&){
+            io::async_read(socket, io::buffer(actual), [&actual](const std::error_code& ec, size_t size){
                 EXPECT_EQ(9, size);
                 EXPECT_EQ(0, ec.value());
 
@@ -226,28 +200,25 @@ TEST(basic_session_t, InvokeSendsProperMessage) {
     // ===== Test Stage =====
     auto session = std::make_shared<basic_session_t>(client.loop());
     session->connect(endpoint).get();
-    EXPECT_TRUE(session->connected());
-    session->invoke<cocaine::io::locator::resolve>(std::string("node"));
+    auto f = session->invoke<cocaine::io::locator::resolve>(std::string("node"));
+
+    //! \note wait to prevent RC.
+    f.get();
+
+    //! \note stop the server to be sure, that the client receives EOF.
+    server.stop();
 }
 
+//! This test checks, that channel id is increasing.
 TEST(basic_session_t, InvokeMultipleTimesSendsProperMessages) {
     // ===== Set Up Stage =====
     const std::uint16_t port = testing::util::port();
     const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
 
     server_t server(port, [](io::ip::tcp::acceptor& acceptor, loop_t& loop){
-        io::deadline_timer timer(loop);
-        timer.expires_from_now(boost::posix_time::milliseconds(testing::util::TIMEOUT));
-        timer.async_wait([&acceptor](const std::error_code& ec){
-            EXPECT_EQ(io::error::operation_aborted, ec);
-            acceptor.cancel();
-        });
-
         std::array<std::uint8_t, 18> actual;
         io::ip::tcp::socket socket(loop);
-        acceptor.async_accept(socket, [&timer, &socket, &actual](const std::error_code&){
-            timer.cancel();
-
+        acceptor.async_accept(socket, [&socket, &actual](const std::error_code&){
             io::async_read(socket, io::buffer(actual), [&actual](const std::error_code& ec, size_t size){
                 EXPECT_EQ(18, size);
                 EXPECT_EQ(0, ec.value());
@@ -273,51 +244,8 @@ TEST(basic_session_t, InvokeMultipleTimesSendsProperMessages) {
     session->connect(endpoint).get();
     session->invoke<cocaine::io::locator::resolve>(std::string("node"));
     session->invoke<cocaine::io::locator::resolve>(std::string("echo"));
-}
 
-TEST(basic_session_t, DecodeIncomingMessage) {
-    // ===== Set Up Stage =====
-    const std::uint16_t port = testing::util::port();
-    const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
-
-    server_t server(port, [](io::ip::tcp::acceptor& acceptor, loop_t& loop){
-        io::deadline_timer timer(loop);
-        timer.expires_from_now(boost::posix_time::milliseconds(testing::util::TIMEOUT));
-        timer.async_wait([&acceptor](const std::error_code& ec){
-            EXPECT_EQ(io::error::operation_aborted, ec);
-            acceptor.cancel();
-        });
-
-        // The following sequence is an encoded [1, 0, [['echo', 'http']]] struct, which is the
-        // real response from Node service's 'list' request.
-        // The caller service must properly unpack it and return to the user.
-        const std::array<std::uint8_t, 15> buf = {
-            { 147, 1, 0, 145, 146, 164, 101, 99, 104, 111, 164, 104, 116, 116, 112 }
-        };
-        io::ip::tcp::socket socket(loop);
-        acceptor.async_accept(socket, [&timer, &socket, &buf](const std::error_code&){
-            timer.cancel();
-
-            // \note sometimes a race condition can occur - the socket should be read first.
-            io::async_write(socket, io::buffer(buf), [](const std::error_code& ec, size_t size){
-                EXPECT_EQ(0, ec.value());
-                EXPECT_EQ(15, size);
-            });
-        });
-
-        EXPECT_NO_THROW(loop.run());
-    });
-
-    client_t client;
-
-    // ===== Test Stage =====
-    auto session = std::make_shared<basic_session_t>(client.loop());
-    session->connect(endpoint).get();
-    std::shared_ptr<basic_receiver_t<cocaine::io::node::list>> rx;
-    std::tie(std::ignore, rx) = session->invoke<cocaine::io::node::list>();
-    auto res = rx->recv().get();
-    auto apps = boost::get<cocaine::dynamic_t>(res);
-    EXPECT_EQ(cocaine::dynamic_t(std::vector<cocaine::dynamic_t>({ "echo", "http" })), apps);
+    server.stop();
 }
 
 TEST(basic_session_t, InvokeWhileServerClosesConnection) {
@@ -325,56 +253,10 @@ TEST(basic_session_t, InvokeWhileServerClosesConnection) {
     const std::uint16_t port = testing::util::port();
     const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
 
-    server_t server(port, [](io::ip::tcp::acceptor& acceptor, loop_t& loop){
-        io::deadline_timer timer(loop);
-        timer.expires_from_now(boost::posix_time::milliseconds(testing::util::TIMEOUT));
-        timer.async_wait([&acceptor](const std::error_code& ec){
-            EXPECT_EQ(io::error::operation_aborted, ec);
-            acceptor.cancel();
-        });
-
-        std::array<std::uint8_t, 32> actual;
-        io::ip::tcp::socket socket(loop);
-        acceptor.async_accept(socket, [&timer, &socket, &actual](const std::error_code&){
-            timer.cancel();
-
-            socket.shutdown(asio::ip::tcp::socket::shutdown_both);
-            socket.close();
-        });
-
-        EXPECT_NO_THROW(loop.run());
-    });
-
-    client_t client;
-
-    // ===== Test Stage =====
-    auto session = std::make_shared<basic_session_t>(client.loop());
-    session->connect(endpoint).get();
-
-    std::shared_ptr<basic_receiver_t<cocaine::io::locator::resolve>> rx;
-    std::tie(std::ignore, rx) = session->invoke<cocaine::io::locator::resolve>(std::string("node"));
-    EXPECT_THROW(rx->recv().get(), std::system_error);
-}
-
-TEST(basic_session_t, InvokeWhenServerClosesConnectionBeforeMessageNotWrittenYet) {
-    // ===== Set Up Stage =====
-    const std::uint16_t port = testing::util::port();
-    const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
-
     boost::barrier barrier(2);
     server_t server(port, [&barrier](io::ip::tcp::acceptor& acceptor, loop_t& loop){
-        io::deadline_timer timer(loop);
-        timer.expires_from_now(boost::posix_time::milliseconds(testing::util::TIMEOUT));
-        timer.async_wait([&acceptor](const std::error_code& ec){
-            EXPECT_EQ(io::error::operation_aborted, ec);
-            acceptor.cancel();
-        });
-
-        std::array<std::uint8_t, 32> actual;
         io::ip::tcp::socket socket(loop);
-        acceptor.async_accept(socket, [&timer, &socket, &actual, &barrier](const std::error_code&){
-            timer.cancel();
-
+        acceptor.async_accept(socket, [&socket, &barrier](const std::error_code&){
             socket.shutdown(asio::ip::tcp::socket::shutdown_both);
             socket.close();
 
@@ -390,35 +272,76 @@ TEST(basic_session_t, InvokeWhenServerClosesConnectionBeforeMessageNotWrittenYet
     auto session = std::make_shared<basic_session_t>(client.loop());
     session->connect(endpoint).get();
 
-    // After the following statement the session's socket should be disconnected, which results in
-    // write error.
+    // Wait until the server closes the connection.
     barrier.wait();
 
-    std::shared_ptr<basic_receiver_t<cocaine::io::locator::resolve>> rx;
-    std::tie(std::ignore, rx) = session->invoke<cocaine::io::locator::resolve>(std::string("node"));
-    EXPECT_THROW(rx->recv().get(), std::system_error);
+    session->invoke<cocaine::io::locator::resolve>(std::string("node"));
+
+    server.stop();
 }
 
-TEST(basic_session_t, InvokeWhileConnectionResetByPeer) {
+namespace mock {
+
+struct event_tag;
+
+struct event {
+    struct list {
+        typedef event_tag tag;
+
+        static const char* alias() {
+            return "list";
+        }
+
+        typedef cocaine::io::option_of<
+            std::vector<std::string>
+        >::tag upstream_type;
+    };
+};
+
+} // namespace mock
+
+namespace cocaine { namespace io {
+
+template<>
+struct protocol<mock::event_tag> {
+    typedef boost::mpl::int_<
+        1
+    >::type version;
+
+    typedef boost::mpl::list<
+        mock::event::list
+    > messages;
+
+    typedef mock::event scope;
+};
+
+}} // namespace cocaine::io
+
+TEST(basic_session_t, DecodeIncomingMessage) {
     // ===== Set Up Stage =====
     const std::uint16_t port = testing::util::port();
     const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
 
     server_t server(port, [](io::ip::tcp::acceptor& acceptor, loop_t& loop){
-        io::deadline_timer timer(loop);
-        timer.expires_from_now(boost::posix_time::milliseconds(testing::util::TIMEOUT));
-        timer.async_wait([&acceptor](const std::error_code& ec){
-            EXPECT_EQ(io::error::operation_aborted, ec);
-            acceptor.cancel();
-        });
+        std::array<std::uint8_t, 4> incoming;
 
-        std::array<std::uint8_t, 32> actual;
+        // The following sequence is an encoded [1, 0, [['echo', 'http']]] struct, which is the
+        // real response from Node service's 'list' request.
+        // The caller service must properly unpack it and return to the user.
+        const std::array<std::uint8_t, 15> buf = {
+            { 147, 1, 0, 145, 146, 164, 101, 99, 104, 111, 164, 104, 116, 116, 112 }
+        };
         io::ip::tcp::socket socket(loop);
-        acceptor.async_accept(socket, [&timer, &socket, &actual](const std::error_code&){
-            timer.cancel();
+        acceptor.async_accept(socket, [&socket, &buf, &incoming](const std::error_code&){
+            //! \note sometimes a race condition can occur - the socket should be read first.
+            io::async_read(socket, io::buffer(incoming), [&socket, &buf](const std::error_code& ec, size_t){
+                EXPECT_EQ(0, ec.value());
 
-            socket.set_option(io::socket_base::linger(true, 0));
-            socket.close();
+                io::async_write(socket, io::buffer(buf), [](const std::error_code& ec, size_t size){
+                    EXPECT_EQ(0, ec.value());
+                    EXPECT_EQ(15, size);
+                });
+            });
         });
 
         EXPECT_NO_THROW(loop.run());
@@ -430,9 +353,91 @@ TEST(basic_session_t, InvokeWhileConnectionResetByPeer) {
     auto session = std::make_shared<basic_session_t>(client.loop());
     session->connect(endpoint).get();
 
-    std::shared_ptr<basic_receiver_t<cocaine::io::locator::resolve>> rx;
-    std::tie(std::ignore, rx) = session->invoke<cocaine::io::locator::resolve>(std::string("node"));
-    EXPECT_THROW(rx->recv().get(), std::system_error);
+    auto chan = session->invoke<mock::event::list>().get();
+    auto rx = std::get<1>(chan);
+    auto result = rx->recv().get();
+    auto apps = boost::get<std::vector<std::string>>(result);
+    EXPECT_EQ(std::vector<std::string>({ "echo", "http" }), apps);
+
+    server.stop();
+}
+
+TEST(basic_session_t, InvokeAndReceiveWhileServerClosesConnection) {
+    // ===== Set Up Stage =====
+    const std::uint16_t port = testing::util::port();
+    const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
+
+    boost::barrier barrier(2);
+    server_t server(port, [&barrier](io::ip::tcp::acceptor& acceptor, loop_t& loop){
+        io::ip::tcp::socket socket(loop);
+        acceptor.async_accept(socket, [&socket, &barrier](const std::error_code&){
+            socket.shutdown(asio::ip::tcp::socket::shutdown_both);
+            socket.close();
+
+            barrier.wait();
+        });
+
+        EXPECT_NO_THROW(loop.run());
+    });
+
+    client_t client;
+
+    // ===== Test Stage =====
+    auto session = std::make_shared<basic_session_t>(client.loop());
+    session->connect(endpoint).get();
+
+    // Wait until the server closes the connection.
+    barrier.wait();
+
+    // Depending on reader state (it can either receive EOF or not yet) the following method
+    // possibly can throw a system exception with ENOTCONN errno.
+    try {
+        auto ch = session->invoke<cocaine::io::locator::resolve>(std::string("node")).get();
+        auto rx = std::get<1>(ch);
+        EXPECT_THROW(rx->recv().get(), std::system_error);
+    } catch (const std::system_error&) {
+    }
+
+    server.stop();
+}
+
+TEST(basic_session_t, InvokeAndReceiveWhileConnectionResetByPeer) {
+    // ===== Set Up Stage =====
+    const std::uint16_t port = testing::util::port();
+    const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
+
+    boost::barrier barrier(2);
+    server_t server(port, [&barrier](io::ip::tcp::acceptor& acceptor, loop_t& loop){
+        io::ip::tcp::socket socket(loop);
+        acceptor.async_accept(socket, [&socket, &barrier](const std::error_code&){
+            socket.set_option(io::socket_base::linger(true, 0));
+            socket.close();
+
+            barrier.wait();
+        });
+
+        EXPECT_NO_THROW(loop.run());
+    });
+
+    client_t client;
+
+    // ===== Test Stage =====
+    auto session = std::make_shared<basic_session_t>(client.loop());
+    session->connect(endpoint).get();
+
+    // Wait until the server closes the connection.
+    barrier.wait();
+
+    // Depending on reader state (it can either receive EOF or not yet) the following method
+    // possibly can throw a system exception with ENOTCONN errno.
+    try {
+        auto ch = session->invoke<cocaine::io::locator::resolve>(std::string("node")).get();
+        auto rx = std::get<1>(ch);
+        EXPECT_THROW(rx->recv().get(), std::system_error);
+    } catch (const std::system_error&) {
+    }
+
+    server.stop();
 }
 
 TEST(basic_session_t, InvokeMultipleTimesWhileServerClosesConnection) {
@@ -441,18 +446,9 @@ TEST(basic_session_t, InvokeMultipleTimesWhileServerClosesConnection) {
     const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
 
     server_t server(port, [](io::ip::tcp::acceptor& acceptor, loop_t& loop){
-        io::deadline_timer timer(loop);
-        timer.expires_from_now(boost::posix_time::milliseconds(testing::util::TIMEOUT));
-        timer.async_wait([&acceptor](const std::error_code& ec){
-            EXPECT_EQ(io::error::operation_aborted, ec);
-            acceptor.cancel();
-        });
-
         std::array<std::uint8_t, 32> actual;
         io::ip::tcp::socket socket(loop);
-        acceptor.async_accept(socket, [&timer, &socket, &actual](const std::error_code&){
-            timer.cancel();
-
+        acceptor.async_accept(socket, [&socket, &actual](const std::error_code&){
             socket.shutdown(asio::ip::tcp::socket::shutdown_both);
             socket.close();
         });
@@ -466,39 +462,35 @@ TEST(basic_session_t, InvokeMultipleTimesWhileServerClosesConnection) {
     auto session = std::make_shared<basic_session_t>(client.loop());
     session->connect(endpoint).get();
 
-    std::shared_ptr<basic_receiver_t<cocaine::io::locator::resolve>> rx1, rx2;
-    std::tie(std::ignore, rx1) = session->invoke<cocaine::io::locator::resolve>(std::string("node"));
-    std::tie(std::ignore, rx2) = session->invoke<cocaine::io::locator::resolve>(std::string("node"));
+    try {
+        auto ch1 = session->invoke<cocaine::io::locator::resolve>(std::string("node")).get();
+        auto ch2 = session->invoke<cocaine::io::locator::resolve>(std::string("node")).get();
+        auto rx1 = std::get<1>(ch1);
+        auto rx2 = std::get<1>(ch2);
+        EXPECT_THROW(rx1->recv().get(), std::system_error);
+        EXPECT_THROW(rx2->recv().get(), std::system_error);
+    } catch (const std::system_error&) {
+    }
 
-    EXPECT_THROW(rx1->recv().get(), std::system_error);
-    EXPECT_THROW(rx2->recv().get(), std::system_error);
+    server.stop();
 }
 
 TEST(basic_session_t, SendSendsProperMessage) {
+    typedef cocaine::io::protocol<
+        cocaine::io::event_traits<
+            cocaine::io::app::enqueue
+        >::dispatch_type
+    >::scope protocol;
+
     // ===== Set Up Stage =====
     const std::uint16_t port = testing::util::port();
     const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
 
     server_t server(port, [](io::ip::tcp::acceptor& acceptor, loop_t& loop){
-        io::deadline_timer timer(loop);
-        timer.expires_from_now(boost::posix_time::milliseconds(testing::util::TIMEOUT));
-        timer.async_wait([&acceptor](const std::error_code& ec){
-            EXPECT_EQ(io::error::operation_aborted, ec);
-            acceptor.cancel();
-        });
-
         std::array<std::uint8_t, 24> actual;
         io::ip::tcp::socket socket(loop);
-        acceptor.async_accept(socket, [&timer, &socket, &actual](const std::error_code&){
-            timer.cancel();
-            timer.expires_from_now(boost::posix_time::milliseconds(testing::util::TIMEOUT));
-            timer.async_wait([&socket](const std::error_code& ec){
-                EXPECT_EQ(io::error::operation_aborted, ec);
-                socket.cancel();
-            });
-
-            io::async_read(socket, io::buffer(actual), [&timer, &actual](const std::error_code& ec, size_t size){
-                timer.cancel();
+        acceptor.async_accept(socket, [&socket, &actual](const std::error_code&){
+            io::async_read(socket, io::buffer(actual), [&actual](const std::error_code& ec, size_t size){
                 EXPECT_EQ(24, size);
                 EXPECT_EQ(0, ec.value());
 
@@ -522,42 +514,32 @@ TEST(basic_session_t, SendSendsProperMessage) {
     // ===== Test Stage =====
     auto session = std::make_shared<basic_session_t>(client.loop());
     session->connect(endpoint).get();
-    std::shared_ptr<basic_sender_t> tx;
-    std::tie(tx, std::ignore) = session->invoke<cocaine::io::app::enqueue>(std::string("ping"));
+
+    auto ch = session->invoke<cocaine::io::app::enqueue>(std::string("ping")).get();
+    auto tx = std::get<0>(ch);
+
+    tx->send<protocol::chunk>(std::string("le message")).get();
+
+    server.stop();
+}
+
+TEST(basic_session_t, SendOnClosedSocket) {
     typedef cocaine::io::protocol<
         cocaine::io::event_traits<
             cocaine::io::app::enqueue
         >::dispatch_type
     >::scope protocol;
-    tx->send<protocol::chunk>(std::string("le message"));
-}
 
-TEST(basic_session_t, SendOnClosedSocket) {
     // ===== Set Up Stage =====
     boost::barrier barrier(2);
     const std::uint16_t port = testing::util::port();
     const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
 
     server_t server(port, [&barrier](io::ip::tcp::acceptor& acceptor, loop_t& loop){
-        io::deadline_timer timer(loop);
-        timer.expires_from_now(boost::posix_time::milliseconds(testing::util::TIMEOUT));
-        timer.async_wait([&acceptor](const std::error_code& ec){
-            EXPECT_EQ(io::error::operation_aborted, ec);
-            acceptor.cancel();
-        });
-
         std::array<std::uint8_t, 9> actual;
         io::ip::tcp::socket socket(loop);
-        acceptor.async_accept(socket, [&timer, &socket, &actual, &barrier](const std::error_code&){
-            timer.cancel();
-            timer.expires_from_now(boost::posix_time::milliseconds(testing::util::TIMEOUT));
-            timer.async_wait([&socket](const std::error_code& ec){
-                EXPECT_EQ(io::error::operation_aborted, ec);
-                socket.cancel();
-            });
-
-            io::async_read(socket, io::buffer(actual), [&timer, &socket, &actual, &barrier](const std::error_code& ec, size_t size){
-                timer.cancel();
+        acceptor.async_accept(socket, [&socket, &actual, &barrier](const std::error_code&){
+            io::async_read(socket, io::buffer(actual), [&socket, &actual, &barrier](const std::error_code& ec, size_t size){
                 EXPECT_EQ(9, size);
                 EXPECT_EQ(0, ec.value());
 
@@ -580,20 +562,20 @@ TEST(basic_session_t, SendOnClosedSocket) {
     // ===== Test Stage =====
     auto session = std::make_shared<basic_session_t>(client.loop());
     session->connect(endpoint).get();
-    std::shared_ptr<basic_sender_t> tx;
-    std::shared_ptr<basic_receiver_t<cocaine::io::app::enqueue>> rx;
-    std::tie(tx, rx) = session->invoke<cocaine::io::app::enqueue>(std::string("ping"));
+    auto ch = session->invoke<cocaine::io::app::enqueue>(std::string("ping")).get();
 
     barrier.wait();
 
-    typedef cocaine::io::protocol<
-        cocaine::io::event_traits<
-            cocaine::io::app::enqueue
-        >::dispatch_type
-    >::scope protocol;
-    tx->send<protocol::chunk>(std::string("le message"));
+    try {
+        auto tx = std::get<0>(ch);
+        tx->send<protocol::chunk>(std::string("le message")).get();
 
-    EXPECT_THROW(rx->recv().get(), std::system_error);
+        auto rx = std::get<1>(ch);
+        EXPECT_THROW(rx->recv().get(), std::system_error);
+    } catch (const std::runtime_error&) {
+    }
+
+    server.stop();
 }
 
 TEST(basic_session_t, SilentlyDropOrphanMessageButContinueToListen) {
@@ -602,13 +584,7 @@ TEST(basic_session_t, SilentlyDropOrphanMessageButContinueToListen) {
     const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
 
     server_t server(port, [](io::ip::tcp::acceptor& acceptor, loop_t& loop){
-        io::deadline_timer timer(loop);
-        timer.expires_from_now(boost::posix_time::milliseconds(testing::util::TIMEOUT));
-        timer.async_wait([&acceptor](const std::error_code& ec){
-            EXPECT_EQ(io::error::operation_aborted, ec);
-            acceptor.cancel();
-        });
-
+        std::array<std::uint8_t, 4> incoming;
         std::array<io::const_buffer, 2> bufs = {
             io::buffer(std::array<std::uint8_t, 15> {
                 { 147, 2, 0, 145, 146, 164, 101, 99, 104, 111, 164, 104, 116, 116, 112 }
@@ -618,13 +594,15 @@ TEST(basic_session_t, SilentlyDropOrphanMessageButContinueToListen) {
             })
         };
         io::ip::tcp::socket socket(loop);
-        acceptor.async_accept(socket, [&timer, &socket, &bufs](const std::error_code&){
-            timer.cancel();
-
-            // \note sometimes a race condition can occur - the socket should be read first.
-            io::async_write(socket, bufs, [](const std::error_code& ec, size_t size){
+        acceptor.async_accept(socket, [&socket, &incoming, &bufs](const std::error_code&){
+            //! \note sometimes a race condition can occur - the socket should be read first.
+            io::async_read(socket, io::buffer(incoming), [&socket, &bufs](const std::error_code& ec, size_t){
                 EXPECT_EQ(0, ec.value());
-                EXPECT_EQ(30, size);
+
+                io::async_write(socket, bufs, [](const std::error_code& ec, size_t size){
+                    EXPECT_EQ(0, ec.value());
+                    EXPECT_EQ(30, size);
+                });
             });
         });
 
@@ -636,11 +614,15 @@ TEST(basic_session_t, SilentlyDropOrphanMessageButContinueToListen) {
     // ===== Test Stage =====
     auto session = std::make_shared<basic_session_t>(client.loop());
     session->connect(endpoint).get();
-    std::shared_ptr<basic_receiver_t<cocaine::io::node::list>> rx;
-    std::tie(std::ignore, rx) = session->invoke<cocaine::io::node::list>();
-    auto res = rx->recv().get();
-    auto apps = boost::get<cocaine::dynamic_t>(res);
-    EXPECT_EQ(cocaine::dynamic_t(std::vector<cocaine::dynamic_t>({ "echo", "http" })), apps);
+
+    auto ch = session->invoke<mock::event::list>().get();
+
+    auto rx = std::get<1>(ch);
+    auto result = rx->recv().get();
+    auto list = boost::get<std::vector<std::string>>(result);
+    EXPECT_EQ(std::vector<std::string>({ "echo", "http" }), list);
+
+    server.stop();
 }
 
 // Usage:

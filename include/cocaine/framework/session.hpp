@@ -177,8 +177,8 @@ public:
      * lose (but shouldn't we try to reconnect then?)
      */
     template<class Event, class... Args>
-    void
-    send(Args&&... args);
+    auto
+    send(Args&&... args) -> future_t<void>;
 };
 
 template<class Event>
@@ -228,6 +228,7 @@ private:
         const auto id = message.type();
         if (id >= boost::mpl::size<result_typelist>::value) {
             // TODO: What to do? Notify the user, I think.
+            // std::cout << "dropping a " << id << " type message" << std::endl;
             return;
         }
 
@@ -249,8 +250,7 @@ private:
         std::lock_guard<std::mutex> lock(mutex);
         broken = ec;
         while (!pending.empty()) {
-            auto promise = std::move(pending.front());
-            promise.set_exception(std::system_error(ec));
+            pending.front().set_exception(std::system_error(ec));
             pending.pop();
         }
     }
@@ -260,10 +260,7 @@ template<class Event>
 const std::vector<typename basic_receiver_t<Event>::unpacker_type> basic_receiver_t<Event>::visitors = slot_unpacker<Event>::generate();
 
 class basic_channel_t {
-    std::uint64_t id;
-
 public:
-    basic_channel_t(std::uint64_t id) : id(id) {}
     virtual ~basic_channel_t() {}
 
     virtual void process(io::decoder_t::message_type&& message) = 0;
@@ -277,8 +274,7 @@ public:
     std::shared_ptr<basic_sender_t> tx;
     std::shared_ptr<basic_receiver_t<Event>> rx;
 
-    channel_t(std::uint64_t id, std::shared_ptr<basic_sender_t> tx) :
-        basic_channel_t(id),
+    channel_t(std::shared_ptr<basic_sender_t> tx) :
         tx(tx),
         rx(new basic_receiver_t<Event>())
     {}
@@ -298,11 +294,15 @@ public:
  * thread, other in that the connection itself lives.
  * Thus no one can guarantee that all asynchronous operations are completed before the connection
  * instance be destroyed.
+ *
+ * \thread_safety safe.
  */
 class basic_session_t : public std::enable_shared_from_this<basic_session_t> {
     typedef asio::ip::tcp protocol_type;
     typedef protocol_type::socket socket_type;
     typedef io::channel<protocol_type> channel_type;
+
+    typedef std::function<void(std::error_code)> callback_type;
 
     enum class state_t {
         disconnected,
@@ -312,22 +312,22 @@ class basic_session_t : public std::enable_shared_from_this<basic_session_t> {
 
     loop_t& loop;
 
-    std::atomic<state_t> state;
-    std::unique_ptr<socket_type> socket;
+    std::unique_ptr<channel_type> channel;
 
-    mutable std::mutex connection_queue_mutex;
-    std::vector<promise_t<void>> connection_queue;
+    // This map represents active callbacks holder. There is a better way to achieve the same
+    // functionality - call user callbacks even if the operation is aborted, but who cares.
+//    std::uint64_t pcounter;
+//    std::unordered_map<std::uint64_t, callback_type> pending;
+
+    mutable std::mutex mutex;
+    std::atomic<state_t> state;
 
     std::atomic<std::uint64_t> counter;
-    std::shared_ptr<channel_type> channel;
-
-    mutable std::mutex channel_mutex;
 
     io::decoder_t::message_type message;
     synchronized<std::unordered_map<std::uint64_t, std::shared_ptr<basic_channel_t>>> channels;
 
     class push_t;
-
 public:
     /*!
      * \note the event loop reference should be valid until all asynchronous operations complete
@@ -341,40 +341,52 @@ public:
      */
     bool connected() const noexcept;
 
-    future_t<void> connect(const endpoint_t& endpoint);
+    auto connect(const endpoint_t& endpoint) -> future_t<std::error_code>;
 
     void disconnect(const std::error_code& ec);
 
+    /*!
+     * \note if the future returned throws an exception that means that the data will never be
+     * received, but if it doesn't - the data is not guaranteed to be received. It is possible for
+     * the other end of connection to hang up immediately after the future returns ok.
+     *
+     * If you send a **mute** event, there is no way to obtain guarantees of successful message
+     * transporting.
+     */
     template<class T, class... Args>
-    std::tuple<std::shared_ptr<basic_sender_t>, std::shared_ptr<basic_receiver_t<T>>>
+    future_t<std::tuple<std::shared_ptr<basic_sender_t>, std::shared_ptr<basic_receiver_t<T>>>>
     invoke(Args&&... args) {
         const auto id = counter++;
         auto message = io::encoded<T>(id, std::forward<Args>(args)...);
         auto tx = std::make_shared<basic_sender_t>(id, shared_from_this());
-        auto channel = std::make_shared<channel_t<T>>(id, tx);
+        auto channel = std::make_shared<channel_t<T>>(tx);
 
         // TODO: Do not insert mute channels.
         channels->insert(std::make_pair(id, channel));
-        push(std::move(message));
-        return std::make_tuple(channel->tx, channel->rx);
+        auto f1 = push(std::move(message));
+        auto f2 = f1.then([channel](future_t<void>& f){
+            f.get();
+            return std::make_tuple(channel->tx, channel->rx);
+        });
+
+        return f2;
     }
 
-    void push(std::uint64_t span, io::encoder_t::message_type&& message);
+    auto push(std::uint64_t span, io::encoder_t::message_type&& message) -> future_t<void>;
+    auto push(io::encoder_t::message_type&& message) -> future_t<void>;
 
-    std::shared_ptr<basic_channel_t> revoke(std::uint64_t span) {
+    std::shared_ptr<basic_channel_t> revoke(std::uint64_t) {
         return nullptr;
     }
 
 private:
-    void push(io::encoder_t::message_type&& message);
-
-    void on_connected(const std::error_code& ec);
+    void on_connect(const std::error_code& ec, promise_t<std::error_code>& promise);
     void on_read(const std::error_code& ec);
 };
 
 template<class Event, class... Args>
-void basic_sender_t::send(Args&&... args) {
-    connection->push(id, io::encoded<Event>(id, std::forward<Args>(args)...));
+auto basic_sender_t::send(Args&&... args) -> future_t<void> {
+    return connection->push(id, io::encoded<Event>(id, std::forward<Args>(args)...));
 }
 
 } // namespace framework
