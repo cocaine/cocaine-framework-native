@@ -23,16 +23,9 @@ TEST(basic_connection_t, Connect) {
     const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
 
     server_t server(port, [](io::ip::tcp::acceptor& acceptor, loop_t& loop){
-        io::deadline_timer timer(loop);
-        timer.expires_from_now(boost::posix_time::milliseconds(testing::util::TIMEOUT));
-        timer.async_wait([&acceptor](const std::error_code& ec){
-            EXPECT_EQ(io::error::operation_aborted, ec);
-            acceptor.cancel();
-        });
-
         io::ip::tcp::socket socket(loop);
-        acceptor.async_accept(socket, [&timer](const std::error_code&){
-            timer.cancel();
+        acceptor.async_accept(socket, [](const std::error_code& ec){
+            EXPECT_EQ(0, ec.value());
         });
 
         EXPECT_NO_THROW(loop.run());
@@ -55,6 +48,8 @@ TEST(basic_connection_t, Connect) {
     }
 
     EXPECT_TRUE(flag);
+
+    server.stop();
 }
 
 TEST(basic_connection_t, ConnectMultipleTimesResultsInError) {
@@ -65,16 +60,9 @@ TEST(basic_connection_t, ConnectMultipleTimesResultsInError) {
     server_t server(port, [&barrier](io::ip::tcp::acceptor& acceptor, loop_t& loop){
         barrier.wait();
 
-        io::deadline_timer timer(loop);
-        timer.expires_from_now(boost::posix_time::milliseconds(testing::util::TIMEOUT));
-        timer.async_wait([&acceptor](const std::error_code& ec){
-            EXPECT_EQ(io::error::operation_aborted, ec);
-            acceptor.cancel();
-        });
-
         io::ip::tcp::socket socket(loop);
-        acceptor.async_accept(socket, [&timer](const std::error_code&){
-            timer.cancel();
+        acceptor.async_accept(socket, [](const std::error_code& ec){
+            EXPECT_EQ(0, ec.value());
         });
 
         EXPECT_NO_THROW(loop.run());
@@ -104,6 +92,8 @@ TEST(basic_connection_t, ConnectMultipleTimesResultsInError) {
     }
 
     EXPECT_EQ(2, flag);
+
+    server.stop();
 }
 
 TEST(basic_connection_t, ConnectAfterConnectedResultsInError) {
@@ -111,16 +101,9 @@ TEST(basic_connection_t, ConnectAfterConnectedResultsInError) {
     const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
 
     server_t server(port, [](io::ip::tcp::acceptor& acceptor, loop_t& loop){
-        io::deadline_timer timer(loop);
-        timer.expires_from_now(boost::posix_time::milliseconds(testing::util::TIMEOUT));
-        timer.async_wait([&acceptor](const std::error_code& ec){
-            EXPECT_EQ(io::error::operation_aborted, ec);
-            acceptor.cancel();
-        });
-
         io::ip::tcp::socket socket(loop);
-        acceptor.async_accept(socket, [&timer](const std::error_code&){
-            timer.cancel();
+        acceptor.async_accept(socket, [](const std::error_code& ec){
+            EXPECT_EQ(0, ec.value());
         });
 
         EXPECT_NO_THROW(loop.run());
@@ -149,6 +132,8 @@ TEST(basic_connection_t, ConnectAfterConnectedResultsInError) {
     }
 
     EXPECT_EQ(2, flag);
+
+    server.stop();
 }
 
 TEST(basic_connection_t, DisconnectWhileConnecting) {
@@ -199,17 +184,10 @@ TEST(basic_connection_t, DisconnectWhileReading) {
 
     boost::barrier barrier(2);
     server_t server(port, [&barrier](io::ip::tcp::acceptor& acceptor, loop_t& loop){
-        io::deadline_timer timer(loop);
-        timer.expires_from_now(boost::posix_time::milliseconds(testing::util::TIMEOUT));
-        timer.async_wait([&acceptor](const std::error_code& ec){
-            EXPECT_EQ(io::error::operation_aborted, ec);
-            acceptor.cancel();
-        });
-
         io::ip::tcp::socket socket(loop);
         std::vector<char> buffer(BUFFER_SIZE);
-        acceptor.async_accept(socket, [&timer, &socket, &buffer, &barrier](const std::error_code&){
-            timer.cancel();
+        acceptor.async_accept(socket, [&socket, &buffer, &barrier](const std::error_code& ec){
+            EXPECT_EQ(0, ec.value());
             barrier.wait();
         });
 
@@ -242,4 +220,6 @@ TEST(basic_connection_t, DisconnectWhileReading) {
     }
 
     EXPECT_TRUE(flag);
+
+    server.stop();
 }
