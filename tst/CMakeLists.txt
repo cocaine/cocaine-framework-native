@@ -2,6 +2,8 @@ CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
 
 LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/tst/cmake")
 
+SET(CMAKE_BUILD_TYPE "Debug")
+
 # Prepare testing infrastructure.
 INCLUDE(DownloadGoogleTesting)
 
@@ -20,7 +22,6 @@ INCLUDE_DIRECTORIES(
     ${CMAKE_SOURCE_DIR}/../cocaine-core/cocaine-core/foreign/asio/asio/include
     ${CMAKE_SOURCE_DIR}/../cocaine-core/cocaine-core/foreign/blackhole/src
 )
-LINK_DIRECTORIES(${CMAKE_SOURCE_DIR}/../cocaine-core/cocaine-core-build/)
 
 SET(Boost_USE_MULTITHREADED ON)
 SET(BOOST_COMPONENTS
@@ -40,8 +41,8 @@ SET(SOURCES
     util/net
 
     connection
-#    session
-#    functional
+    session
+    functional
 )
 
 PROJECT(${PROJECT})
@@ -52,7 +53,6 @@ ADD_DEPENDENCIES(${PROJECT} googlemock)
 TARGET_LINK_LIBRARIES(${PROJECT}
     ${CMAKE_THREAD_LIBS_INIT}
     ${Boost_LIBRARIES}
-    cocaine-core
     cocaine-framework-cpp
     gmock
     gtest

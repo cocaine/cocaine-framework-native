@@ -25,6 +25,7 @@ SET(HEADERS
     ${COCAINE_FRAMEWORK_INCLUDES_DIR}/session
     ${COCAINE_FRAMEWORK_INCLUDES_DIR}/util/future.hpp
     ${COCAINE_FRAMEWORK_INCLUDES_DIR}/util/future/error
+    ${COCAINE_FRAMEWORK_INCLUDES_DIR}/util/future/future
     ${COCAINE_FRAMEWORK_INCLUDES_DIR}/util/future/future_detail
     ${COCAINE_FRAMEWORK_INCLUDES_DIR}/util/future/packaged_task
     ${COCAINE_FRAMEWORK_INCLUDES_DIR}/util/future/promise
