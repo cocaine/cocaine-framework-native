@@ -218,8 +218,6 @@ TEST(basic_connection_t, DisconnectWhileReading) {
 
     std::atomic<bool> flag(false);
 
-//    std::vector<int> v(BUFFER_SIZE);
-//    cocaine::io::encoded<large_event> message(1, v);
     cocaine::io::decoder_t::message_type message;
 
     {
