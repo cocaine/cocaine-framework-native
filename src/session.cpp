@@ -21,7 +21,6 @@ public:
     {}
 
     void operator()() {
-        std::lock_guard<std::mutex> lock(connection->mutex);
         if (connection->channel) {
             connection->channel->writer->write(message, std::bind(&push_t::on_write, shared_from_this(), ph::_1));
         } else {
@@ -60,18 +59,16 @@ auto basic_session_t::connect(const endpoint_t& endpoint) -> future_t<std::error
     switch (state.load()) {
     case state_t::disconnected: {
         std::unique_ptr<socket_type> socket(new socket_type(loop));
-        socket->open(endpoint.protocol());
-
-        channel.reset(new channel_type(std::move(socket)));
 
         // The code above can throw std::bad_alloc, so here it is the right place to change
         // current object's state.
         // ???
         state = state_t::connecting;
 
-        channel->socket->async_connect(
+        socket_type* socket_ = socket.get();
+        socket_->async_connect(
             endpoint,
-            std::bind(&basic_session_t::on_connect, shared_from_this(), ph::_1, std::move(promise))
+            std::bind(&basic_session_t::on_connect, shared_from_this(), ph::_1, std::move(promise), std::move(socket))
         );
 
         break;
@@ -94,15 +91,16 @@ auto basic_session_t::connect(const endpoint_t& endpoint) -> future_t<std::error
 void basic_session_t::disconnect(const std::error_code& ec) {
     COCAINE_ASSERT(ec); // TODO: Throw invalid_argument.
 
-    std::lock_guard<std::mutex> lock(mutex);
-    channel.reset();
-    state = state_t::disconnected;
+    auto self = shared_from_this();
+    loop.post([self, ec]{
+        self->channel.reset();
 
-    auto channels = this->channels.synchronize();
-    for (auto channel : *channels) {
-        channel.second->error(ec);
-    }
-    channels->clear();
+        auto channels = self->channels.synchronize();
+        for (auto channel : *channels) {
+            channel.second->error(ec);
+        }
+        channels->clear();
+    });
 }
 
 auto basic_session_t::push(std::uint64_t span, io::encoder_t::message_type&& message) -> future_t<void> {
@@ -126,18 +124,18 @@ auto basic_session_t::push(io::encoder_t::message_type&& message) -> future_t<vo
     return f;
 }
 
-void basic_session_t::on_connect(const std::error_code& ec, promise_t<std::error_code>& promise) {
+void basic_session_t::on_connect(const std::error_code& ec, promise_t<std::error_code>& promise, std::unique_ptr<socket_type>& s) {
     COCAINE_ASSERT(state_t::connecting == state);
 
     CF_LOG(detail::logger, detail::debug, "connect event: %s", ec.message().c_str());
 
-    std::lock_guard<std::mutex> lock(mutex);
     if (ec) {
-        state = state_t::disconnected;
         channel.reset();
+        state = state_t::disconnected;
     } else {
-        state = state_t::connected;
+        channel.reset(new channel_type(std::move(s)));
         channel->reader->read(message, std::bind(&basic_session_t::on_read, shared_from_this(), ph::_1));
+        state = state_t::connected;
     }
 
     promise.set_value(ec);
@@ -159,6 +157,5 @@ void basic_session_t::on_read(const std::error_code& ec) {
         it->second->process(std::move(message));
     }
 
-    std::lock_guard<std::mutex> lock(mutex);
     channel->reader->read(message, std::bind(&basic_session_t::on_read, shared_from_this(), ph::_1));
 }

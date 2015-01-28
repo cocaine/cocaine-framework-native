@@ -625,6 +625,52 @@ TEST(basic_session_t, SilentlyDropOrphanMessageButContinueToListen) {
     server.stop();
 }
 
+//! The test should result in ECANCELED connection error in the connection future.
+TEST(basic_session_t, ManualDisconnectWhileConnecting) {
+    //! \todo I couldn't write proper code to check this behavior :(
+}
+
+TEST(basic_session_t, ManualDisconnectWhileInvoke) {
+    // ===== Set Up Stage =====
+    const std::uint16_t port = testing::util::port();
+    const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
+
+    boost::barrier barrier(2);
+    server_t server(port, [&barrier](io::ip::tcp::acceptor& acceptor, loop_t& loop){
+        io::ip::tcp::socket socket(loop);
+        acceptor.async_accept(socket, [&socket, &barrier](const std::error_code& ec){
+            EXPECT_EQ(0, ec.value());
+        });
+
+        EXPECT_NO_THROW(loop.run());
+    });
+
+    client_t client;
+
+    // ===== Test Stage =====
+    auto session = std::make_shared<basic_session_t>(client.loop());
+    session->connect(endpoint).get();
+
+    auto future = session->invoke<cocaine::io::locator::resolve>(std::string("node"));
+
+    session->disconnect(io::error::operation_aborted);
+
+    try {
+        // \note either the invocation future or the receiver can throw an error.
+        auto ch = future.get();
+        auto rx = std::get<1>(ch);
+        try {
+            rx->recv().get();
+        } catch (const std::system_error& ec) {
+            EXPECT_EQ(io::error::operation_aborted, ec.code());
+        }
+    } catch (const std::system_error& ec) {
+        EXPECT_EQ(io::error::operation_aborted, ec.code());
+    }
+
+    server.stop();
+}
+
 // Usage:
 //  basic_session_t - The base class, does almost all the job:
 //    std::tie(tx, rx) = session->invoke<E>();
@@ -663,6 +709,7 @@ TEST(basic_session_t, SilentlyDropOrphanMessageButContinueToListen) {
 /// Test session invoke and send - ok.
 /// Test session invoke and send - error - notify client.
 // Test session invoke and send multiple times - error - notify only once.
+/// Test session connect and disconnect while connecting.
 
 // Test service ctor.
 // Test service move ctor.

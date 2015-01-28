@@ -343,6 +343,9 @@ public:
 
     auto connect(const endpoint_t& endpoint) -> future_t<std::error_code>;
 
+    /*!
+     * Disconnects the channel. All pending requests should receive error with ec error code.
+     */
     void disconnect(const std::error_code& ec);
 
     /*!
@@ -380,7 +383,7 @@ public:
     }
 
 private:
-    void on_connect(const std::error_code& ec, promise_t<std::error_code>& promise);
+    void on_connect(const std::error_code& ec, promise_t<std::error_code>& promise, std::unique_ptr<socket_type>& s);
     void on_read(const std::error_code& ec);
 };
 
