@@ -344,7 +344,9 @@ public:
     auto connect(const endpoint_t& endpoint) -> future_t<std::error_code>;
 
     /*!
-     * Disconnects the channel. All pending requests should receive error with ec error code.
+     * \brief Emits a disconnection request to the current session.
+     *
+     * All pending requests should result in error with the given error code.
      */
     void disconnect(const std::error_code& ec);
 
