@@ -723,9 +723,9 @@ TEST(basic_session_t, ManualDisconnectWhileRecv) {
 //      session->invoke<M>(args).get() -> value | error
 //    Sequenced + void Dispatch [not implemented]:
 //      session->invoke<M>(args).get() -> Receiver<T, U, ...>
-//    Streaming: session->invoke<M>(args) -> (tx, rx).
+//    Streaming: session->invoke<M>(args).get() -> (tx, rx).
 //      rx.recv() -> T | E | C where T == dispatch_type, E - error type, C - choke.
-//      rx.recv<T>() -> T | throw exception.
+//      rx.recv<T>() -> optional<T> | throw exception.
 //      May throw error (network or protocol) or be exhaused (throw exception after E | C).
 
 /// Test session ctor.
