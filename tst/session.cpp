@@ -747,6 +747,8 @@ TEST(basic_session_t, ManualDisconnectWhileRecv) {
 /// Test session invoke and disconnect while it invoking (or after).
 /// Test session invoke and disconnect while it receiving bytes.
 
+// Do not insert channels for mute events.
+
 // Test service ctor.
 // Test service move ctor.
 // Test service dtor (waits).

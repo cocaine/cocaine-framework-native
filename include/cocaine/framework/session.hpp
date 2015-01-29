@@ -316,8 +316,8 @@ class basic_session_t : public std::enable_shared_from_this<basic_session_t> {
 
     // This map represents active callbacks holder. There is a better way to achieve the same
     // functionality - call user callbacks even if the operation is aborted, but who cares.
-//    std::uint64_t pcounter;
-//    std::unordered_map<std::uint64_t, callback_type> pending;
+    // std::uint64_t pcounter;
+    // std::unordered_map<std::uint64_t, callback_type> pending;
 
     mutable std::mutex mutex;
     std::atomic<state_t> state;
