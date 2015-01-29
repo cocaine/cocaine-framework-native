@@ -34,9 +34,9 @@
 #include <cocaine/traits/map.hpp>
 #include <cocaine/traits/vector.hpp>
 
+#include "cocaine/framework/forwards.hpp"
 #include "cocaine/framework/common.hpp"
 #include "cocaine/framework/config.hpp"
-#include "cocaine/framework/util/future.hpp"
 
 /// \note temporary for debugging purposes.
 template<typename T> struct deduced_type;
@@ -98,12 +98,6 @@ struct result_of {
         typename io::event_traits<Event>::upstream_type
     >::type type;
 };
-
-template<typename T>
-using promise_t = promise<T>;
-
-template<typename T>
-using future_t = future<T>;
 
 template<class Event> class channel_t;
 
