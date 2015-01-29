@@ -37,6 +37,7 @@
 #include "cocaine/framework/forwards.hpp"
 #include "cocaine/framework/common.hpp"
 #include "cocaine/framework/config.hpp"
+#include "cocaine/framework/sender.hpp"
 
 /// \note temporary for debugging purposes.
 template<typename T> struct deduced_type;
@@ -147,32 +148,6 @@ private:
             return result;
         }
     };
-};
-
-// TODO: maybe basic_sender without type information and traversing?
-
-// app::enqueue - allows [write | error | close]
-//   write - -//-,
-//   error - void,
-//   close - void.
-class basic_sender_t {
-    std::uint64_t id;
-    std::shared_ptr<basic_session_t> connection;
-
-public:
-    basic_sender_t(std::uint64_t id, std::shared_ptr<basic_session_t> connection) :
-        id(id),
-        connection(connection)
-    {}
-
-    /*!
-     * \todo \throw encoding_error if failed to encode the arguments given.
-     * \todo \throw invalid_state_error if sender is in invalid state, for example after connection
-     * lose (but shouldn't we try to reconnect then?)
-     */
-    template<class Event, class... Args>
-    auto
-    send(Args&&... args) -> future_t<void>;
 };
 
 template<class Event>
@@ -382,11 +357,6 @@ private:
     void on_connect(const std::error_code& ec, promise_t<std::error_code>& promise, std::unique_ptr<socket_type>& s);
     void on_read(const std::error_code& ec);
 };
-
-template<class Event, class... Args>
-auto basic_sender_t::send(Args&&... args) -> future_t<void> {
-    return connection->push(id, io::encoded<Event>(id, std::forward<Args>(args)...));
-}
 
 } // namespace framework
 
