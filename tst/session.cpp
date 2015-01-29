@@ -671,6 +671,40 @@ TEST(basic_session_t, ManualDisconnectWhileInvoke) {
     server.stop();
 }
 
+TEST(basic_session_t, ManualDisconnectWhileRecv) {
+    // ===== Set Up Stage =====
+    const std::uint16_t port = testing::util::port();
+    const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
+
+    boost::barrier barrier(2);
+    server_t server(port, [&barrier](io::ip::tcp::acceptor& acceptor, loop_t& loop){
+        io::ip::tcp::socket socket(loop);
+        acceptor.async_accept(socket, [&socket, &barrier](const std::error_code& ec){
+            EXPECT_EQ(0, ec.value());
+        });
+
+        EXPECT_NO_THROW(loop.run());
+    });
+
+    client_t client;
+
+    // ===== Test Stage =====
+    auto session = std::make_shared<basic_session_t>(client.loop());
+    session->connect(endpoint).get();
+
+    auto ch = session->invoke<cocaine::io::locator::resolve>(std::string("node")).get();
+    auto rx = std::get<1>(ch);
+    session->disconnect(io::error::operation_aborted);
+
+    try {
+        rx->recv().get();
+    } catch (const std::system_error& ec) {
+        EXPECT_EQ(io::error::operation_aborted, ec.code());
+    }
+
+    server.stop();
+}
+
 // Usage:
 //  basic_session_t - The base class, does almost all the job:
 //    std::tie(tx, rx) = session->invoke<E>();
@@ -709,7 +743,9 @@ TEST(basic_session_t, ManualDisconnectWhileInvoke) {
 /// Test session invoke and send - ok.
 /// Test session invoke and send - error - notify client.
 // Test session invoke and send multiple times - error - notify only once.
-/// Test session connect and disconnect while connecting.
+// Test session connect and disconnect while connecting.
+/// Test session invoke and disconnect while it invoking (or after).
+/// Test session invoke and disconnect while it receiving bytes.
 
 // Test service ctor.
 // Test service move ctor.

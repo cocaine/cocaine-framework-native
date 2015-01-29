@@ -95,6 +95,7 @@ void basic_session_t::disconnect(const std::error_code& ec) {
     loop.post([self, ec]{
         self->channel.reset();
 
+        // TODO: Consider doing this actions in the asynchronous completion handlers.
         auto channels = self->channels.synchronize();
         for (auto channel : *channels) {
             channel.second->error(ec);
