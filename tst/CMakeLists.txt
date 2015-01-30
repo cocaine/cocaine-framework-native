@@ -43,6 +43,9 @@ SET(SOURCES
 
     connection
     session
+    session_t
+    sender
+    service
     functional
 )
 

@@ -16,9 +16,26 @@
 #include "cocaine/framework/config.hpp"
 #include "cocaine/framework/receiver.hpp"
 #include "cocaine/framework/sender.hpp"
+#include <iostream>
 
 /// \note temporary for debugging purposes.
 template<typename T> struct deduced_type;
+
+namespace std {
+
+template<>
+struct hash<asio::ip::tcp::endpoint> {
+    typedef asio::ip::tcp::endpoint argument_type;
+    typedef std::size_t value_type;
+
+    value_type operator()(argument_type const& value) const {
+        value_type const h1(std::hash<std::string>()(value.address().to_string()));
+        value_type const h2(std::hash<std::uint16_t>()(value.port()));
+        return h1 ^ (h2 << 1);
+    }
+};
+
+} // namespace std
 
 namespace cocaine {
 
@@ -152,6 +169,76 @@ public:
 private:
     void on_connect(const std::error_code& ec, promise_t<std::error_code>& promise, std::unique_ptr<socket_type>& s);
     void on_read(const std::error_code& ec);
+};
+
+template<class Event>
+struct traverse {
+    typedef std::tuple<
+        std::shared_ptr<sender<typename io::event_traits<Event>::dispatch_type>>,
+        std::nullptr_t
+    > channel_type;
+};
+
+template<class T, class BasicSession = basic_session_t>
+class session : public std::enable_shared_from_this<session<T, BasicSession>> {
+public:
+    typedef T tag_type;
+    typedef BasicSession basic_session_type;
+
+private:
+    std::shared_ptr<basic_session_type> d;
+    std::unordered_map<endpoint_t, std::vector<std::shared_ptr<promise_t<void>>>> queue;
+
+public:
+    session(std::shared_ptr<basic_session_type> d) :
+        d(d)
+    {}
+
+    bool connected() const {
+        return d->connected();
+    }
+
+    auto connect(const endpoint_t& endpoint) -> future_t<void> {
+        auto p = std::make_shared<promise_t<void>>();
+        auto future = p->get_future();
+
+        auto this_ = this->shared_from_this();
+        d->connect(endpoint).then([this_, p, endpoint](future_t<std::error_code>& f){
+            auto ec = f.get();
+
+            if (ec) {
+                switch (ec.value()) {
+                case io_provider::error::already_started:
+                    this_->queue[endpoint].push_back(p);
+                    break;
+                case io_provider::error::already_connected:
+                    // TODO: Return ready future.
+                    break;
+                default:
+                    p->set_exception(std::system_error(ec));
+                    for (auto& it : this_->queue[endpoint]) {
+                        it->set_exception(std::system_error(ec));
+                    }
+                    this_->queue.erase(endpoint);
+                }
+            } else {
+                p->set_value();
+                for (auto& it : this_->queue[endpoint]) {
+                    it->set_value();
+                }
+                this_->queue.erase(endpoint);
+            }
+        });
+
+        return future;
+    }
+
+    template<class Event, class... Args>
+    future_t<typename traverse<Event>::channel_type>
+    invoke(Args&&...) {
+        typedef typename traverse<Event>::channel_type result_type;
+        return future_t<result_type>();
+    }
 };
 
 } // namespace framework
