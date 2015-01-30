@@ -20,21 +20,6 @@ namespace testing {
 namespace mock {
 
 class basic_session_t {
-    template<class T>
-    struct copyable_future {
-        typedef future_t<T> future_type;
-
-        future_type f;
-
-        copyable_future() : f(future_type()) {}
-
-        copyable_future(const copyable_future& other) :
-            f(std::move(other.f))
-        {}
-
-        copyable_future& operator=(const copyable_future& other) {}
-    };
-
 public:
     MOCK_CONST_METHOD0(connected, bool());
     MOCK_METHOD1(connect, future_t<std::error_code>&(const endpoint_t&));
