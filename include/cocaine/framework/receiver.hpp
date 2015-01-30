@@ -12,6 +12,8 @@
 #include <cocaine/rpc/asio/decoder.hpp>
 #include <cocaine/tuple.hpp>
 
+#include <cocaine/framework/common.hpp>
+
 namespace cocaine {
 
 namespace framework {

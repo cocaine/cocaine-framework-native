@@ -27,6 +27,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 #include <msgpack.hpp>
 
+#include <assert.h>
 #include <stdexcept>
 #include <exception>
 #include <utility>
