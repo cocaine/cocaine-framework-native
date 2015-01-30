@@ -123,13 +123,13 @@ public:
      * If you send a **mute** event, there is no way to obtain guarantees of successful message
      * transporting.
      */
-    template<class T, class... Args>
-    future_t<std::tuple<std::shared_ptr<basic_sender_t>, std::shared_ptr<basic_receiver_t<T>>>>
+    template<class Event, class... Args>
+    future_t<std::tuple<std::shared_ptr<basic_sender_t>, std::shared_ptr<basic_receiver_t<Event>>>>
     invoke(Args&&... args) {
         const auto id = counter++;
-        auto message = io::encoded<T>(id, std::forward<Args>(args)...);
+        auto message = io::encoded<Event>(id, std::forward<Args>(args)...);
         auto tx = std::make_shared<basic_sender_t>(id, shared_from_this());
-        auto channel = std::make_shared<channel_t<T>>(tx);
+        auto channel = std::make_shared<channel_t<Event>>(tx);
 
         // TODO: Do not insert mute channels.
         channels->insert(std::make_pair(id, channel));
