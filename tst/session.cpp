@@ -13,6 +13,11 @@
 #include <cocaine/idl/node.hpp>
 #include <cocaine/idl/streaming.hpp>
 
+#include <cocaine/common.hpp>
+#include <cocaine/traits/endpoint.hpp>
+#include <cocaine/traits/graph.hpp>
+#include <cocaine/traits/vector.hpp>
+
 #include <cocaine/framework/connection.hpp>
 #include <cocaine/framework/session.hpp>
 

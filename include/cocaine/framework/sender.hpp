@@ -40,6 +40,47 @@ private:
     auto send(io::encoder_t::message_type&& message) -> future_t<void>;
 };
 
+template<class T, class Event>
+struct has_slot : public boost::mpl::contains<io::protocol<T>, Event> {};
+
+template<class T>
+class sender {
+public:
+    typedef T tag_type;
+
+private:
+    std::unique_ptr<basic_sender_t> sender_;
+
+public:
+    sender(std::uint64_t id, std::shared_ptr<basic_session_t> session) :
+        sender_(new basic_sender_t(id, session))
+    {}
+
+    template<class Event, class... Args>
+    typename std::enable_if<
+        has_slot<tag_type, Event>::value,
+        future_t<sender<typename io::event_traits<Event>::dispatch_type>>
+    >::type
+    send(Args&&... args) && {
+        auto future = sender_->send<Event>(std::forward<Args>(args)...);
+        return future.then(&sender::traverse<Event>, std::placeholders::_1, std::move(sender_));
+    }
+
+private:
+    template<class Event>
+    sender<typename io::event_traits<Event>::dispatch_type>
+    traverse(future_t<void>& f, std::unique_ptr<basic_sender_t>& s) {
+        f.get();
+        return sender<typename io::event_traits<Event>::dispatch_type>(std::move(s));
+    }
+};
+
+template<>
+class sender<void> {
+public:
+    sender(std::uint64_t, std::shared_ptr<basic_session_t>) {}
+};
+
 } // namespace framework
 
 } // namespace cocaine
