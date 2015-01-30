@@ -34,6 +34,7 @@ FIND_PACKAGE(Boost COMPONENTS ${BOOST_COMPONENTS} REQUIRED)
 SET(PROJECT cocaine-framework-cpp-tests)
 
 SET(HEADERS
+    mock/event
     util/net
 )
 
