@@ -15,15 +15,15 @@ namespace framework {
 //   write - -//-,
 //   error - void,
 //   close - void.
-
 class basic_session_t;
 
 class basic_sender_t {
     std::uint64_t id;
-    std::shared_ptr<basic_session_t> connection;
+    std::shared_ptr<basic_session_t> session;
 
 public:
-    basic_sender_t(std::uint64_t id, std::shared_ptr<basic_session_t> connection);
+    basic_sender_t(std::uint64_t id, std::shared_ptr<basic_session_t> session);
+    basic_sender_t(basic_sender_t&& other) = default;
 
     /*!
      * \todo \throw encoding_error if failed to encode the arguments given.
@@ -36,6 +36,7 @@ public:
         return send(io::encoded<Event>(id, std::forward<Args>(args)...));
     }
 
+private:
     auto send(io::encoder_t::message_type&& message) -> future_t<void>;
 };
 

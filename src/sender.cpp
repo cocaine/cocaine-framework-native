@@ -5,12 +5,12 @@
 
 using namespace cocaine::framework;
 
-basic_sender_t::basic_sender_t(std::uint64_t id, std::shared_ptr<basic_session_t> connection) :
+basic_sender_t::basic_sender_t(std::uint64_t id, std::shared_ptr<basic_session_t> session) :
     id(id),
-    connection(connection)
+    session(session)
 {}
 
 future_t<void>
 basic_sender_t::send(io::encoder_t::message_type&& message) {
-    return connection->push(id, std::move(message));
+    return session->push(id, std::move(message));
 }
