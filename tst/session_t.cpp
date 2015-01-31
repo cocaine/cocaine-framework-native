@@ -113,7 +113,15 @@ TEST(session, ConnectWhileConnectingError) {
     EXPECT_THROW(f12.get(), std::system_error);
 }
 
-// TODO: Connect different endpoints.
+/// functional
+// - connect 1 ok.
+// - connect 1 err - throw.
+// - connect 2 seq ok.
+// - connect 2 1by1 ok.
+// - connect 2 seq with error
+// - connect 2 different endpoint seq - throw
+// - connect different endpoint when connected
+// = 70m + refactoring 20m => 1.5h
 
 //TEST(session, __InvokeSendsProperMessage) {
 //    // ===== Set Up Stage =====

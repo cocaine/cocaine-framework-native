@@ -21,14 +21,15 @@
 // Test service timeout on invoke.
 // Test service timeout on send(?).
 // Test service timeout on recv.
-// \note Strands will possibly be required.
-// \note On worker side serialize all callbacks through a single thread (may be configured).
 // Primitive protocol wrapper (value/error).
-// \note Exception type guarantee.
 // Service manager with thread pool (io loop pool, actually).
 // GetService from SM.
 // GetService async from SM.
 // SM dtor.
+
+// \note Strands will possibly be required.
+// \note On worker side serialize all callbacks through a single thread (may be configured).
+// \note Exception type guarantee.
 // \note Internal thread safety.
 // Test return version number expected (through T).
 // Test error version mismatch.
