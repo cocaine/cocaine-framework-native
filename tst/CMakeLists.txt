@@ -47,6 +47,7 @@ SET(SOURCES
     service
     functional
     func/real/service
+    func/stub/session
 )
 
 PROJECT(${PROJECT})
