@@ -1,7 +1,7 @@
+#include "net.hpp"
+
 #include <asio/io_service.hpp>
 #include <asio/ip/tcp.hpp>
-
-#include "net.hpp"
 
 std::uint16_t testing::util::port() {
     io::io_service loop;
