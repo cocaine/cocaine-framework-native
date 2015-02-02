@@ -1,5 +1,9 @@
 #pragma once
 
+#include <string>
+#include <system_error>
+#include <queue>
+
 #include <boost/mpl/lambda.hpp>
 #include <boost/mpl/for_each.hpp>
 #include <boost/mpl/front.hpp>
@@ -8,11 +12,15 @@
 #include <boost/mpl/vector.hpp>
 #include <boost/variant.hpp>
 
+#include <cocaine/common.hpp>
 #include <cocaine/idl/primitive.hpp>
 #include <cocaine/rpc/asio/decoder.hpp>
 #include <cocaine/tuple.hpp>
 
 #include <cocaine/framework/common.hpp>
+#include <cocaine/framework/forwards.hpp>
+
+#include "cocaine/framework/detail/log.hpp"
 
 namespace cocaine {
 
@@ -98,7 +106,7 @@ private:
         unpackers(unpackers)
     {}
 
-private:
+public:
     template<typename T>
     struct unpacker {
         static
@@ -122,17 +130,23 @@ private:
     };
 };
 
-template<class Event>
+class basic_session_t;
+
 class basic_receiver_t {
-    typedef Event event_type;
-    friend class channel_t<event_type>;
+//    typedef Event event_type;
+//    friend class channel_t<event_type>;
+    friend class basic_session_t;
 
-    typedef typename result_of<event_type>::type result_type;
-    typedef typename result_type::types result_typelist;
+//    typedef typename result_of<event_type>::type result_type;
+//    typedef typename result_type::types result_typelist;
 
-    typedef std::function<result_type(const msgpack::object&)> unpacker_type;
+//    typedef std::function<result_type(const msgpack::object&)> unpacker_type;
 
-    static const std::vector<unpacker_type> visitors;
+//    static const std::vector<unpacker_type> visitors;
+    typedef io::decoder_t::message_type result_type;
+
+    std::uint64_t id;
+    std::shared_ptr<basic_session_t> session;
 
     boost::optional<std::error_code> broken;
 
@@ -141,6 +155,10 @@ class basic_receiver_t {
     std::queue<promise_t<result_type>> pending;
 
 public:
+    basic_receiver_t(std::uint64_t id, std::shared_ptr<basic_session_t> session);
+
+    ~basic_receiver_t();
+
     // TODO: Return improved variant with typechecking.
     future_t<result_type> recv() {
         promise_t<result_type> promise;
@@ -166,14 +184,15 @@ public:
 
 private:
     void push(io::decoder_t::message_type&& message) {
-        const auto id = message.type();
-        if (id >= boost::mpl::size<result_typelist>::value) {
-            // TODO: What to do? Notify the user, I think.
-            // std::cout << "dropping a " << id << " type message" << std::endl;
-            return;
-        }
+//        const auto id = message.type();
+//        if (id >= boost::mpl::size<result_typelist>::value) {
+//            // TODO: What to do? Notify the user, I think.
+//            // std::cout << "dropping a " << id << " type message" << std::endl;
+//            return;
+//        }
 
-        const auto payload = visitors[id](message.args());
+//        const auto payload = visitors[id](message.args());
+        const auto payload = message;
 
         std::lock_guard<std::mutex> lock(mutex);
         COCAINE_ASSERT(!broken);
@@ -197,9 +216,66 @@ private:
     }
 };
 
+//template<class Event>
+//const std::vector<typename basic_receiver_t<Event>::unpacker_type>
+//basic_receiver_t<Event>::visitors = slot_unpacker<Event>::generate();
+
 template<class Event>
-const std::vector<typename basic_receiver_t<Event>::unpacker_type> basic_receiver_t<Event>::visitors = slot_unpacker<Event>::generate();
+class receiver {
+    typedef Event event_type;
+//    typedef typename event_type::tag tag_type;
 
-}
+    std::shared_ptr<basic_receiver_t> d;
 
-}
+public:
+    receiver(std::shared_ptr<basic_receiver_t> d) :
+        d(d)
+    {}
+
+    // Intentionally deleted.
+    receiver(const receiver& other) = delete;
+    receiver(receiver&& other) = default;
+
+    receiver& operator=(const receiver& other) = delete;
+    receiver& operator=(receiver&& other) = default;
+
+    template<typename T>
+    struct unpacker {
+        static
+        T
+        unpack(const msgpack::object& message) {
+            std::tuple<T> result;
+            io::type_traits<std::tuple<T>>::unpack(message, result);
+            return std::get<0>(result);
+        }
+    };
+
+    template<typename... Args>
+    struct unpacker<std::tuple<Args...>> {
+        static
+        std::tuple<Args...>
+        unpack(const msgpack::object& message) {
+            std::tuple<Args...> result;
+            io::type_traits<std::tuple<Args...>>::unpack(message, result);
+            return result;
+        }
+    };
+
+    // recv<scope::value,error>
+    // recv<scope::chunk|choke|error>
+    template<class T>
+    future_t<T>
+    recv() {
+        auto message = d->recv().get();
+        CF_DBG("recv, message: %llu", message.type());
+        // TODO: Check type.
+        // TODO: Make it work with single types.
+        // TODO: More convenient interface.
+        auto result = unpacker<T>::unpack(message.args());
+        return make_ready_future<T>::value(result);
+    }
+};
+
+} // namespace framework
+
+} // namespace cocaine

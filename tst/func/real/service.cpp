@@ -19,7 +19,7 @@ TEST(service, Storage) {
     service<cocaine::io::storage_tag> storage("storage", client.loop());
 
     // Invoke (and internally connect) read method.
-    auto result = storage.invoke<cocaine::io::storage::read>("collection", "key").get();
+    auto result = storage.invoke<cocaine::io::storage::read>(std::string("collection"), std::string("key")).get();
 
     EXPECT_EQ("le value", result);
 }

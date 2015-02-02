@@ -42,7 +42,7 @@ SET(SOURCES
     util/net
 
     connection
-    session
+#    session
     session_t
     service
     functional

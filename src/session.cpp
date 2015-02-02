@@ -155,7 +155,7 @@ void basic_session_t::on_read(const std::error_code& ec) {
     if (it == channels->end()) {
         CF_LOG(detail::logger, detail::warn, "dropping an orphan span %llu message", message.span());
     } else {
-        it->second->process(std::move(message));
+        it->second->push(std::move(message));
     }
 
     channel->reader->read(message, std::bind(&basic_session_t::on_read, shared_from_this(), ph::_1));

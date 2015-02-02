@@ -49,12 +49,23 @@ public:
     typedef T tag_type;
 
 private:
-    std::unique_ptr<basic_sender_t> sender_;
+    std::shared_ptr<basic_sender_t> sender_;
 
 public:
     sender(std::uint64_t id, std::shared_ptr<basic_session_t> session) :
         sender_(new basic_sender_t(id, session))
     {}
+
+    sender(std::shared_ptr<basic_sender_t> base) :
+        sender_(std::move(base))
+    {}
+
+    // Intentionally deleted.
+    sender(const sender& other) = delete;
+    sender(sender&& other) = default;
+
+    sender& operator=(const sender& other) = delete;
+    sender& operator=(sender&& other) = default;
 
     template<class Event, class... Args>
     typename std::enable_if<
@@ -69,7 +80,7 @@ public:
 private:
     template<class Event>
     sender<typename io::event_traits<Event>::dispatch_type>
-    traverse(future_t<void>& f, std::unique_ptr<basic_sender_t>& s) {
+    traverse(future_t<void>& f, std::shared_ptr<basic_sender_t>& s) {
         f.get();
         return sender<typename io::event_traits<Event>::dispatch_type>(std::move(s));
     }
@@ -79,6 +90,7 @@ template<>
 class sender<void> {
 public:
     sender(std::uint64_t, std::shared_ptr<basic_session_t>) {}
+    sender(std::shared_ptr<basic_sender_t>) {}
 };
 
 } // namespace framework
