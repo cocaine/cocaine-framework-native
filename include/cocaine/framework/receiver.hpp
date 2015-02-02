@@ -331,6 +331,7 @@ private:
             CF_DBG("dropping a %llu type message", id);
         }
         variant_type payload = visitors[id](message.args());
+        // TODO: Close the channel if it the next node is terminate leaf.
         return receiver_traits<T>::convert(payload);
     }
 };
