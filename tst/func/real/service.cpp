@@ -43,6 +43,7 @@ TEST(service, Echo) {
     auto rx = std::move(std::get<1>(ch));
     tx.send<upstream::chunk>(std::string("le message")).get();
     auto result = rx.recv().get();
+    rx.recv().get();
 
     EXPECT_EQ("le message", *result);
 }
