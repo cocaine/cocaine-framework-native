@@ -75,10 +75,10 @@ struct packable<U, 1> {
 /// streaming<T> -> variant<chunk<T>::type, error::type, choke::type>
 ///              -> variant<T, tuple<int, string>, tuple<>>
 template<class T>
-struct result_of;
+struct variant_of;
 
 template<class T>
-struct result_of<io::primitive_tag<T>> {
+struct variant_of<io::primitive_tag<T>> {
     typedef typename packable<T>::type value_type;
     typedef typename packable<typename io::primitive<T>::error::argument_type>::type error_type;
 
@@ -86,7 +86,7 @@ struct result_of<io::primitive_tag<T>> {
 };
 
 template<class T>
-struct result_of<io::streaming_tag<T>> {
+struct variant_of<io::streaming_tag<T>> {
     typedef typename packable<T>::type chunk_type;
     typedef typename packable<typename io::streaming<T>::error::argument_type>::type error_type;
     typedef std::tuple<> choke_type;
@@ -97,26 +97,21 @@ struct result_of<io::streaming_tag<T>> {
 } // namespace detail
 
 template<class T>
-struct result_of {
-    typedef typename detail::result_of<T>::type type;
-};
-
-template<class T>
 struct variant_of {
-    typedef typename detail::result_of<T>::type type;
+    typedef typename detail::variant_of<T>::type type;
 };
 
 template<class Event> class channel_t;
 
 template<class T>
 class slot_unpacker {
-    typedef typename result_of<T>::type result_type;
-    typedef std::function<result_type(const msgpack::object&)> function_type;
+    typedef typename variant_of<T>::type variant_type;
+    typedef std::function<variant_type(const msgpack::object&)> function_type;
 
 public:
     static std::vector<function_type> generate() {
         std::vector<function_type> result;
-        boost::mpl::for_each<typename result_type::types>(slot_unpacker<T>(result));
+        boost::mpl::for_each<typename variant_type::types>(slot_unpacker<T>(result));
         return result;
     }
 
