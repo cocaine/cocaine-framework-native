@@ -28,7 +28,6 @@ TEST(service, Storage) {
 
 TEST(service, Echo) {
     typedef typename cocaine::io::protocol<cocaine::io::app::enqueue::dispatch_type>::scope dscope;
-    typedef typename cocaine::io::protocol<cocaine::io::app::enqueue::upstream_type>::scope uscope;
 
     client_t client;
     service<cocaine::io::app_tag> echo("echo", client.loop());
