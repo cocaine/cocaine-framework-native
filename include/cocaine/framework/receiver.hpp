@@ -33,7 +33,7 @@ class basic_session_t;
 namespace detail {
 
 /*!
- * Transforms a typelist sequence to a single movable argument type.
+ * Transforms a typelist sequence into a single movable argument type.
  *
  * If the sequence contains a single element of type T, than the result type will be T.
  * Otherwise the sequence will be transformed into a tuple.
