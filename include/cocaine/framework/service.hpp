@@ -10,10 +10,23 @@
 
 #include "cocaine/framework/forwards.hpp"
 #include "cocaine/framework/session.hpp"
+#include "cocaine/framework/receiver.hpp"
 
 namespace cocaine {
 
 namespace framework {
+
+class cocaine_error : public std::runtime_error {
+    int id;
+    std::string reason;
+
+public:
+    cocaine_error(int id, std::string reason) :
+        std::runtime_error(reason),
+        id(id),
+        reason(reason)
+    {}
+};
 
 template<
     class Event,
@@ -22,40 +35,54 @@ template<
 >
 struct invocation_result;
 
+//! \note value or throw.
 template<class Event, class T>
 struct invocation_result<Event, io::primitive_tag<T>, void> {
-    typedef typename boost::mpl::front<T>::type type;
+    typedef typename detail::packable<T>::type value_type;
+    typedef typename detail::packable<typename io::primitive<T>::error::argument_type>::type error_type;
+
+    typedef std::tuple<sender<void>, receiver<io::primitive_tag<T>>> channel_type;
+
+    typedef value_type type;
 
     static
-    future_t<type>
-    apply(std::tuple<
-              sender  <typename io::event_traits<Event>::dispatch_type>,
-              receiver<typename io::event_traits<Event>::upstream_type>
-          > ch)
-    {
-        auto rx = std::move(std::get<1>(ch));
-        return rx.template recv<type>();
+    future_t<value_type>
+    apply(channel_type& channel) {
+        auto rx = std::move(std::get<1>(channel));
+
+        try {
+            auto result = rx.recv().get();
+            return boost::apply_visitor(visitor_t(), result);
+        } catch (const std::exception& err) {
+            return make_ready_future<value_type>::error(err);
+        }
     }
+
+    struct visitor_t : public boost::static_visitor<future_t<value_type>> {
+        future_t<value_type> operator()(value_type& r) const {
+            return make_ready_future<value_type>::value(r);
+        }
+
+        future_t<value_type> operator()(error_type& r) const {
+            int id;
+            std::string reason;
+            std::tie(id, reason) = r;
+            return make_ready_future<value_type>::error(cocaine_error(id, reason));
+        }
+    };
 };
 
-template<class Event, class T, class D>
-struct invocation_result<Event, io::streaming_tag<T>, io::streaming_tag<D>> {
-    typedef typename boost::mpl::front<T>::type utype;
-    typedef typename boost::mpl::front<D>::type dtype;
+//! \note sender - usual, receiver - special - recv() -> optional<T> or throw.
+template<class Event, class U, class D>
+struct invocation_result<Event, io::streaming_tag<U>, io::streaming_tag<D>> {
+    typedef std::tuple<sender<io::streaming_tag<D>>, receiver<io::streaming_tag<U>>> channel_type;
 
-    typedef std::tuple<
-        sender  <typename io::event_traits<Event>::dispatch_type>,
-        receiver<typename io::event_traits<Event>::upstream_type>
-    > type;
+    typedef channel_type type;
 
     static
-    future_t<type>
-    apply(std::tuple<
-              sender  <typename io::event_traits<Event>::dispatch_type>,
-              receiver<typename io::event_traits<Event>::upstream_type>
-          > ch)
-    {
-        return make_ready_future<type>::value(ch);
+    future_t<channel_type>
+    apply(channel_type& channel) {
+        return make_ready_future<type>::value(channel);
     }
 };
 
@@ -105,7 +132,7 @@ public:
                     io::graph_basis_t
                 > resolve_result;
 
-                auto result = rx.template recv<resolve_result>().get();
+                auto result = boost::get<resolve_result>(rx.recv().get());
                 CF_DBG("resolving - done");
                 // TODO: Check version.
                 locator->disconnect();

@@ -14,6 +14,7 @@
 
 #include <cocaine/common.hpp>
 #include <cocaine/idl/primitive.hpp>
+#include <cocaine/idl/streaming.hpp>
 #include <cocaine/rpc/asio/decoder.hpp>
 #include <cocaine/tuple.hpp>
 
@@ -53,7 +54,7 @@ struct packable<U, 1> {
 /// primitive<T> -> variant<value<T>::type, error::type>
 ///              -> variant<T, tuple<int, string>>
 /// streaming<T> -> variant<chunk<T>::type, error::type, choke::type>
-///              -> variant<T, tuple<int, string>, void>
+///              -> variant<T, tuple<int, string>, tuple<>>
 template<class T>
 struct result_of;
 
@@ -67,36 +68,37 @@ struct result_of<io::primitive_tag<T>> {
 
 template<class T>
 struct result_of<io::streaming_tag<T>> {
-// TODO: Not implemented yet.
-    typedef boost::variant<bool> type;
+    typedef typename packable<T>::type chunk_type;
+    typedef typename packable<typename io::streaming<T>::error::argument_type>::type error_type;
+    typedef std::tuple<> choke_type;
+
+    typedef boost::variant<chunk_type, error_type, choke_type> type;
 };
 
 } // namespace detail
 
-template<class Event>
+template<class T>
 struct result_of {
-    typedef typename detail::result_of<
-        typename io::event_traits<Event>::upstream_type
-    >::type type;
+    typedef typename detail::result_of<T>::type type;
 };
 
 template<class Event> class channel_t;
 
-template<class Event>
+template<class T>
 class slot_unpacker {
-    typedef typename result_of<Event>::type result_type;
+    typedef typename result_of<T>::type result_type;
     typedef std::function<result_type(const msgpack::object&)> function_type;
 
 public:
     static std::vector<function_type> generate() {
         std::vector<function_type> result;
-        boost::mpl::for_each<typename result_type::types>(slot_unpacker<Event>(result));
+        boost::mpl::for_each<typename result_type::types>(slot_unpacker<T>(result));
         return result;
     }
 
-    template<class T>
-    void operator()(const T&) {
-        unpackers.emplace_back(&slot_unpacker::unpacker<T>::unpack);
+    template<class U>
+    void operator()(const U&) {
+        unpackers.emplace_back(&slot_unpacker::unpacker<U>::unpack);
     }
 
 private:
@@ -107,13 +109,13 @@ private:
     {}
 
 public:
-    template<typename T>
+    template<typename R>
     struct unpacker {
         static
-        T
+        R
         unpack(const msgpack::object& message) {
-            std::tuple<T> result;
-            io::type_traits<std::tuple<T>>::unpack(message, result);
+            std::tuple<R> result;
+            io::type_traits<std::tuple<R>>::unpack(message, result);
             return std::get<0>(result);
         }
     };
@@ -133,16 +135,7 @@ public:
 class basic_session_t;
 
 class basic_receiver_t {
-//    typedef Event event_type;
-//    friend class channel_t<event_type>;
     friend class basic_session_t;
-
-//    typedef typename result_of<event_type>::type result_type;
-//    typedef typename result_type::types result_typelist;
-
-//    typedef std::function<result_type(const msgpack::object&)> unpacker_type;
-
-//    static const std::vector<unpacker_type> visitors;
     typedef io::decoder_t::message_type result_type;
 
     std::uint64_t id;
@@ -159,7 +152,6 @@ public:
 
     ~basic_receiver_t();
 
-    // TODO: Return improved variant with typechecking.
     future_t<result_type> recv() {
         promise_t<result_type> promise;
         auto future = promise.get_future();
@@ -184,14 +176,6 @@ public:
 
 private:
     void push(io::decoder_t::message_type&& message) {
-//        const auto id = message.type();
-//        if (id >= boost::mpl::size<result_typelist>::value) {
-//            // TODO: What to do? Notify the user, I think.
-//            // std::cout << "dropping a " << id << " type message" << std::endl;
-//            return;
-//        }
-
-//        const auto payload = visitors[id](message.args());
         const auto payload = message;
 
         std::lock_guard<std::mutex> lock(mutex);
@@ -216,14 +200,14 @@ private:
     }
 };
 
-//template<class Event>
-//const std::vector<typename basic_receiver_t<Event>::unpacker_type>
-//basic_receiver_t<Event>::visitors = slot_unpacker<Event>::generate();
-
-template<class Event>
+template<class T>
 class receiver {
-    typedef Event event_type;
-//    typedef typename event_type::tag tag_type;
+    typedef typename result_of<T>::type result_type;
+    typedef typename result_type::types result_typelist;
+
+    typedef std::function<result_type(const msgpack::object&)> unpacker_type;
+
+    static const std::vector<unpacker_type> visitors;
 
     std::shared_ptr<basic_receiver_t> d;
 
@@ -239,42 +223,31 @@ public:
     receiver& operator=(const receiver& other) = default;
     receiver& operator=(receiver&& other) = default;
 
-    template<typename T>
-    struct unpacker {
-        static
-        T
-        unpack(const msgpack::object& message) {
-            std::tuple<T> result;
-            io::type_traits<std::tuple<T>>::unpack(message, result);
-            return std::get<0>(result);
-        }
-    };
-
-    template<typename... Args>
-    struct unpacker<std::tuple<Args...>> {
-        static
-        std::tuple<Args...>
-        unpack(const msgpack::object& message) {
-            std::tuple<Args...> result;
-            io::type_traits<std::tuple<Args...>>::unpack(message, result);
-            return result;
-        }
-    };
-
     // recv<scope::value,error>
     // recv<scope::chunk|choke|error>
-    template<class T>
-    future_t<T>
+    // TODO: Return improved variant with typechecking.
+    future_t<result_type>
     recv() {
         auto message = d->recv().get();
         CF_DBG("recv, message: %llu", message.type());
         // TODO: Check type.
         // TODO: Make it work with single types.
         // TODO: More convenient interface.
-        auto result = unpacker<T>::unpack(message.args());
-        return make_ready_future<T>::value(result);
+
+        const auto id = message.type();
+        if (id >= boost::mpl::size<result_typelist>::value) {
+            // TODO: What to do? Notify the user, I think.
+            // std::cout << "dropping a " << id << " type message" << std::endl;
+            // return;
+        }
+
+        const auto payload = visitors[id](message.args());
+        return make_ready_future<result_type>::value(payload);
     }
 };
+
+template<class T>
+const std::vector<typename receiver<T>::unpacker_type> receiver<T>::visitors = slot_unpacker<T>::generate();
 
 } // namespace framework
 
