@@ -2,6 +2,7 @@
 
 #include <string>
 #include <system_error>
+#include <functional>
 #include <queue>
 
 #include <boost/mpl/lambda.hpp>
@@ -26,6 +27,24 @@
 namespace cocaine {
 
 namespace framework {
+
+class cocaine_error : public std::runtime_error {
+    int id;
+    std::string reason;
+
+public:
+    explicit cocaine_error(std::tuple<int, std::string> err) :
+        std::runtime_error(std::get<1>(err)),
+        id(std::get<0>(err)),
+        reason(std::get<1>(err))
+    {}
+
+    cocaine_error(int id, std::string reason) :
+        std::runtime_error(reason),
+        id(id),
+        reason(reason)
+    {}
+};
 
 // Forwards.
 class basic_session_t;
@@ -79,6 +98,11 @@ struct result_of<io::streaming_tag<T>> {
 
 template<class T>
 struct result_of {
+    typedef typename detail::result_of<T>::type type;
+};
+
+template<class T>
+struct variant_of {
     typedef typename detail::result_of<T>::type type;
 };
 
@@ -200,12 +224,80 @@ private:
     }
 };
 
+//! Helper trait for simplifying receiving events, that use one of the common protocols.
+// TODO: Undefined yet.
+template<class T>
+struct receiver_traits;
+
+template<class T>
+struct receiver_traits<io::primitive_tag<T>> {
+private:
+    typedef typename detail::packable<T>::type value_type;
+    typedef typename detail::packable<typename io::primitive<T>::error::argument_type>::type error_type;
+
+    typedef typename variant_of<io::primitive_tag<T>>::type variant_type;
+
+public:
+    typedef value_type result_type;
+
+    static
+    result_type
+    convert(variant_type& value) {
+        return boost::apply_visitor(visitor_t(), value);
+    }
+
+private:
+    struct visitor_t : public boost::static_visitor<result_type> {
+        result_type operator()(value_type& value) const {
+            return value;
+        }
+
+        result_type operator()(error_type& error) const {
+            throw cocaine_error(error);
+        }
+    };
+};
+
+template<class T>
+struct receiver_traits<io::streaming_tag<T>> {
+private:
+    typedef typename detail::packable<T>::type value_type;
+    typedef typename detail::packable<typename io::primitive<T>::error::argument_type>::type error_type;
+    typedef std::tuple<> choke_type;
+
+    typedef typename variant_of<io::streaming_tag<T>>::type variant_type;
+
+public:
+    typedef boost::optional<value_type> result_type;
+
+    static
+    result_type
+    convert(variant_type& value) {
+        return boost::apply_visitor(visitor_t(), value);
+    }
+
+private:
+    struct visitor_t : public boost::static_visitor<result_type> {
+        result_type operator()(value_type& value) const {
+            return boost::make_optional(value);
+        }
+
+        result_type operator()(error_type& error) const {
+            throw cocaine_error(error);
+        }
+
+        result_type operator()(choke_type&) const {
+            return boost::none;
+        }
+    };
+};
+
 template<class T>
 class receiver {
-    typedef typename result_of<T>::type result_type;
-    typedef typename result_type::types result_typelist;
+    typedef typename variant_of<T>::type variant_type;
+    typedef typename variant_type::types variant_typelist;
 
-    typedef std::function<result_type(const msgpack::object&)> unpacker_type;
+    typedef std::function<variant_type(const msgpack::object&)> unpacker_type;
 
     static const std::vector<unpacker_type> visitors;
 
@@ -223,26 +315,23 @@ public:
     receiver& operator=(const receiver& other) = default;
     receiver& operator=(receiver&& other) = default;
 
-    // recv<scope::value,error>
-    // recv<scope::chunk|choke|error>
-    // TODO: Return improved variant with typechecking.
-    future_t<result_type>
+    future_t<typename receiver_traits<T>::result_type>
     recv() {
-        auto message = d->recv().get();
-        CF_DBG("recv, message: %llu", message.type());
-        // TODO: Check type.
-        // TODO: Make it work with single types.
-        // TODO: More convenient interface.
+        return d->recv().then(std::bind(&receiver<T>::convert, std::placeholders::_1));
+    }
 
-        const auto id = message.type();
-        if (id >= boost::mpl::size<result_typelist>::value) {
+private:
+    static
+    typename receiver_traits<T>::result_type
+    convert(future_t<io::decoder_t::message_type>& f) {
+        const io::decoder_t::message_type message = f.get();
+        const std::uint64_t id = message.type();
+        if (id >= boost::mpl::size<variant_typelist>::value) {
             // TODO: What to do? Notify the user, I think.
-            // std::cout << "dropping a " << id << " type message" << std::endl;
-            // return;
+            CF_DBG("dropping a %llu type message", id);
         }
-
-        const auto payload = visitors[id](message.args());
-        return make_ready_future<result_type>::value(payload);
+        variant_type payload = visitors[id](message.args());
+        return receiver_traits<T>::convert(payload);
     }
 };
 
