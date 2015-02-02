@@ -34,4 +34,5 @@ static const blackhole::verbose_logger_t<level_t> logger = create();
 #define CF_DBG(...) BH_LOG(detail::logger, detail::debug, __VA_ARGS__)
 #else
 #define CF_LOG(...)
+#define CF_DBG(...)
 #endif
