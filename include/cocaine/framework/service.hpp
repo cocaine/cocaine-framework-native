@@ -75,14 +75,56 @@ struct invocation_result<Event, io::primitive_tag<T>, void> {
 //! \note sender - usual, receiver - special - recv() -> optional<T> or throw.
 template<class Event, class U, class D>
 struct invocation_result<Event, io::streaming_tag<U>, io::streaming_tag<D>> {
-    typedef std::tuple<sender<io::streaming_tag<D>>, receiver<io::streaming_tag<U>>> channel_type;
+    typedef typename detail::packable<U>::type value_type;
+    typedef typename detail::packable<typename io::streaming<U>::error::argument_type>::type error_type;
+    typedef std::tuple<> choke_type;
 
-    typedef channel_type type;
+    typedef typename result_of<io::streaming_tag<U>>::type result_type;
+
+    class streaming_receiver {
+        receiver<io::streaming_tag<U>> rx;
+
+    public:
+        streaming_receiver(receiver<io::streaming_tag<U>>&& rx) :
+            rx(std::move(rx))
+        {}
+
+        future_t<boost::optional<value_type>>
+        recv() {
+            return rx.recv().then([](future_t<result_type>& f){
+                auto result = f.get();
+                return boost::apply_visitor(visitor_t(), result);
+            });
+        }
+    };
+
+    struct visitor_t : public boost::static_visitor<future_t<boost::optional<value_type>>> {
+        future_t<boost::optional<value_type>> operator()(value_type& r) const {
+            return make_ready_future<boost::optional<value_type>>::value(boost::make_optional(r));
+        }
+
+        future_t<boost::optional<value_type>> operator()(error_type& r) const {
+            int id;
+            std::string reason;
+            std::tie(id, reason) = r;
+            return make_ready_future<boost::optional<value_type>>::error(cocaine_error(id, reason));
+        }
+
+        future_t<boost::optional<value_type>> operator()(choke_type&) const {
+            return make_ready_future<boost::optional<value_type>>::value(boost::none);
+        }
+    };
+
+    typedef std::tuple<sender<io::streaming_tag<D>>, receiver<io::streaming_tag<U>>> channel_type;
+    typedef std::tuple<sender<io::streaming_tag<D>>, streaming_receiver> type;
 
     static
-    future_t<channel_type>
+    future_t<type>
     apply(channel_type& channel) {
-        return make_ready_future<type>::value(channel);
+        auto tx = std::move(std::get<0>(channel));
+        auto rx = std::move(std::get<1>(channel));
+
+        return make_ready_future<type>::value(std::make_tuple(tx, streaming_receiver(std::move(rx))));
     }
 };
 
