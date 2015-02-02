@@ -233,10 +233,10 @@ public:
     {}
 
     // Intentionally deleted.
-    receiver(const receiver& other) = delete;
+    receiver(const receiver& other) = default;
     receiver(receiver&& other) = default;
 
-    receiver& operator=(const receiver& other) = delete;
+    receiver& operator=(const receiver& other) = default;
     receiver& operator=(receiver&& other) = default;
 
     template<typename T>

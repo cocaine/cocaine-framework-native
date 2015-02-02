@@ -49,38 +49,40 @@ public:
     typedef T tag_type;
 
 private:
-    std::shared_ptr<basic_sender_t> sender_;
+    std::shared_ptr<basic_sender_t> d;
 
 public:
     sender(std::uint64_t id, std::shared_ptr<basic_session_t> session) :
-        sender_(new basic_sender_t(id, session))
+        d(new basic_sender_t(id, session))
     {}
 
     sender(std::shared_ptr<basic_sender_t> base) :
-        sender_(std::move(base))
+        d(std::move(base))
     {}
 
     // Intentionally deleted.
-    sender(const sender& other) = delete;
+    sender(const sender& other) = default;
     sender(sender&& other) = default;
 
-    sender& operator=(const sender& other) = delete;
+    sender& operator=(const sender& other) = default;
     sender& operator=(sender&& other) = default;
 
     template<class Event, class... Args>
-    typename std::enable_if<
-        has_slot<tag_type, Event>::value,
-        future_t<sender<typename io::event_traits<Event>::dispatch_type>>
-    >::type
-    send(Args&&... args) && {
-        auto future = sender_->send<Event>(std::forward<Args>(args)...);
-        return future.then(&sender::traverse<Event>, std::placeholders::_1, std::move(sender_));
+//    typename std::enable_if<
+//        has_slot<tag_type, Event>::value,
+//        future_t<sender<typename io::event_traits<Event>::dispatch_type>>
+//    >::type
+    future_t<sender<typename io::event_traits<Event>::dispatch_type>>
+    send(Args&&... args) {
+        auto future = d->send<Event>(std::forward<Args>(args)...);
+        return future.then(std::bind(&sender::traverse<Event>, std::placeholders::_1, d));
     }
 
 private:
     template<class Event>
+    static
     sender<typename io::event_traits<Event>::dispatch_type>
-    traverse(future_t<void>& f, std::shared_ptr<basic_sender_t>& s) {
+    traverse(future_t<void>& f, std::shared_ptr<basic_sender_t> s) {
         f.get();
         return sender<typename io::event_traits<Event>::dispatch_type>(std::move(s));
     }

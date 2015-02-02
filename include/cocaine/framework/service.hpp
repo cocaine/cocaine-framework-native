@@ -6,6 +6,7 @@
 #include <cocaine/traits/graph.hpp>
 #include <cocaine/traits/tuple.hpp>
 #include <cocaine/traits/vector.hpp>
+#include <cocaine/idl/streaming.hpp>
 
 #include "cocaine/framework/forwards.hpp"
 #include "cocaine/framework/session.hpp"
@@ -24,13 +25,45 @@ struct invocation_result;
 template<class Event, class T>
 struct invocation_result<Event, io::primitive_tag<T>, void> {
     typedef typename boost::mpl::front<T>::type type;
+
+    static
+    future_t<type>
+    apply(std::tuple<
+              sender  <typename io::event_traits<Event>::dispatch_type>,
+              receiver<typename io::event_traits<Event>::upstream_type>
+          > ch)
+    {
+        auto rx = std::move(std::get<1>(ch));
+        return rx.template recv<type>();
+    }
+};
+
+template<class Event, class T, class D>
+struct invocation_result<Event, io::streaming_tag<T>, io::streaming_tag<D>> {
+    typedef typename boost::mpl::front<T>::type utype;
+    typedef typename boost::mpl::front<D>::type dtype;
+
+    typedef std::tuple<
+        sender  <typename io::event_traits<Event>::dispatch_type>,
+        receiver<typename io::event_traits<Event>::upstream_type>
+    > type;
+
+    static
+    future_t<type>
+    apply(std::tuple<
+              sender  <typename io::event_traits<Event>::dispatch_type>,
+              receiver<typename io::event_traits<Event>::upstream_type>
+          > ch)
+    {
+        return make_ready_future<type>::value(ch);
+    }
 };
 
 template<class T>
 class service {
     std::string name;
     loop_t& loop;
-    std::shared_ptr<session<T>> session_;
+    std::shared_ptr<session<T>> d;
 
     std::mutex mutex;
 
@@ -38,11 +71,11 @@ public:
     service(std::string name, loop_t& loop) :
         name(std::move(name)),
         loop(loop),
-        session_(std::make_shared<session<T>>(std::make_shared<basic_session_t>(loop)))
+        d(std::make_shared<session<T>>(std::make_shared<basic_session_t>(loop)))
     {}
 
     ~service() {
-        session_->disconnect();
+        d->disconnect();
     }
 
     auto connect() -> future_t<void> {
@@ -51,7 +84,7 @@ public:
 
         // Internally the session manages with connection state itself. On any network error it
         // should drop its internal state and return false.
-        if (session_->connected()) {
+        if (d->connected()) {
             return make_ready_future<void>::value();
         }
 
@@ -79,7 +112,7 @@ public:
 
                 auto endpoints = std::get<0>(result);
 
-                session_->connect(endpoints[0]).get();
+                d->connect(endpoints[0]).get();
                 CF_DBG("connecting - done");
             } catch (...) {
                 locator->disconnect();
@@ -94,13 +127,16 @@ public:
     template<class Event, class... Args>
     future_t<typename invocation_result<Event>::type>
     invoke(Args&&... args) {
+        typedef typename invocation_result<Event>::type result_type;
+
         try {
+            // TODO: Make asyncronous call through `then`.
             connect().get();
-            auto ch = session_->template invoke<Event>(std::forward<Args>(args)...).get();
-            auto rx = std::move(std::get<1>(ch));
-            return rx.template recv<typename invocation_result<Event>::type>();
+
+            auto ch = d->template invoke<Event>(std::forward<Args>(args)...).get();
+            return invocation_result<Event>::apply(ch);
         } catch (const std::exception& err) {
-            return make_ready_future<typename invocation_result<Event>::type>::error(err);
+            return make_ready_future<result_type>::error(err);
         }
     }
 };
