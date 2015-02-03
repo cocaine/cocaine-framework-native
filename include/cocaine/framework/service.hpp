@@ -68,21 +68,26 @@ public:
     {}
 
     ~service() {
+        CF_DBG("destroying '%s' service ...", name.c_str());
         d->disconnect();
     }
 
     auto connect() -> future_t<void> {
+        CF_CTX("connect %s", name);
+        CF_DBG("connecting ...");
+
         // TODO: Make async.
         std::lock_guard<std::mutex> lock(mutex);
 
         // Internally the session manages with connection state itself. On any network error it
         // should drop its internal state and return false.
         if (d->connected()) {
+            CF_DBG("already connected");
             return make_ready_future<void>::value();
         }
 
         try {
-            CF_DBG("connecting to the locator");
+            CF_DBG("connecting to the locator ...");
             // TODO: Explicitly set Locator endpoints.
             const io_provider::ip::tcp::endpoint endpoint(io_provider::ip::tcp::v4(), 10053);
             auto locator = std::make_shared<session<io::locator_tag>>(std::make_shared<basic_session_t>(loop));

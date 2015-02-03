@@ -165,7 +165,7 @@ public:
         auto this_ = this->shared_from_this();
         d->connect(endpoint).then([this_, p](future_t<std::error_code>& f){
             auto ec = f.get();
-            CF_DBG("session connect callback: %s", ec.message().c_str());
+            CF_DBG("on basic session connect: %s", CF_EC(ec));
 
             if (ec) {
                 switch (ec.value()) {

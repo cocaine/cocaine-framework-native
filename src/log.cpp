@@ -9,7 +9,7 @@ blackhole::verbose_logger_t<cocaine::framework::detail::level_t> cocaine::framew
     blackhole::verbose_logger_t<cocaine::framework::detail::level_t> logger(cocaine::framework::detail::level_t::debug);
     auto formatter = blackhole::aux::util::make_unique<
         blackhole::formatter::string_t
-    >("[%(timestamp)s] [%(tid)s]: %(message)s");
+    >("[%(timestamp)s] [%(tid)s]: %(context:[:] )s%(message)s");
 
     auto sink = blackhole::aux::util::make_unique<
         blackhole::sink::stream_t

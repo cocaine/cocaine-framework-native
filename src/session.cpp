@@ -30,7 +30,7 @@ public:
 
 private:
     void on_write(const std::error_code& ec) {
-        CF_DBG("write event: %s", ec.message().c_str());
+        CF_DBG("write event: %s", CF_EC(ec));
 
         if (ec) {
             connection->disconnect(ec);
@@ -127,9 +127,8 @@ auto basic_session_t::push(io::encoder_t::message_type&& message) -> future_t<vo
 }
 
 void basic_session_t::on_connect(const std::error_code& ec, promise_t<std::error_code>& promise, std::unique_ptr<socket_type>& s) {
+    CF_DBG("connect event: %s", CF_EC(ec));
     COCAINE_ASSERT(state_t::connecting == state);
-
-    CF_DBG("connect event: %s", ec.message().c_str());
 
     if (ec) {
         channel.reset();
@@ -144,13 +143,14 @@ void basic_session_t::on_connect(const std::error_code& ec, promise_t<std::error
 }
 
 void basic_session_t::on_read(const std::error_code& ec) {
-    CF_DBG("read event: %s", ec.message().c_str());
+    CF_DBG("read event: %s", CF_EC(ec));
 
     if (ec) {
         disconnect(ec);
         return;
     }
 
+    CF_DBG("received message [%llu, %llu]", message.span(), message.type());
     auto channels = this->channels.synchronize();
     auto it = channels->find(message.span());
     if (it == channels->end()) {
