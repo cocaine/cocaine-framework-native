@@ -72,9 +72,9 @@ private:
     template<class Event>
     static
     sender<typename io::event_traits<Event>::dispatch_type>
-    traverse(future_t<void>& f, std::shared_ptr<basic_sender_t> s) {
+    traverse(future_t<void>& f, std::shared_ptr<basic_sender_t> d) {
         f.get();
-        return sender<typename io::event_traits<Event>::dispatch_type>(std::move(s));
+        return sender<typename io::event_traits<Event>::dispatch_type>(std::move(d));
     }
 };
 
