@@ -70,10 +70,12 @@ struct packable<U, 1> {
     typedef typename boost::mpl::front<U>::type type;
 };
 
-/// primitive<T> -> variant<value<T>::type, error::type>
-///              -> variant<T, tuple<int, string>>
-/// streaming<T> -> variant<chunk<T>::type, error::type, choke::type>
-///              -> variant<T, tuple<int, string>, tuple<>>
+/*!
+ * primitive<T> -> variant<value<T>::type, error::type>
+ *              -> variant<T, tuple<int, string>>
+ * streaming<T> -> variant<chunk<T>::type, error::type, choke::type>
+ *              -> variant<T, tuple<int, string>, tuple<>>
+ */
 template<class T>
 struct variant_of;
 
