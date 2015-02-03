@@ -87,7 +87,7 @@ public:
      *
      * All pending requests should result in error with the given error code.
      */
-    void disconnect(const std::error_code& ec);
+    void disconnect();
 
     /*!
      * \note if the future returned throws an exception that means that the data will never be
@@ -126,6 +126,7 @@ public:
 private:
     void on_connect(const std::error_code& ec, promise_t<std::error_code>& promise, std::unique_ptr<socket_type>& s);
     void on_read(const std::error_code& ec);
+    void on_error(const std::error_code& ec);
 };
 
 template<class Event>
@@ -199,7 +200,7 @@ public:
 
     // TODO: Non template code - decompose.
     void disconnect() {
-        d->disconnect(io_provider::error::operation_aborted);
+        d->disconnect();
     }
 
     // TODO: Check Event is in T.

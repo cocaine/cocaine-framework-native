@@ -33,7 +33,7 @@ private:
         CF_DBG("write event: %s", CF_EC(ec));
 
         if (ec) {
-            connection->disconnect(ec);
+            connection->on_error(ec);
             h.set_exception(std::system_error(ec));
         } else {
             h.set_value();
@@ -91,20 +91,12 @@ auto basic_session_t::connect(const endpoint_t& endpoint) -> future_t<std::error
     return future;
 }
 
-void basic_session_t::disconnect(const std::error_code& ec) {
-    // TODO: Throw std::invalid_argument instead of assertion.
-    COCAINE_ASSERT(ec);
-
-    auto self = shared_from_this();
-    loop.post([self, ec]{
-        self->channel.reset();
-
-        // TODO: Consider doing this actions in the asynchronous completion handlers.
-        auto channels = self->channels.synchronize();
-        for (auto channel : *channels) {
-            channel.second->error(ec);
-        }
-        channels->clear();
+void basic_session_t::disconnect() {
+    CF_DBG("disconnecting basic session ...");
+    auto this_ = shared_from_this();
+    loop.post([this_]{
+        this_->channel.reset();
+        CF_DBG("disconnecting basic session - done");
     });
 }
 
@@ -148,7 +140,12 @@ void basic_session_t::on_read(const std::error_code& ec) {
     CF_DBG("read event: %s", CF_EC(ec));
 
     if (ec) {
-        disconnect(ec);
+        on_error(ec);
+        return;
+    }
+
+    if (!channel) {
+        on_error(io_provider::error::operation_aborted);
         return;
     }
 
@@ -162,4 +159,14 @@ void basic_session_t::on_read(const std::error_code& ec) {
     }
 
     channel->reader->read(message, std::bind(&basic_session_t::on_read, shared_from_this(), ph::_1));
+}
+
+void basic_session_t::on_error(const std::error_code& ec) {
+    COCAINE_ASSERT(ec);
+
+    auto channels = this->channels.synchronize();
+    for (auto channel : *channels) {
+        channel.second->error(ec);
+    }
+    channels->clear();
 }
