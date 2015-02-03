@@ -20,25 +20,6 @@
 // TMP!
 #include "cocaine/framework/detail/log.hpp"
 
-/// \note temporary for debugging purposes.
-template<typename T> struct deduced_type;
-
-namespace std {
-
-template<>
-struct hash<asio::ip::tcp::endpoint> {
-    typedef asio::ip::tcp::endpoint argument_type;
-    typedef std::size_t value_type;
-
-    value_type operator()(argument_type const& value) const {
-        value_type const h1(std::hash<std::string>()(value.address().to_string()));
-        value_type const h2(std::hash<std::uint16_t>()(value.port()));
-        return h1 ^ (h2 << 1);
-    }
-};
-
-} // namespace std
-
 namespace cocaine {
 
 namespace framework {
