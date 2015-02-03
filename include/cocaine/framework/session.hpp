@@ -71,6 +71,8 @@ public:
      */
     basic_session_t(loop_t& loop) noexcept;
 
+    ~basic_session_t();
+
     /*!
      * \note the class does passive connection monitoring, e.g. it won't be immediately notified
      * if the real connection has been lost, but after the next send/recv attempt.
@@ -165,7 +167,7 @@ public:
         auto this_ = this->shared_from_this();
         d->connect(endpoint).then([this_, p](future_t<std::error_code>& f){
             auto ec = f.get();
-            CF_DBG("on basic session connect: %s", CF_EC(ec));
+            CF_DBG("basic session connect event: %s", CF_EC(ec));
 
             if (ec) {
                 switch (ec.value()) {

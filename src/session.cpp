@@ -47,6 +47,10 @@ basic_session_t::basic_session_t(loop_t& loop) noexcept :
     counter(1)
 {}
 
+basic_session_t::~basic_session_t() {
+    CF_DBG("destroying basic session ...");
+}
+
 bool basic_session_t::connected() const noexcept {
     return state == state_t::connected;
 }
@@ -62,7 +66,6 @@ auto basic_session_t::connect(const endpoint_t& endpoint) -> future_t<std::error
 
         // The code above can throw std::bad_alloc, so here it is the right place to change
         // current object's state.
-        // ???
         state = state_t::connecting;
 
         socket_type* socket_ = socket.get();
@@ -113,7 +116,6 @@ auto basic_session_t::push(std::uint64_t span, io::encoder_t::message_type&& mes
         throw std::runtime_error("trying to send message through non-registered channel");
     }
 
-    // TODO: Traverse in a typed sender.
     return push(std::move(message));
 }
 
