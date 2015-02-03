@@ -19,12 +19,19 @@ class basic_sender_t {
 
 public:
     basic_sender_t(std::uint64_t id, std::shared_ptr<basic_session_t> session);
-    basic_sender_t(basic_sender_t&& other) = default;
 
     /*!
-     * \todo \throw encoding_error if the sender has failed to encode the arguments given.
-     * \todo \throw std::system_error if the sender is in invalid state, for example after any network
-     * error.
+     * Pack given args in the message and push it through session pointer.
+     *
+     * \return a future, which will be set when the message is completely sent or any network error
+     * occured.
+     *
+     * This future can throw:
+     *  - \sa encoder_error if the sender is unable to properly pack given arguments.
+     *  - \sa network_error if the sender is in invalid state, for example after any network error.
+     *
+     * Setting an error in the receiver doesn't work, because there can be mute events, which
+     * doesn't respond ever.
      */
     template<class Event, class... Args>
     auto
@@ -61,6 +68,11 @@ public:
     sender& operator=(const sender& other) = delete;
     sender& operator=(sender&& other) = default;
 
+    /*!
+     * Encode arguments to the internal protocol message and push it into the session attached.
+     *
+     * \warning this sender will be invalidated after this call.
+     */
     template<class Event, class... Args>
     future_t<sender<typename io::event_traits<Event>::dispatch_type>>
     send(Args&&... args) {
