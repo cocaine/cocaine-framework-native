@@ -171,52 +171,11 @@ public:
 
     ~basic_receiver_t();
 
-    future_t<result_type> recv() {
-        promise_t<result_type> promise;
-        auto future = promise.get_future();
-
-        std::lock_guard<std::mutex> lock(mutex);
-        if (broken) {
-            COCAINE_ASSERT(queue.empty());
-
-            promise.set_exception(std::system_error(broken.get()));
-            return future;
-        }
-
-        if (queue.empty()) {
-            pending.push(std::move(promise));
-        } else {
-            promise.set_value(std::move(queue.front()));
-            queue.pop();
-        }
-
-        return future;
-    }
+    future_t<result_type> recv();
 
 private:
-    void push(io::decoder_t::message_type&& message) {
-        const auto payload = message;
-
-        std::lock_guard<std::mutex> lock(mutex);
-        COCAINE_ASSERT(!broken);
-
-        if (pending.empty()) {
-            queue.push(payload);
-        } else {
-            auto promise = std::move(pending.front());
-            promise.set_value(payload);
-            pending.pop();
-        }
-    }
-
-    void error(const std::error_code& ec) {
-        std::lock_guard<std::mutex> lock(mutex);
-        broken = ec;
-        while (!pending.empty()) {
-            pending.front().set_exception(std::system_error(ec));
-            pending.pop();
-        }
-    }
+    void push(io::decoder_t::message_type&& message);
+    void error(const std::error_code& ec);
 };
 
 /*!
