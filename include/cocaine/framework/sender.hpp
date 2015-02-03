@@ -11,10 +11,6 @@ namespace cocaine {
 
 namespace framework {
 
-// app::enqueue - allows [write | error | close]
-//   write - -//-,
-//   error - void,
-//   close - void.
 class basic_session_t;
 
 class basic_sender_t {
@@ -40,9 +36,6 @@ private:
     auto send(io::encoder_t::message_type&& message) -> future_t<void>;
 };
 
-template<class T, class Event>
-struct has_slot : public boost::mpl::contains<io::protocol<T>, Event> {};
-
 template<class T>
 class sender {
 public:
@@ -52,12 +45,8 @@ private:
     std::shared_ptr<basic_sender_t> d;
 
 public:
-    sender(std::uint64_t id, std::shared_ptr<basic_session_t> session) :
-        d(new basic_sender_t(id, session))
-    {}
-
-    sender(std::shared_ptr<basic_sender_t> base) :
-        d(std::move(base))
+    sender(std::shared_ptr<basic_sender_t> d) :
+        d(std::move(d))
     {}
 
     /*!
@@ -73,10 +62,6 @@ public:
     sender& operator=(sender&& other) = default;
 
     template<class Event, class... Args>
-//    typename std::enable_if<
-//        has_slot<tag_type, Event>::value,
-//        future_t<sender<typename io::event_traits<Event>::dispatch_type>>
-//    >::type
     future_t<sender<typename io::event_traits<Event>::dispatch_type>>
     send(Args&&... args) {
         auto future = d->send<Event>(std::forward<Args>(args)...);
@@ -96,7 +81,6 @@ private:
 template<>
 class sender<void> {
 public:
-    sender(std::uint64_t, std::shared_ptr<basic_session_t>) {}
     sender(std::shared_ptr<basic_sender_t>) {}
 };
 
