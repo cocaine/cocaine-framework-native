@@ -21,6 +21,7 @@ SET(HEADERS
     ${COCAINE_FRAMEWORK_INCLUDES_DIR}/config
     ${COCAINE_FRAMEWORK_INCLUDES_DIR}/connection
     ${COCAINE_FRAMEWORK_INCLUDES_DIR}/forwards
+    ${COCAINE_FRAMEWORK_INCLUDES_DIR}/error
     ${COCAINE_FRAMEWORK_INCLUDES_DIR}/detail/log
     ${COCAINE_FRAMEWORK_INCLUDES_DIR}/sender
     ${COCAINE_FRAMEWORK_INCLUDES_DIR}/service
@@ -40,6 +41,7 @@ SET(HEADERS
 
 SET(SOURCES
     connection
+    error
     log
     sender
     session

@@ -19,32 +19,15 @@
 #include <cocaine/rpc/asio/decoder.hpp>
 #include <cocaine/tuple.hpp>
 
-#include <cocaine/framework/common.hpp>
-#include <cocaine/framework/forwards.hpp>
+#include "cocaine/framework/common.hpp"
+#include "cocaine/framework/error.hpp"
+#include "cocaine/framework/forwards.hpp"
 
 #include "cocaine/framework/detail/log.hpp"
 
 namespace cocaine {
 
 namespace framework {
-
-class cocaine_error : public std::runtime_error {
-    int id;
-    std::string reason;
-
-public:
-    explicit cocaine_error(std::tuple<int, std::string> err) :
-        std::runtime_error(std::get<1>(err)),
-        id(std::get<0>(err)),
-        reason(std::get<1>(err))
-    {}
-
-    cocaine_error(int id, std::string reason) :
-        std::runtime_error(reason),
-        id(id),
-        reason(reason)
-    {}
-};
 
 // Forwards.
 class basic_session_t;
