@@ -30,7 +30,7 @@ public:
 
 private:
     void on_write(const std::error_code& ec) {
-        CF_LOG(detail::logger, detail::debug, "write event: %s", ec.message().c_str());
+        CF_DBG("write event: %s", ec.message().c_str());
 
         if (ec) {
             connection->disconnect(ec);
@@ -128,7 +128,7 @@ auto basic_session_t::push(io::encoder_t::message_type&& message) -> future_t<vo
 void basic_session_t::on_connect(const std::error_code& ec, promise_t<std::error_code>& promise, std::unique_ptr<socket_type>& s) {
     COCAINE_ASSERT(state_t::connecting == state);
 
-    CF_LOG(detail::logger, detail::debug, "connect event: %s", ec.message().c_str());
+    CF_DBG("connect event: %s", ec.message().c_str());
 
     if (ec) {
         channel.reset();
@@ -143,7 +143,7 @@ void basic_session_t::on_connect(const std::error_code& ec, promise_t<std::error
 }
 
 void basic_session_t::on_read(const std::error_code& ec) {
-    CF_LOG(detail::logger, detail::debug, "read event: %s", ec.message().c_str());
+    CF_DBG("read event: %s", ec.message().c_str());
 
     if (ec) {
         disconnect(ec);
@@ -153,7 +153,7 @@ void basic_session_t::on_read(const std::error_code& ec) {
     auto channels = this->channels.synchronize();
     auto it = channels->find(message.span());
     if (it == channels->end()) {
-        CF_LOG(detail::logger, detail::warn, "dropping an orphan span %llu message", message.span());
+        CF_DBG("dropping an orphan span %llu message", message.span());
     } else {
         it->second->push(std::move(message));
     }

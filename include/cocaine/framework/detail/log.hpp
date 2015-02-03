@@ -24,15 +24,15 @@ blackhole::verbose_logger_t<cocaine::framework::detail::level_t> create();
 
 static const blackhole::verbose_logger_t<level_t> logger = create();
 
-}
+} // namespace detail
 
-}
+} // namespace framework
 
-}
+} // namespace cocaine
 
-#define CF_LOG BH_LOG
-#define CF_DBG(...) BH_LOG(detail::logger, detail::debug, __VA_ARGS__)
+#   define CF_LOG BH_LOG
+#   define CF_DBG(...) CF_LOG(detail::logger, detail::debug, __VA_ARGS__)
 #else
-#define CF_LOG(...)
-#define CF_DBG(...)
+#   define CF_LOG(...)
+#   define CF_DBG(...)
 #endif
