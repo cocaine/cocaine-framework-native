@@ -103,8 +103,6 @@ struct variant_of {
     typedef typename detail::variant_of<T>::type type;
 };
 
-template<class Event> class channel_t;
-
 template<class T>
 class slot_unpacker {
     typedef typename variant_of<T>::type variant_type;
