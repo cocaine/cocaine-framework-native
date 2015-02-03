@@ -96,6 +96,7 @@ public:
      */
     bool connected() const noexcept;
 
+    // TODO: Make overload `connect(const std::vector<endpoint_t>&)`.
     auto connect(const endpoint_t& endpoint) -> future_t<std::error_code>;
 
     /*!

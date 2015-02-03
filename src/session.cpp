@@ -89,7 +89,8 @@ auto basic_session_t::connect(const endpoint_t& endpoint) -> future_t<std::error
 }
 
 void basic_session_t::disconnect(const std::error_code& ec) {
-    COCAINE_ASSERT(ec); // TODO: Throw invalid_argument.
+    // TODO: Throw std::invalid_argument instead of assertion.
+    COCAINE_ASSERT(ec);
 
     auto self = shared_from_this();
     loop.post([self, ec]{

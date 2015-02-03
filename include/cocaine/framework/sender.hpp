@@ -26,9 +26,9 @@ public:
     basic_sender_t(basic_sender_t&& other) = default;
 
     /*!
-     * \todo \throw encoding_error if failed to encode the arguments given.
-     * \todo \throw std::system_error if sender is in invalid state, for example after connection
-     * lose.
+     * \todo \throw encoding_error if the sender has failed to encode the arguments given.
+     * \todo \throw std::system_error if the sender is in invalid state, for example after any network
+     * error.
      */
     template<class Event, class... Args>
     auto
@@ -60,11 +60,16 @@ public:
         d(std::move(base))
     {}
 
-    // Intentionally deleted.
-    sender(const sender& other) = default;
+    /*!
+     * Copy constructor is deleted intentionally.
+     *
+     * This is necessary, because each `send` method call in the common case invalidates current
+     * object's state and returns the new sender instead.
+     */
+    sender(const sender& other) = delete;
     sender(sender&& other) = default;
 
-    sender& operator=(const sender& other) = default;
+    sender& operator=(const sender& other) = delete;
     sender& operator=(sender&& other) = default;
 
     template<class Event, class... Args>

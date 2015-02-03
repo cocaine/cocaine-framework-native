@@ -48,7 +48,7 @@ struct invocation_result<Event, io::streaming_tag<U>, io::streaming_tag<D>> {
     static
     future_t<type>
     apply(channel_type& channel) {
-        return make_ready_future<type>::value(channel);
+        return make_ready_future<type>::value(std::move(channel));
     }
 };
 
