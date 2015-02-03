@@ -68,12 +68,14 @@ public:
     {}
 
     ~service() {
+        // TODO: Wait until all channels are closed.
+        // TODO: If detached - don't wait (but internally already finish all requests).
         CF_DBG("destroying '%s' service ...", name.c_str());
         d->disconnect();
     }
 
     auto connect() -> future_t<void> {
-        CF_CTX("connect %s", name);
+        CF_CTX("connect '%s'", name);
         CF_DBG("connecting ...");
 
         // TODO: Make async.
@@ -122,6 +124,8 @@ public:
     template<class Event, class... Args>
     future_t<typename invocation_result<Event>::type>
     invoke(Args&&... args) {
+        CF_CTX("invoke '%s' - %s", name, Event::alias());
+        CF_DBG("invoking ...");
         typedef typename invocation_result<Event>::type result_type;
 
         try {
