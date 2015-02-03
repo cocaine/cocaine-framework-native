@@ -219,8 +219,11 @@ private:
     }
 };
 
-//! Helper trait for simplifying receiving events, that use one of the common protocols.
-// TODO: Undefined yet.
+/*!
+ * Helper trait, that simplifies event receiving, that use one of the common protocols.
+ *
+ * \todo the common trait is undefined yet.
+ */
 template<class T>
 struct receiver_traits;
 
@@ -325,6 +328,7 @@ private:
             // TODO: What to do? Notify the user, I think.
             CF_DBG("dropping a %llu type message", id);
         }
+
         variant_type payload = visitors[id](message.args());
         // TODO: Close the channel if it the next node is terminate leaf.
         return receiver_traits<T>::convert(payload);
