@@ -227,10 +227,10 @@ struct receiver_traits;
 template<class T>
 struct receiver_traits<io::primitive_tag<T>> {
 private:
-    typedef typename detail::packable<T>::type value_type;
-    typedef typename detail::packable<typename io::primitive<T>::error::argument_type>::type error_type;
-
     typedef typename variant_of<io::primitive_tag<T>>::type variant_type;
+
+    typedef typename boost::mpl::at<typename variant_type::types, boost::mpl::int_<0>>::type value_type;
+    typedef typename boost::mpl::at<typename variant_type::types, boost::mpl::int_<1>>::type error_type;
 
 public:
     typedef value_type result_type;
@@ -256,11 +256,11 @@ private:
 template<class T>
 struct receiver_traits<io::streaming_tag<T>> {
 private:
-    typedef typename detail::packable<T>::type value_type;
-    typedef typename detail::packable<typename io::primitive<T>::error::argument_type>::type error_type;
-    typedef std::tuple<> choke_type;
-
     typedef typename variant_of<io::streaming_tag<T>>::type variant_type;
+
+    typedef typename boost::mpl::at<typename variant_type::types, boost::mpl::int_<0>>::type value_type;
+    typedef typename boost::mpl::at<typename variant_type::types, boost::mpl::int_<1>>::type error_type;
+    typedef typename boost::mpl::at<typename variant_type::types, boost::mpl::int_<2>>::type choke_type;
 
 public:
     typedef boost::optional<value_type> result_type;
