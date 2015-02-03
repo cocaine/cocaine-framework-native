@@ -119,9 +119,7 @@ public:
     auto push(std::uint64_t span, io::encoder_t::message_type&& message) -> future_t<void>;
     auto push(io::encoder_t::message_type&& message) -> future_t<void>;
 
-    void revoke(std::uint64_t) {
-        return;
-    }
+    void revoke(std::uint64_t span);
 
 private:
     void on_connect(const std::error_code& ec, promise_t<std::error_code>& promise, std::unique_ptr<socket_type>& s);

@@ -120,6 +120,12 @@ auto basic_session_t::push(io::encoder_t::message_type&& message) -> future_t<vo
     return f;
 }
 
+void basic_session_t::revoke(std::uint64_t span) {
+    CF_DBG("revoking span %llu channel", span);
+
+    channels->erase(span);
+}
+
 void basic_session_t::on_connect(const std::error_code& ec, promise_t<std::error_code>& promise, std::unique_ptr<socket_type>& s) {
     CF_DBG("connect event: %s", CF_EC(ec));
     COCAINE_ASSERT(state_t::connecting == state);
