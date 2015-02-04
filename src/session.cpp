@@ -48,7 +48,7 @@ basic_session_t::basic_session_t(loop_t& loop) noexcept :
 {}
 
 basic_session_t::~basic_session_t() {
-    CF_DBG("destroying basic session ...");
+    CF_DBG("destroying basic session (%lu active) ...", channels->size());
 }
 
 bool basic_session_t::connected() const noexcept {
@@ -123,7 +123,10 @@ auto basic_session_t::push(io::encoder_t::message_type&& message) -> future_t<vo
 void basic_session_t::revoke(std::uint64_t span) {
     CF_DBG("revoking span %llu channel", span);
 
-    channels->erase(span);
+    auto this_ = shared_from_this();
+    loop.post([this_, span]{
+        this_->channels->erase(span);
+    });
 }
 
 void basic_session_t::on_connect(const std::error_code& ec, promise_t<std::error_code>& promise, std::unique_ptr<socket_type>& s) {
@@ -161,7 +164,7 @@ void basic_session_t::on_read(const std::error_code& ec) {
     if (it == channels->end()) {
         CF_DBG("dropping an orphan span %llu message", message.span());
     } else {
-        it->second->push(std::move(message));
+        it->second->put(std::move(message));
     }
 
     channel->reader->read(message, std::bind(&basic_session_t::on_read, shared_from_this(), ph::_1));
@@ -172,7 +175,7 @@ void basic_session_t::on_error(const std::error_code& ec) {
 
     auto channels = this->channels.synchronize();
     for (auto channel : *channels) {
-        channel.second->error(ec);
+        channel.second->put(ec);
     }
     channels->clear();
 }

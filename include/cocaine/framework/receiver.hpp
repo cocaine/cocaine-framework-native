@@ -34,6 +34,68 @@ class basic_session_t;
 
 namespace detail {
 
+class shared_state_t {
+public:
+    typedef io::decoder_t::message_type value_type;
+
+    std::queue<value_type> queue;
+    std::queue<promise_t<value_type>> pending;
+
+    boost::optional<std::error_code> broken;
+
+    std::mutex mutex;
+
+public:
+    void put(value_type&& message) {
+        std::lock_guard<std::mutex> lock(mutex);
+
+        COCAINE_ASSERT(!broken);
+
+        if (pending.empty()) {
+            queue.push(message);
+        } else {
+            pending.front().set_value(message);
+            pending.pop();
+        }
+    }
+
+    void put(const std::error_code& ec) {
+        std::lock_guard<std::mutex> lock(mutex);
+
+        COCAINE_ASSERT(!broken);
+
+        broken = ec;
+        while (!pending.empty()) {
+            pending.front().set_exception(std::system_error(ec));
+            pending.pop();
+        }
+    }
+
+    auto get() -> future_t<value_type> {
+        std::lock_guard<std::mutex> lock(mutex);
+
+        if (broken) {
+            COCAINE_ASSERT(queue.empty());
+
+            return make_ready_future<value_type>::error(std::system_error(broken.get()));
+        }
+
+        if (queue.empty()) {
+            promise_t<value_type> promise;
+            auto future = promise.get_future();
+            pending.push(std::move(promise));
+            return future;
+        } else {
+            auto future = make_ready_future<value_type>::value(queue.front());
+            queue.pop();
+            return future;
+        }
+
+        COCAINE_ASSERT(false);
+        return future_t<value_type>();
+    }
+};
+
 /*!
  * Transforms a typelist sequence into a single movable argument type.
  *
@@ -142,23 +204,16 @@ class basic_receiver_t {
 
     std::uint64_t id;
     std::shared_ptr<basic_session_t> session;
-
-    boost::optional<std::error_code> broken;
-
-    std::mutex mutex;
-    std::queue<result_type> queue;
-    std::queue<promise_t<result_type>> pending;
+    std::shared_ptr<detail::shared_state_t> state;
 
 public:
-    basic_receiver_t(std::uint64_t id, std::shared_ptr<basic_session_t> session);
+    basic_receiver_t(std::uint64_t id, std::shared_ptr<basic_session_t> session, std::shared_ptr<detail::shared_state_t> state);
 
     ~basic_receiver_t();
 
-    future_t<result_type> recv();
+    auto recv() -> future_t<result_type>;
 
-private:
-    void push(io::decoder_t::message_type&& message);
-    void error(const std::error_code& ec);
+    void revoke();
 };
 
 /*!
@@ -233,13 +288,49 @@ private:
 };
 
 template<class T>
+class terminator {
+    typedef std::function<bool()> function_type;
+
+public:
+    static std::vector<function_type> generate() {
+        std::vector<function_type> result;
+        boost::mpl::for_each<typename io::protocol<T>::messages>(terminator<T>(result));
+        return result;
+    }
+
+    template<class U>
+    void operator()(const U&) {
+        unpackers.emplace_back(&terminator::unpacker<U>::unpack);
+    }
+
+private:
+    std::vector<function_type>& unpackers;
+
+    terminator(std::vector<function_type>& unpackers) :
+        unpackers(unpackers)
+    {}
+
+public:
+    template<typename U>
+    struct unpacker {
+        static
+        bool
+        unpack() {
+            return std::is_same<typename io::event_traits<U>::dispatch_type, void>::value;
+        }
+    };
+};
+
+template<class T>
 class receiver {
     typedef typename variant_of<T>::type variant_type;
     typedef typename variant_type::types variant_typelist;
 
     typedef std::function<variant_type(const msgpack::object&)> unpacker_type;
+    typedef std::function<bool()> terminator_type;
 
     static const std::vector<unpacker_type> visitors;
+    static const std::vector<terminator_type> terminators;
 
     std::shared_ptr<basic_receiver_t> d;
 
@@ -255,15 +346,20 @@ public:
     receiver& operator=(const receiver& other) = default;
     receiver& operator=(receiver&& other) = default;
 
+    /*!
+     * \note does auto revoke when reached a leaf.
+     *
+     * \warning this receiver will be invalidated after this call.
+     */
     future_t<typename receiver_traits<T>::result_type>
     recv() {
-        return d->recv().then(std::bind(&receiver<T>::convert, std::placeholders::_1));
+        return d->recv().then(std::bind(&receiver<T>::convert, std::placeholders::_1, d));
     }
 
 private:
     static
     typename receiver_traits<T>::result_type
-    convert(future_t<io::decoder_t::message_type>& f) {
+    convert(future_t<io::decoder_t::message_type>& f, std::shared_ptr<basic_receiver_t> d) {
         const io::decoder_t::message_type message = f.get();
         const std::uint64_t id = message.type();
         if (id >= boost::mpl::size<variant_typelist>::value) {
@@ -273,12 +369,19 @@ private:
 
         variant_type payload = visitors[id](message.args());
         // TODO: Close the channel if it the next node is terminate leaf.
+        if (terminators[id]()) {
+            CF_DBG("received the last message in the protocol graph - terminating ...");
+            d->revoke();
+        }
         return receiver_traits<T>::convert(payload);
     }
 };
 
 template<class T>
 const std::vector<typename receiver<T>::unpacker_type> receiver<T>::visitors = slot_unpacker<T>::generate();
+
+template<class T>
+const std::vector<typename receiver<T>::terminator_type> receiver<T>::terminators = terminator<T>::generate();
 
 } // namespace framework
 

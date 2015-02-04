@@ -61,7 +61,7 @@ class basic_session_t : public std::enable_shared_from_this<basic_session_t> {
     std::atomic<std::uint64_t> counter;
 
     io::decoder_t::message_type message;
-    synchronized<std::unordered_map<std::uint64_t, std::shared_ptr<basic_receiver_t>>> channels;
+    synchronized<std::unordered_map<std::uint64_t, std::shared_ptr<detail::shared_state_t>>> channels;
 
     class push_t;
 public:
@@ -103,10 +103,11 @@ public:
         const auto id = counter++;
         auto message = io::encoded<Event>(id, std::forward<Args>(args)...);
         auto tx = std::make_shared<basic_sender_t>(id, shared_from_this());
-        auto rx = std::make_shared<basic_receiver_t>(id, shared_from_this());
+        auto ss = std::make_shared<detail::shared_state_t>();
+        auto rx = std::make_shared<basic_receiver_t>(id, shared_from_this(), ss);
 
         // TODO: Do not insert mute channels.
-        channels->insert(std::make_pair(id, rx));
+        channels->insert(std::make_pair(id, ss));
         auto f1 = push(std::move(message));
         auto f2 = f1.then([tx, rx](future_t<void>& f){
             f.get();
