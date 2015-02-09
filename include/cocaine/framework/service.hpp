@@ -27,7 +27,7 @@ struct invocation_result;
 template<class Event, class T>
 struct invocation_result<Event, io::primitive_tag<T>, void> {
     typedef typename detail::packable<T>::type value_type;
-    typedef std::tuple<sender<void>, receiver<io::primitive_tag<T>>> channel_type;
+    typedef std::tuple<sender<void, basic_session_t>, receiver<io::primitive_tag<T>>> channel_type;
     typedef value_type type;
 
     static
@@ -42,7 +42,7 @@ struct invocation_result<Event, io::primitive_tag<T>, void> {
 template<class Event, class U, class D>
 struct invocation_result<Event, io::streaming_tag<U>, io::streaming_tag<D>> {
     typedef typename detail::packable<U>::type value_type;
-    typedef std::tuple<sender<io::streaming_tag<D>>, receiver<io::streaming_tag<U>>> channel_type;
+    typedef std::tuple<sender<io::streaming_tag<D>, basic_session_t>, receiver<io::streaming_tag<U>>> channel_type;
     typedef channel_type type;
 
     static

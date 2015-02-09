@@ -94,11 +94,16 @@ public:
      * transporting.
      */
     template<class Event, class... Args>
-    future_t<std::tuple<std::shared_ptr<basic_sender_t>, std::shared_ptr<basic_receiver_t>>>
+    future_t<
+        std::tuple<
+            std::shared_ptr<basic_sender_t<basic_session_t>>,
+            std::shared_ptr<basic_receiver_t>
+        >
+    >
     invoke(Args&&... args) {
         const auto id = counter++;
         auto message = io::encoded<Event>(id, std::forward<Args>(args)...);
-        auto tx = std::make_shared<basic_sender_t>(id, shared_from_this());
+        auto tx = std::make_shared<basic_sender_t<basic_session_t>>(id, shared_from_this());
         auto ss = std::make_shared<detail::shared_state_t>();
         auto rx = std::make_shared<basic_receiver_t>(id, shared_from_this(), ss);
 
@@ -122,14 +127,6 @@ private:
     void on_connect(const std::error_code& ec, promise_t<std::error_code>& promise, std::unique_ptr<socket_type>& s);
     void on_read(const std::error_code& ec);
     void on_error(const std::error_code& ec);
-};
-
-template<class Event>
-struct traverse {
-    typedef std::tuple<
-        sender<typename io::event_traits<Event>::dispatch_type>,
-        receiver<typename io::event_traits<Event>::upstream_type>
-    > channel_type;
 };
 
 template<class T, class BasicSession = basic_session_t>
@@ -200,14 +197,19 @@ public:
 
     // TODO: Check Event is in T.
     template<class Event, class... Args>
-    future_t<typename traverse<Event>::channel_type>
+    future_t<
+        std::tuple<
+            sender<typename io::event_traits<Event>::dispatch_type, basic_session_t>,
+            receiver<typename io::event_traits<Event>::upstream_type>
+        >
+    >
     invoke(Args&&... args) {
-        typedef future_t<std::tuple<std::shared_ptr<basic_sender_t>, std::shared_ptr<basic_receiver_t>>> f_type;
+        typedef future_t<std::tuple<std::shared_ptr<basic_sender_t<basic_session_t>>, std::shared_ptr<basic_receiver_t>>> f_type;
         return d->template invoke<Event>(std::forward<Args>(args)...).then([](f_type& f){
             auto ch = f.get();
             auto tx = std::get<0>(ch);
             auto rx = std::get<1>(ch);
-            typedef sender<typename io::event_traits<Event>::dispatch_type> sender_type;
+            typedef sender<typename io::event_traits<Event>::dispatch_type, basic_session_t> sender_type;
             typedef receiver<typename io::event_traits<Event>::upstream_type> receiver_type;
             sender_type ttx(tx);
             receiver_type rrx(rx);
