@@ -4,4 +4,5 @@ SET(PROJECT cocaine-framework-cpp)
 PROJECT(${PROJECT})
 
 ADD_SUBDIRECTORY(src)
+ADD_SUBDIRECTORY(example/echo)
 ADD_SUBDIRECTORY(tst)
