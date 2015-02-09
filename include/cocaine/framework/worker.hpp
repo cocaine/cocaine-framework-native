@@ -1,6 +1,18 @@
 #pragma once
 
+#include <functional>
+#include <memory>
 #include <string>
+#include <unordered_map>
+
+#include <asio/local/stream_protocol.hpp>
+
+#include <cocaine/common.hpp>
+#include <cocaine/idl/node.hpp>
+#include <cocaine/rpc/asio/channel.hpp>
+
+#include "cocaine/framework/sender.hpp"
+#include "cocaine/framework/receiver.hpp"
 
 namespace cocaine {
 
@@ -17,9 +29,37 @@ struct options_t {
 
 class worker_t {
 public:
+    typedef io::stream_of<std::string>::tag streaming_tag;
+
+    typedef sender<streaming_tag> sender_type;
+    typedef receiver<streaming_tag> receiver_type;
+
+    typedef std::function<void(sender_type, receiver_type)> handler_type;
+
+    options_t options;
+
+    typedef asio::local::stream_protocol protocol_type;
+    typedef protocol_type::socket socket_type;
+    typedef io::channel<protocol_type> channel_type;
+
+    io::decoder_t::message_type message;
+    std::unique_ptr<channel_type> channel;
+
+    std::unordered_map<std::string, handler_type> handlers;
+
+public:
     worker_t(options_t options);
 
+    template<class F>
+    void on(std::string event, F handler) {
+        handlers[event] = handler;
+    }
+
     int run();
+
+private:
+    void on_read(const std::error_code& ec);
+    void on_write(const std::error_code& ec);
 };
 
 } // namespace framework
