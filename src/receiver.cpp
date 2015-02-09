@@ -4,21 +4,31 @@
 
 using namespace cocaine::framework;
 
-basic_receiver_t::basic_receiver_t(std::uint64_t id, std::shared_ptr<basic_session_t> session, std::shared_ptr<detail::shared_state_t> state) :
+template<class Session>
+basic_receiver_t<Session>::basic_receiver_t(std::uint64_t id, std::shared_ptr<Session> session, std::shared_ptr<detail::shared_state_t> state) :
     id(id),
     session(session),
     state(state)
 {}
 
-basic_receiver_t::~basic_receiver_t() {
+template<class Session>
+basic_receiver_t<Session>::~basic_receiver_t() {
     // TODO: Need?
     session->revoke(id);
 }
 
-future_t<basic_receiver_t::result_type> basic_receiver_t::recv() {
+template<class Session>
+future_t<typename basic_receiver_t<Session>::result_type>
+basic_receiver_t<Session>::recv() {
     return state->get();
 }
 
-void basic_receiver_t::revoke() {
+template<class Session>
+void basic_receiver_t<Session>::revoke() {
 //    session->revoke(id);
 }
+
+template class cocaine::framework::basic_receiver_t<basic_session_t>;
+
+#include "cocaine/framework/worker.hpp"
+template class cocaine::framework::basic_receiver_t<worker_session_t>;

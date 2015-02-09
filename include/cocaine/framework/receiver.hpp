@@ -18,6 +18,7 @@
 #include <cocaine/idl/streaming.hpp>
 #include <cocaine/rpc/asio/decoder.hpp>
 #include <cocaine/tuple.hpp>
+#include <cocaine/detail/service/node/messages.hpp>
 
 #include "cocaine/framework/common.hpp"
 #include "cocaine/framework/error.hpp"
@@ -198,16 +199,17 @@ public:
 
 class basic_session_t;
 
+template<class Session>
 class basic_receiver_t {
-    friend class basic_session_t;
+//    friend class Session;
     typedef io::decoder_t::message_type result_type;
 
     std::uint64_t id;
-    std::shared_ptr<basic_session_t> session;
+    std::shared_ptr<Session> session;
     std::shared_ptr<detail::shared_state_t> state;
 
 public:
-    basic_receiver_t(std::uint64_t id, std::shared_ptr<basic_session_t> session, std::shared_ptr<detail::shared_state_t> state);
+    basic_receiver_t(std::uint64_t id, std::shared_ptr<Session> session, std::shared_ptr<detail::shared_state_t> state);
 
     ~basic_receiver_t();
 
@@ -321,7 +323,7 @@ public:
     };
 };
 
-template<class T>
+template<class T, class Session>
 class receiver {
     typedef typename variant_of<T>::type variant_type;
     typedef typename variant_type::types variant_typelist;
@@ -332,10 +334,10 @@ class receiver {
     static const std::vector<unpacker_type> visitors;
     static const std::vector<terminator_type> terminators;
 
-    std::shared_ptr<basic_receiver_t> d;
+    std::shared_ptr<basic_receiver_t<Session>> d;
 
 public:
-    receiver(std::shared_ptr<basic_receiver_t> d) :
+    receiver(std::shared_ptr<basic_receiver_t<Session>> d) :
         d(d)
     {}
 
@@ -353,13 +355,13 @@ public:
      */
     future_t<typename receiver_traits<T>::result_type>
     recv() {
-        return d->recv().then(std::bind(&receiver<T>::convert, std::placeholders::_1, d));
+        return d->recv().then(std::bind(&receiver<T, Session>::convert, std::placeholders::_1, d));
     }
 
 private:
     static
     typename receiver_traits<T>::result_type
-    convert(future_t<io::decoder_t::message_type>& f, std::shared_ptr<basic_receiver_t> d) {
+    convert(future_t<io::decoder_t::message_type>& f, std::shared_ptr<basic_receiver_t<Session>> d) {
         const io::decoder_t::message_type message = f.get();
         const std::uint64_t id = message.type();
         if (id >= boost::mpl::size<variant_typelist>::value) {
@@ -377,11 +379,13 @@ private:
     }
 };
 
-template<class T>
-const std::vector<typename receiver<T>::unpacker_type> receiver<T>::visitors = slot_unpacker<T>::generate();
+template<class T, class Session>
+const std::vector<typename receiver<T, Session>::unpacker_type>
+receiver<T, Session>::visitors = slot_unpacker<T>::generate();
 
-template<class T>
-const std::vector<typename receiver<T>::terminator_type> receiver<T>::terminators = terminator<T>::generate();
+template<class T, class Session>
+const std::vector<typename receiver<T, Session>::terminator_type>
+receiver<T, Session>::terminators = terminator<T>::generate();
 
 } // namespace framework
 

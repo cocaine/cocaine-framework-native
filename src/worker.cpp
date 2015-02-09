@@ -83,7 +83,9 @@ options_t::options_t(int argc, char** argv) {
 worker_t::worker_t(options_t options) :
     options(std::move(options)),
     heartbeat_timer(loop),
-    disown_timer(loop)
+    disown_timer(loop),
+    worker_work(worker_loop),
+    thread([this]{ this->worker_loop.run(); })
 {
     // TODO: Set default locator endpoint.
     // service_manager_t::endpoint_t locator_endpoint("127.0.0.1", 10053);
@@ -108,6 +110,10 @@ int worker_t::run() {
 
 void worker_t::stop() {
     loop.stop();
+}
+
+void worker_t::post(std::function<void ()> work) {
+    worker_loop.post(work);
 }
 
 // TODO: Rename to: health_manager::reset
@@ -193,7 +199,8 @@ void worker_session_t::on_read(const std::error_code& ec) {
     case (io::event_traits<io::rpc::error>::id):
     case (io::event_traits<io::rpc::choke>::id):
         CF_DBG("event %d, span %d", message.type(), message.span());
-        dispatch(message);
+        // TODO: Dispatch with thread pool.
+        dispatch(std::move(message));
         break;
     default:
         break;
@@ -224,7 +231,8 @@ void worker_session_t::connect(std::string endpoint, std::string uuid) {
 void worker_session_t::revoke(std::uint64_t span) {
 }
 
-void worker_session_t::dispatch(const io::decoder_t::message_type& message) {
+void worker_session_t::dispatch(io::decoder_t::message_type&& message) {
+    CF_DBG("dispatch - [%llu, %llu]", message.span(), message.type());
     // TODO: Make pretty.
     // visit(message);
     switch (message.type()) {
@@ -245,22 +253,42 @@ void worker_session_t::dispatch(const io::decoder_t::message_type& message) {
         }
         auto id = message.span();
         auto tx = std::make_shared<basic_sender_t<worker_session_t>>(id, shared_from_this());
-//        auto ss = std::make_shared<detail::shared_state_t>();
-//        auto rx = std::make_shared<basic_receiver_t>(id, shared_from_this(), ss);
+        auto ss = std::make_shared<detail::shared_state_t>();
+        auto rx = std::make_shared<basic_receiver_t<worker_session_t>>(id, shared_from_this(), ss);
 
-//        auto channels = this->channels.synchronize();
-//        channels->
+        channels->insert(std::make_pair(id, ss));
 
-        it->second(tx);
+        auto handler = it->second; // copy
+        worker->post([handler, tx, rx](){ handler(tx, rx); });
         break;
     }
     case (io::event_traits<io::rpc::chunk>::id):
     case (io::event_traits<io::rpc::error>::id):
-    case (io::event_traits<io::rpc::choke>::id):
+    case (io::event_traits<io::rpc::choke>::id): {
+        auto channels = this->channels.synchronize();
+        auto it = channels->find(message.span());
+        if (it == channels->end()) {
+            // TODO: Log orphan.
+            return;
+        }
+        if (message.type() == io::event_traits<io::rpc::chunk>::id) {
+            std::string s;
+            io::type_traits<
+                typename io::event_traits<io::rpc::chunk>::argument_type
+            >::unpack(message.args(), s);
+            io::encoded<io::streaming<boost::mpl::list<std::string>>::chunk> emsg(message.span(), s);
+            io::decoder_t::message_type dmsg;
+            std::error_code ec;
+            io::decoder_t decoder;
+            decoder.decode(emsg.data(), emsg.size(), dmsg, ec);
+            it->second->put(std::move(dmsg));
+        }
+//        it->second->put(std::move(message));
         // Find rx shared state by span().
         // If not found - log and drop.
         // Push to the shared state.
         break;
+    }
     default:
         COCAINE_ASSERT(false);
     }

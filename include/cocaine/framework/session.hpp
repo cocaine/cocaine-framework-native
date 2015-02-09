@@ -97,7 +97,7 @@ public:
     future_t<
         std::tuple<
             std::shared_ptr<basic_sender_t<basic_session_t>>,
-            std::shared_ptr<basic_receiver_t>
+            std::shared_ptr<basic_receiver_t<basic_session_t>>
         >
     >
     invoke(Args&&... args) {
@@ -105,7 +105,7 @@ public:
         auto message = io::encoded<Event>(id, std::forward<Args>(args)...);
         auto tx = std::make_shared<basic_sender_t<basic_session_t>>(id, shared_from_this());
         auto ss = std::make_shared<detail::shared_state_t>();
-        auto rx = std::make_shared<basic_receiver_t>(id, shared_from_this(), ss);
+        auto rx = std::make_shared<basic_receiver_t<basic_session_t>>(id, shared_from_this(), ss);
 
         // TODO: Do not insert mute channels.
         channels->insert(std::make_pair(id, ss));
@@ -200,17 +200,22 @@ public:
     future_t<
         std::tuple<
             sender<typename io::event_traits<Event>::dispatch_type, basic_session_t>,
-            receiver<typename io::event_traits<Event>::upstream_type>
+            receiver<typename io::event_traits<Event>::upstream_type, basic_session_t>
         >
     >
     invoke(Args&&... args) {
-        typedef future_t<std::tuple<std::shared_ptr<basic_sender_t<basic_session_t>>, std::shared_ptr<basic_receiver_t>>> f_type;
+        typedef future_t<
+            std::tuple<
+                std::shared_ptr<basic_sender_t<basic_session_t>>,
+                std::shared_ptr<basic_receiver_t<basic_session_t>>
+            >
+        > f_type;
         return d->template invoke<Event>(std::forward<Args>(args)...).then([](f_type& f){
             auto ch = f.get();
             auto tx = std::get<0>(ch);
             auto rx = std::get<1>(ch);
             typedef sender<typename io::event_traits<Event>::dispatch_type, basic_session_t> sender_type;
-            typedef receiver<typename io::event_traits<Event>::upstream_type> receiver_type;
+            typedef receiver<typename io::event_traits<Event>::upstream_type, basic_session_t> receiver_type;
             sender_type ttx(tx);
             receiver_type rrx(rx);
             return std::make_tuple(std::move(ttx), std::move(rrx));

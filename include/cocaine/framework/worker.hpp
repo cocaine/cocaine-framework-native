@@ -10,6 +10,7 @@
 #include <cocaine/common.hpp>
 #include <cocaine/idl/node.hpp>
 #include <cocaine/rpc/asio/channel.hpp>
+#include <cocaine/detail/service/node/messages.hpp>
 #include <cocaine/locked_ptr.hpp>
 
 #include "cocaine/framework/sender.hpp"
@@ -28,6 +29,32 @@ struct options_t {
     options_t(int argc, char** argv);
 };
 
+template<class Session>
+class sender<io::rpc_tag, Session> {
+    typedef io::stream_of<std::string>::tag tag_type;
+
+    typedef io::protocol<tag_type>::scope scope;
+
+    std::shared_ptr<basic_sender_t<Session>> d;
+
+public:
+    sender(std::shared_ptr<basic_sender_t<Session>> d) :
+        d(d)
+    {}
+
+    template<class... Args>
+    future_t<sender>
+    write(Args&&... args) {
+        auto f = d->template send<io::rpc::chunk>(std::forward<Args>(args)...);
+
+        auto dd = this->d;
+        return f.then([dd](future_t<void>& f){
+            f.get();
+            return sender<io::rpc_tag, Session>(dd);
+        });
+    }
+};
+
 class worker_t;
 
 // TODO: Merge this one and the basic_session_t class.
@@ -35,8 +62,8 @@ class worker_session_t : public std::enable_shared_from_this<worker_session_t> {
 public:
     typedef io::stream_of<std::string>::tag streaming_tag;
 
-    typedef sender<streaming_tag, worker_session_t> sender_type;
-    typedef receiver<streaming_tag> receiver_type;
+    typedef sender<io::rpc_tag, worker_session_t> sender_type;
+    typedef receiver<streaming_tag, worker_session_t> receiver_type;
 
     typedef asio::local::stream_protocol protocol_type;
     typedef protocol_type::socket socket_type;
@@ -61,7 +88,7 @@ public:
     void revoke(std::uint64_t span);
 
 private:
-    void dispatch(const io::decoder_t::message_type& message);
+    void dispatch(io::decoder_t::message_type&& message);
 
     void on_error(const std::error_code& ec);
     void on_read(const std::error_code& ec);
@@ -70,7 +97,7 @@ private:
 
 class worker_t {
 public:
-    typedef std::function<void(worker_session_t::sender_type/*, worker_session_t::receiver_type*/)> handler_type;
+    typedef std::function<void(worker_session_t::sender_type, worker_session_t::receiver_type)> handler_type;
 
     // Worker
     options_t options;
@@ -85,6 +112,10 @@ public:
 
     std::shared_ptr<worker_session_t> session;
 
+    asio::io_service worker_loop;
+    asio::io_service::work worker_work;
+    boost::thread thread;
+
 public:
     worker_t(options_t options);
 
@@ -97,6 +128,7 @@ public:
 
 //private:
     void stop();
+    void post(std::function<void()> work);
 
     // Health.
     void send_heartbeat(const std::error_code& ec);
