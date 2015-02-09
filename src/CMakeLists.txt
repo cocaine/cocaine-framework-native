@@ -8,6 +8,7 @@ SET(Boost_USE_MULTITHREADED ON)
 SET(BOOST_COMPONENTS
     system
     thread
+    program_options
 )
 
 FIND_PACKAGE(Boost COMPONENTS ${BOOST_COMPONENTS} REQUIRED)
