@@ -33,6 +33,7 @@ namespace framework {
  *
  * \thread_safety safe.
  */
+// TODO: Thing, that sends/receives messages & thing, that manages with channel map.
 class basic_session_t : public std::enable_shared_from_this<basic_session_t> {
     typedef asio::ip::tcp protocol_type;
     typedef protocol_type::socket socket_type;
@@ -49,11 +50,6 @@ class basic_session_t : public std::enable_shared_from_this<basic_session_t> {
     loop_t& loop;
 
     std::unique_ptr<channel_type> channel;
-
-    // This map represents active callbacks holder. There is a better way to achieve the same
-    // functionality - call user callbacks even if the operation is aborted, but who cares.
-    // std::uint64_t pcounter;
-    // std::unordered_map<std::uint64_t, callback_type> pending;
 
     mutable std::mutex mutex;
     std::atomic<state_t> state;
