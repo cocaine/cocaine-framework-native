@@ -62,6 +62,9 @@ public:
     int run();
 
 private:
+    void stop();
+    void dispatch(const io::decoder_t::message_type& message);
+
     void on_read(const std::error_code& ec);
     void on_write(const std::error_code& ec);
 

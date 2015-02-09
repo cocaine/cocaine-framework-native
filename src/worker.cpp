@@ -78,10 +78,34 @@ int worker_t::run() {
     return 0;
 }
 
+void worker_t::stop() {
+    loop.stop();
+}
+
+void worker_t::dispatch(const io::decoder_t::message_type& message) {
+    // TODO: Make pretty.
+    // visit(message);
+    switch (message.type()) {
+    case (io::event_traits<io::rpc::invoke>::id):
+        // Find handler.
+        // If not found - log and drop.
+        // Create tx and rx.
+        // Save shared state for rx. Pass this for tx.
+        // Invoke handler.
+        break;
+    case (io::event_traits<io::rpc::chunk>::id):
+    case (io::event_traits<io::rpc::error>::id):
+    case (io::event_traits<io::rpc::choke>::id):
+        break;
+    default:
+        COCAINE_ASSERT(false);
+    }
+}
+
 void worker_t::on_read(const std::error_code& ec) {
     CF_DBG("read event: %s", CF_EC(ec));
     // TODO: Stop the worker on any network error.
-    // TODO: If message.type() == 4, 5, 6 => push. Otherwise unpack into the control message.
+    // TODO: If message.type() == 3, 4, 5, 6 => push. Otherwise unpack into the control message.
     switch (message.type()) {
     case (io::event_traits<io::rpc::handshake>::id):
         // TODO: Should be never sent.
@@ -89,6 +113,15 @@ void worker_t::on_read(const std::error_code& ec) {
         break;
     case (io::event_traits<io::rpc::heartbeat>::id):
         on_heartbeat();
+        break;
+    case (io::event_traits<io::rpc::terminate>::id):
+        stop();
+        break;
+    case (io::event_traits<io::rpc::invoke>::id):
+    case (io::event_traits<io::rpc::chunk>::id):
+    case (io::event_traits<io::rpc::error>::id):
+    case (io::event_traits<io::rpc::choke>::id):
+        dispatch(message);
         break;
     default:
         break;
