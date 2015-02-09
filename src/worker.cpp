@@ -46,7 +46,9 @@ options_t::options_t(int argc, char** argv) {
 }
 
 worker_t::worker_t(options_t options) :
-    options(std::move(options))
+    options(std::move(options)),
+    heartbeat_timer(loop),
+    disown_timer(loop)
 {
     // TODO: Set default locator endpoint.
     // service_manager_t::endpoint_t locator_endpoint("127.0.0.1", 10053);
@@ -59,7 +61,6 @@ worker_t::worker_t(options_t options) :
 }
 
 int worker_t::run() {
-    asio::io_service loop;
     std::unique_ptr<socket_type> socket(new socket_type(loop));
     protocol_type::endpoint endpoint(options.endpoint);
     socket->connect(endpoint);
@@ -69,6 +70,9 @@ int worker_t::run() {
     channel->reader->read(message, std::bind(&worker_t::on_read, this, ph::_1));
     channel->writer->write(io::encoded<io::rpc::handshake>(1, options.uuid), std::bind(&worker_t::on_write, this, ph::_1));
 
+    send_heartbeat(std::error_code());
+
+    // The main thread is guaranteed to work only with cocaine socket and timers.
     loop.run();
 
     return 0;
@@ -76,10 +80,65 @@ int worker_t::run() {
 
 void worker_t::on_read(const std::error_code& ec) {
     CF_DBG("read event: %s", CF_EC(ec));
-    // TODO: Stop the worker with error on any network error.
+    // TODO: Stop the worker on any network error.
     // TODO: If message.type() == 4, 5, 6 => push. Otherwise unpack into the control message.
+    switch (message.type()) {
+    case (io::event_traits<io::rpc::handshake>::id):
+        // TODO: Should be never sent.
+        COCAINE_ASSERT(false);
+        break;
+    case (io::event_traits<io::rpc::heartbeat>::id):
+        on_heartbeat();
+        break;
+    default:
+        break;
+    }
+
+    channel->reader->read(message, std::bind(&worker_t::on_read, this, ph::_1));
 }
 
 void worker_t::on_write(const std::error_code& ec) {
+    // TODO: Stop the worker on any network error.
+}
 
+// TODO: Rename to: health_manager::reset
+void worker_t::send_heartbeat(const std::error_code& ec) {
+    if (ec) {
+        // TODO: Handle the error properly.
+        COCAINE_ASSERT(false);
+        return;
+    }
+
+    CF_DBG("<- ♥");
+    channel->writer->write(io::encoded<io::rpc::heartbeat>(1), std::bind(&worker_t::on_heartbeat_sent, this, ph::_1));
+}
+
+void worker_t::on_heartbeat_sent(const std::error_code& ec) {
+    if (ec) {
+        // TODO: Stop the worker.
+        return;
+    }
+
+    heartbeat_timer.expires_from_now(boost::posix_time::seconds(10));
+    heartbeat_timer.async_wait(std::bind(&worker_t::send_heartbeat, this, ph::_1));
+}
+
+void worker_t::on_disown(const std::error_code& ec) {
+    if (ec) {
+        if (ec == asio::error::operation_aborted) {
+            // Okay. Do nothing.
+            return;
+        }
+
+        // TODO: Handle other error types.
+    }
+
+    throw std::runtime_error("disowned");
+}
+
+void worker_t::on_heartbeat() {
+    CF_DBG("-> ♥");
+
+    disown_timer.expires_from_now(boost::posix_time::seconds(60));
+    disown_timer.async_wait(std::bind(&worker_t::on_disown, this, ph::_1));
 }

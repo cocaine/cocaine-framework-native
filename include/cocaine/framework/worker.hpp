@@ -42,6 +42,10 @@ public:
     typedef protocol_type::socket socket_type;
     typedef io::channel<protocol_type> channel_type;
 
+    asio::io_service loop;
+    asio::deadline_timer heartbeat_timer;
+    asio::deadline_timer disown_timer;
+
     io::decoder_t::message_type message;
     std::unique_ptr<channel_type> channel;
 
@@ -60,6 +64,12 @@ public:
 private:
     void on_read(const std::error_code& ec);
     void on_write(const std::error_code& ec);
+
+    void send_heartbeat(const std::error_code& ec);
+    void on_heartbeat_sent(const std::error_code& ec);
+
+    void on_disown(const std::error_code& ec);
+    void on_heartbeat();
 };
 
 } // namespace framework
