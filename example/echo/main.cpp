@@ -10,7 +10,7 @@ int main(int argc, char** argv) {
         std::cout << "Invoke!" << std::endl;
         std::string message = *rx.recv().get();
         std::cout << "Le message:" << message << std::endl;
-        tx.write(message).get().write(message).get();
+        tx.write(message).get();
         std::cout << "After send" << std::endl;
         } catch (std::runtime_error e) {
             std::cout << e.what() << std::endl;
