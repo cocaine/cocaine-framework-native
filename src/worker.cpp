@@ -102,7 +102,7 @@ public:
 
 private:
     void on_write(const std::error_code& ec) {
-//        CF_DBG("write event: %s", CF_EC(ec));
+        CF_DBG("write event: %s", CF_EC(ec));
 
         if (ec) {
             connection->on_error(ec);
@@ -206,6 +206,8 @@ void worker_session_t::on_read(const std::error_code& ec) {
         return;
     }
 
+    CF_DBG("event %llu, span %llu", message.type(), message.span());
+
     switch (message.type()) {
     case (io::event_traits<io::rpc::handshake>::id):
         CF_DBG("-> Handshake");
@@ -219,40 +221,7 @@ void worker_session_t::on_read(const std::error_code& ec) {
     case (io::event_traits<io::rpc::terminate>::id):
         //worker->stop();
         break;
-    case (io::event_traits<io::rpc::invoke>::id):
-    case (io::event_traits<io::rpc::chunk>::id):
-    case (io::event_traits<io::rpc::error>::id):
-    case (io::event_traits<io::rpc::choke>::id):
-        CF_DBG("event %llu, span %llu", message.type(), message.span());
-        // TODO: Dispatch with thread pool.
-        dispatch_(std::move(message));
-        break;
-    default:
-        break;
-    }
-
-    channel->reader->read(message, std::bind(&worker_session_t::on_read, this, ph::_1));
-}
-
-void worker_session_t::on_error(const std::error_code& ec) {
-    // TODO: Stop the worker on any network error.
-}
-
-void worker_session_t::revoke(std::uint64_t span) {
-    // TODO: Make it work.
-}
-
-void worker_session_t::dispatch_(io::decoder_t::message_type&& message) {
-    CF_DBG("dispatch - [%llu, %llu]", message.span(), message.type());
-    // TODO: Make pretty.
-    // visit(message);
-    switch (message.type()) {
     case (io::event_traits<io::rpc::invoke>::id): {
-        // Find handler.
-        // If not found - log and drop.
-        // Create tx and rx.
-        // Save shared state for rx. Pass this for tx.
-        // Invoke handler.
         std::string event;
         io::type_traits<
             typename io::event_traits<io::rpc::invoke>::argument_type
@@ -260,6 +229,7 @@ void worker_session_t::dispatch_(io::decoder_t::message_type&& message) {
         auto handler = dispatch.get(event);
         if (!handler) {
             // TODO: Log
+            // TODO: Notify the runtime about missing event.
             return;
         }
 
@@ -279,8 +249,10 @@ void worker_session_t::dispatch_(io::decoder_t::message_type&& message) {
         auto it = channels->find(message.span());
         if (it == channels->end()) {
             // TODO: Log orphan.
+            // TODO: It's invariant at this moment.
             return;
         }
+
         if (message.type() == io::event_traits<io::rpc::chunk>::id) {
             std::string s;
             io::type_traits<
@@ -293,13 +265,19 @@ void worker_session_t::dispatch_(io::decoder_t::message_type&& message) {
             decoder.decode(emsg.data(), emsg.size(), dmsg, ec);
             it->second->put(std::move(dmsg));
         }
-//        it->second->put(std::move(message));
-        // Find rx shared state by span().
-        // If not found - log and drop.
-        // Push to the shared state.
         break;
     }
     default:
-        COCAINE_ASSERT(false);
+        break;
     }
+
+    channel->reader->read(message, std::bind(&worker_session_t::on_read, this, ph::_1));
+}
+
+void worker_session_t::on_error(const std::error_code& ec) {
+    // TODO: Stop the worker on any network error.
+}
+
+void worker_session_t::revoke(std::uint64_t span) {
+    // TODO: Make it work.
 }

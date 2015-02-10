@@ -159,8 +159,6 @@ public:
     void terminate(const std::error_code& ec);
 
 private:
-    void dispatch_(io::decoder_t::message_type&& message);
-
     void on_read(const std::error_code& ec);
     void on_error(const std::error_code& ec);
 
