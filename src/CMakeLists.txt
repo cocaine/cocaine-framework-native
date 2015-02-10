@@ -49,7 +49,9 @@ SET(SOURCES
     sender
     session
     receiver
-    worker
+    worker.cpp
+    worker/options
+    worker/session
 
     util/future/error
 )

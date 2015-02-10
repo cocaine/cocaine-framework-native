@@ -43,10 +43,10 @@ public:
     write(Args&&... args) {
         auto f = d->template send<io::rpc::chunk>(std::forward<Args>(args)...);
 
-        auto dd = this->d;
-        return f.then([dd](future_t<void>& f){
+        auto d = this->d;
+        return f.then([d](future_t<void>& f){
             f.get();
-            return sender<io::rpc_tag, Session>(dd);
+            return sender<io::rpc_tag, Session>(d);
         });
     }
 };
