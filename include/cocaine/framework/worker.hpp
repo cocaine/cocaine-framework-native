@@ -80,7 +80,7 @@ public:
         work(loop)
     {
         if (threads == 0) {
-            throw std::invalid_argument("thread count must be positive number");
+            throw std::invalid_argument("thread count must be a positive number");
         }
 
         start(threads);
