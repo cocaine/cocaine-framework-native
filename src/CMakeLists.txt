@@ -29,7 +29,6 @@ SET(HEADERS
     ${COCAINE_FRAMEWORK_INCLUDES_DIR}/session
     ${COCAINE_FRAMEWORK_INCLUDES_DIR}/receiver
     ${COCAINE_FRAMEWORK_INCLUDES_DIR}/worker
-    ${COCAINE_FRAMEWORK_INCLUDES_DIR}/health
 
     ${COCAINE_FRAMEWORK_INCLUDES_DIR}/util/future.hpp
     ${COCAINE_FRAMEWORK_INCLUDES_DIR}/util/future/error
@@ -51,7 +50,6 @@ SET(SOURCES
     session
     receiver
     worker
-    health
 
     util/future/error
 )
