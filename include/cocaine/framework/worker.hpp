@@ -31,10 +31,6 @@ struct options_t {
 
 template<class Session>
 class sender<io::rpc_tag, Session> {
-    typedef io::stream_of<std::string>::tag tag_type;
-
-    typedef io::protocol<tag_type>::scope scope;
-
     std::shared_ptr<basic_sender_t<Session>> d;
 
 public:
@@ -56,8 +52,73 @@ public:
 };
 
 class worker_t;
+class worker_session_t;
 
-// TODO: Merge this one and the basic_session_t class.
+//! RAII thread pool
+class dispatch_t {
+    typedef io::stream_of<std::string>::tag streaming_tag;
+public:
+    typedef sender<io::rpc_tag, worker_session_t> sender_type;
+    typedef receiver<streaming_tag, worker_session_t> receiver_type;
+    typedef std::function<void(sender_type, receiver_type)> handler_type;
+
+private:
+    loop_t loop;
+    boost::optional<loop_t::work> work;
+    boost::thread_group pool;
+
+    std::unordered_map<std::string, handler_type> handlers;
+
+public:
+    dispatch_t() :
+        work(loop)
+    {
+        start(std::thread::hardware_concurrency() | 1);
+    }
+
+    dispatch_t(unsigned int threads) :
+        work(loop)
+    {
+        if (threads == 0) {
+            throw std::invalid_argument("thread count must be positive number");
+        }
+
+        start(threads);
+    }
+
+    ~dispatch_t() {
+        work.reset();
+        pool.join_all();
+    }
+
+    boost::optional<handler_type> get(const std::string& event) {
+        auto it = handlers.find(event);
+        if (it != handlers.end()) {
+            return it->second;
+        }
+
+        return boost::none;
+    }
+
+    template<typename F>
+    void on(std::string event, F handler) {
+        handlers[event] = std::move(handler);
+    }
+
+    void post(std::function<void()> fn) {
+        loop.post(fn);
+    }
+
+private:
+    void start(unsigned int threads) {
+        for (unsigned int i = 0; i < threads; ++i) {
+            pool.create_thread(
+                std::bind(static_cast<std::size_t(loop_t::*)()>(&loop_t::run), std::ref(loop))
+            );
+        }
+    }
+};
+
 class worker_session_t : public std::enable_shared_from_this<worker_session_t> {
 public:
     typedef io::stream_of<std::string>::tag streaming_tag;
@@ -69,17 +130,25 @@ public:
     typedef protocol_type::socket socket_type;
     typedef io::channel<protocol_type> channel_type;
 
+    typedef std::function<void(sender_type, receiver_type)> handler_type;
+
     template<class>
     class push_t;
+
 private:
     loop_t& loop;
+    dispatch_t& dispatch;
+
     io::decoder_t::message_type message;
     std::unique_ptr<channel_type> channel;
-    worker_t* worker;
     synchronized<std::unordered_map<std::uint64_t, std::shared_ptr<detail::shared_state_t>>> channels;
 
+    // Health.
+    asio::deadline_timer heartbeat_timer;
+    asio::deadline_timer disown_timer;
+
 public:
-    worker_session_t(loop_t& loop, worker_t* w) : loop(loop), worker(w) {}
+    worker_session_t(loop_t& loop, dispatch_t& dispatch);
 
     void connect(std::string endpoint, std::string uuid);
 
@@ -87,54 +156,37 @@ public:
     auto push(io::encoder_t::message_type&& message) -> future_t<void>;
     void revoke(std::uint64_t span);
 
+    void terminate(const std::error_code& ec);
+
 private:
-    void dispatch(io::decoder_t::message_type&& message);
+    void dispatch_(io::decoder_t::message_type&& message);
 
     void on_error(const std::error_code& ec);
     void on_read(const std::error_code& ec);
     void on_write(const std::error_code& ec);
+
+    void handshake(const std::string& uuid);
+    void inhale();
+    void exhale(const std::error_code& ec = std::error_code());
 };
 
 class worker_t {
 public:
-    typedef std::function<void(worker_session_t::sender_type, worker_session_t::receiver_type)> handler_type;
+    loop_t loop;
 
-    // Worker
     options_t options;
-    std::unordered_map<std::string, handler_type> handlers;
-
-    // Io.
-    asio::io_service loop;
-
-    // Health.
-    asio::deadline_timer heartbeat_timer;
-    asio::deadline_timer disown_timer;
-
+    dispatch_t dispatch;
     std::shared_ptr<worker_session_t> session;
-
-    asio::io_service worker_loop;
-    asio::io_service::work worker_work;
-    boost::thread thread;
 
 public:
     worker_t(options_t options);
 
     template<class F>
     void on(std::string event, F handler) {
-        handlers[event] = handler;
+        dispatch.on(event, std::move(handler));
     }
 
     int run();
-
-//private:
-    void stop();
-    void post(std::function<void()> work);
-
-    // Health.
-    void send_heartbeat(const std::error_code& ec);
-    void on_heartbeat_sent(const std::error_code& ec);
-    void on_disown(const std::error_code& ec);
-    void on_heartbeat();
 };
 
 } // namespace framework

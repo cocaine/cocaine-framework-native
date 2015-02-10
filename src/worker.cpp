@@ -17,6 +17,57 @@ namespace ph = std::placeholders;
 using namespace cocaine;
 using namespace cocaine::framework;
 
+options_t::options_t(int argc, char** argv) {
+    // TODO: Make help.
+    boost::program_options::options_description options("Configuration");
+    options.add_options()
+        ("app",      boost::program_options::value<std::string>())
+        ("uuid",     boost::program_options::value<std::string>())
+        ("endpoint", boost::program_options::value<std::string>())
+        ("locator",  boost::program_options::value<std::string>());
+
+
+    boost::program_options::command_line_parser parser(argc, argv);
+    parser.options(options);
+    parser.allow_unregistered();
+
+    boost::program_options::variables_map vm;
+    boost::program_options::store(parser.run(), vm);
+    boost::program_options::notify(vm);
+
+    if (vm.count("app") == 0 || vm.count("uuid") == 0 || vm.count("endpoint") == 0 || vm.count("locator") == 0) {
+        throw std::invalid_argument("invalid command line options");
+    }
+
+    name = vm["app"].as<std::string>();
+    uuid = vm["uuid"].as<std::string>();
+    endpoint = vm["endpoint"].as<std::string>();
+    locator = vm["locator"].as<std::string>();
+}
+
+worker_t::worker_t(options_t options) :
+    options(std::move(options))
+{
+    // TODO: Set default locator endpoint.
+    // service_manager_t::endpoint_t locator_endpoint("127.0.0.1", 10053);
+
+    // Block the deprecated signals.
+    sigset_t sigset;
+    sigemptyset(&sigset);
+    sigaddset(&sigset, SIGPIPE);
+    ::sigprocmask(SIG_BLOCK, &sigset, nullptr);
+}
+
+int worker_t::run() {
+    session.reset(new worker_session_t(loop, dispatch));
+    session->connect(options.endpoint, options.uuid);
+
+    // The main thread is guaranteed to work only with cocaine socket and timers.
+    loop.run();
+
+    return 0;
+}
+
 //! \note single shot.
 template<class Connection>
 class worker_session_t::push_t : public std::enable_shared_from_this<push_t<Connection>> {
@@ -52,111 +103,62 @@ private:
     }
 };
 
-options_t::options_t(int argc, char** argv) {
-    // TODO: Make help.
-    boost::program_options::options_description options("Configuration");
-    options.add_options()
-        ("app",      boost::program_options::value<std::string>())
-        ("uuid",     boost::program_options::value<std::string>())
-        ("endpoint", boost::program_options::value<std::string>())
-        ("locator",  boost::program_options::value<std::string>());
-
-
-    boost::program_options::command_line_parser parser(argc, argv);
-    parser.options(options);
-    parser.allow_unregistered();
-
-    boost::program_options::variables_map vm;
-    boost::program_options::store(parser.run(), vm);
-    boost::program_options::notify(vm);
-
-    if (vm.count("app") == 0 || vm.count("uuid") == 0 || vm.count("endpoint") == 0 || vm.count("locator") == 0) {
-        throw std::invalid_argument("invalid command line options");
-    }
-
-    name = vm["app"].as<std::string>();
-    uuid = vm["uuid"].as<std::string>();
-    endpoint = vm["endpoint"].as<std::string>();
-    locator = vm["locator"].as<std::string>();
-}
-
-worker_t::worker_t(options_t options) :
-    options(std::move(options)),
+worker_session_t::worker_session_t(loop_t& loop, dispatch_t& dispatch) :
+    loop(loop),
+    dispatch(dispatch),
     heartbeat_timer(loop),
-    disown_timer(loop),
-    worker_work(worker_loop),
-    thread([this]{ this->worker_loop.run(); })
-{
-    // TODO: Set default locator endpoint.
-    // service_manager_t::endpoint_t locator_endpoint("127.0.0.1", 10053);
+    disown_timer(loop)
+{}
 
-    // Block the deprecated signals.
-    sigset_t sigset;
-    sigemptyset(&sigset);
-    sigaddset(&sigset, SIGPIPE);
-    ::sigprocmask(SIG_BLOCK, &sigset, nullptr);
+void worker_session_t::connect(std::string endpoint, std::string uuid) {
+    std::unique_ptr<socket_type> socket(new socket_type(loop));
+    socket->connect(protocol_type::endpoint(endpoint));
+
+    channel.reset(new channel_type(std::move(socket)));
+
+    // TODO: Result must be used.
+    handshake(uuid);
+    inhale();
+    exhale();
+
+    channel->reader->read(message, std::bind(&worker_session_t::on_read, shared_from_this(), ph::_1));
 }
 
-int worker_t::run() {
-    session.reset(new worker_session_t(loop, this));
-    session->connect(options.endpoint, options.uuid);
-    send_heartbeat(std::error_code());
+void worker_session_t::inhale() {
+    CF_DBG("-> ♥");
 
-    // The main thread is guaranteed to work only with cocaine socket and timers.
-    loop.run();
-
-    return 0;
+    disown_timer.expires_from_now(boost::posix_time::seconds(60));
+    disown_timer.async_wait(std::bind(&worker_session_t::terminate, shared_from_this(), ph::_1));
 }
 
-void worker_t::stop() {
-    loop.stop();
-}
-
-void worker_t::post(std::function<void ()> work) {
-    worker_loop.post(work);
-}
-
-// TODO: Rename to: health_manager::reset
-void worker_t::send_heartbeat(const std::error_code& ec) {
+// Send heartbeat to the runtime, reset the timer.
+void worker_session_t::exhale(const std::error_code& ec) {
     if (ec) {
-        // TODO: Handle the error properly.
-        COCAINE_ASSERT(false);
+        // TODO: Log.
+        // TODO: Stop the session.
         return;
     }
 
     CF_DBG("<- ♥");
-    session->push(io::encoded<io::rpc::heartbeat>(1));
-    on_heartbeat_sent(std::error_code());
-}
 
-void worker_t::on_heartbeat_sent(const std::error_code& ec) {
-    if (ec) {
-        // TODO: Stop the worker.
-        return;
-    }
+    push(io::encoded<io::rpc::heartbeat>(1)); // TODO: Magic.
 
     heartbeat_timer.expires_from_now(boost::posix_time::seconds(10));
-    heartbeat_timer.async_wait(std::bind(&worker_t::send_heartbeat, this, ph::_1));
+    heartbeat_timer.async_wait(std::bind(&worker_session_t::exhale, shared_from_this(), ph::_1));
 }
 
-void worker_t::on_disown(const std::error_code& ec) {
+void worker_session_t::terminate(const std::error_code& ec) {
     if (ec) {
         if (ec == asio::error::operation_aborted) {
-            // Okay. Do nothing.
+            // It's just normal timer reset. Do nothing.
             return;
         }
 
-        // TODO: Handle other error types.
+        // TODO: Any other error - disconnect all channels.
     }
 
+    // TODO: Timeout - disconnect all channels.
     throw std::runtime_error("disowned");
-}
-
-void worker_t::on_heartbeat() {
-    CF_DBG("-> ♥");
-
-    disown_timer.expires_from_now(boost::posix_time::seconds(60));
-    disown_timer.async_wait(std::bind(&worker_t::on_disown, this, ph::_1));
 }
 
 auto worker_session_t::push(std::uint64_t span, io::encoder_t::message_type&& message) -> future_t<void> {
@@ -189,18 +191,19 @@ void worker_session_t::on_read(const std::error_code& ec) {
         COCAINE_ASSERT(false);
         break;
     case (io::event_traits<io::rpc::heartbeat>::id):
-        worker->on_heartbeat();
+        // We received a heartbeat message from the runtime. Reset the disown timer.
+        inhale();
         break;
     case (io::event_traits<io::rpc::terminate>::id):
-        worker->stop();
+        //worker->stop();
         break;
     case (io::event_traits<io::rpc::invoke>::id):
     case (io::event_traits<io::rpc::chunk>::id):
     case (io::event_traits<io::rpc::error>::id):
     case (io::event_traits<io::rpc::choke>::id):
-        CF_DBG("event %d, span %d", message.type(), message.span());
+        CF_DBG("event %llu, span %llu", message.type(), message.span());
         // TODO: Dispatch with thread pool.
-        dispatch(std::move(message));
+        dispatch_(std::move(message));
         break;
     default:
         break;
@@ -213,25 +216,19 @@ void worker_session_t::on_write(const std::error_code& ec) {
     // TODO: Stop the worker on any network error.
 }
 
+void worker_session_t::handshake(const std::string& uuid) {
+    push(io::encoded<io::rpc::handshake>(1, uuid));
+}
+
 void worker_session_t::on_error(const std::error_code& ec) {
 
 }
 
-void worker_session_t::connect(std::string endpoint, std::string uuid) {
-    std::unique_ptr<socket_type> socket(new socket_type(loop));
-    protocol_type::endpoint endpoint_(endpoint);
-    socket->connect(endpoint_);
-
-    channel.reset(new channel_type(std::move(socket)));
-
-    channel->reader->read(message, std::bind(&worker_session_t::on_read, shared_from_this(), ph::_1));
-    push(io::encoded<io::rpc::handshake>(1, uuid));
-}
-
 void worker_session_t::revoke(std::uint64_t span) {
+    // TODO: Make it work.
 }
 
-void worker_session_t::dispatch(io::decoder_t::message_type&& message) {
+void worker_session_t::dispatch_(io::decoder_t::message_type&& message) {
     CF_DBG("dispatch - [%llu, %llu]", message.span(), message.type());
     // TODO: Make pretty.
     // visit(message);
@@ -246,20 +243,19 @@ void worker_session_t::dispatch(io::decoder_t::message_type&& message) {
         io::type_traits<
             typename io::event_traits<io::rpc::invoke>::argument_type
         >::unpack(message.args(), event);
-        auto it = worker->handlers.find(event);
-        if (it == worker->handlers.end()) {
+        auto handler = dispatch.get(event);
+        if (!handler) {
             // TODO: Log
             return;
         }
+
         auto id = message.span();
         auto tx = std::make_shared<basic_sender_t<worker_session_t>>(id, shared_from_this());
         auto ss = std::make_shared<detail::shared_state_t>();
         auto rx = std::make_shared<basic_receiver_t<worker_session_t>>(id, shared_from_this(), ss);
 
         channels->insert(std::make_pair(id, ss));
-
-        auto handler = it->second; // copy
-        worker->post([handler, tx, rx](){ handler(tx, rx); });
+        dispatch.post([handler, tx, rx](){ (*handler)(tx, rx); });
         break;
     }
     case (io::event_traits<io::rpc::chunk>::id):

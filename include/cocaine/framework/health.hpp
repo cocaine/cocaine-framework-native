@@ -1,12 +1,19 @@
 //#pragma once
 
+//#include <memory>
+
+//#include "cocaine/framework/forwards.hpp"
+
 //namespace cocaine {
 
 //namespace framework {
 
 //class health_t {
 //public:
-//    health_t(loop_t& loop, std::shared_ptr<worker_session_t> session) {
+//    typedef std::function<void(const std::error_code&)> callback_type;
+
+//public:
+//    health_t(loop_t& loop, callback_type exhale, callback_type death) {
 //        // start timers
 //    }
 
@@ -19,12 +26,11 @@
 //        // reset disown timer
 //    }
 
-//private:
-//    void exhale() {} // on heartbeat timer, send message via session.
-//    void on_death() {} // on disown timer. disconnect session.
+//    // start new timer
+//    void exhale() {}
 
 //};
 
-//}
+//} // namespace framework
 
-//}
+//} // namespace cocaine
