@@ -73,7 +73,8 @@ public:
     dispatch_t() :
         work(loop)
     {
-        start(std::thread::hardware_concurrency() | 1);
+        auto threads = std::thread::hardware_concurrency();
+        start(threads != 0 ? threads : 1);
     }
 
     dispatch_t(unsigned int threads) :
