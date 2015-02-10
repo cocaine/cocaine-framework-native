@@ -161,12 +161,15 @@ public:
 private:
     void dispatch_(io::decoder_t::message_type&& message);
 
-    void on_error(const std::error_code& ec);
     void on_read(const std::error_code& ec);
-    void on_write(const std::error_code& ec);
+    void on_error(const std::error_code& ec);
 
     void handshake(const std::string& uuid);
+
+    // Called after receiving a heartbeat event from the runtime. Reset disown timer.
     void inhale();
+
+    // Called on timer, send heartbeat to the runtime, restart the heartbeat timer.
     void exhale(const std::error_code& ec = std::error_code());
 };
 

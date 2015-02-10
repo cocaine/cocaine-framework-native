@@ -17,6 +17,12 @@ namespace ph = std::placeholders;
 using namespace cocaine;
 using namespace cocaine::framework;
 
+const std::uint64_t CONTROL_CHANNEL = 1;
+
+// TODO: Maybe make configurable?
+const boost::posix_time::time_duration HEARTBEAT_TIMEOUT = boost::posix_time::seconds(10);
+const boost::posix_time::time_duration DISOWN_TIMEOUT = boost::posix_time::seconds(60);
+
 options_t::options_t(int argc, char** argv) {
     // TODO: Make help.
     boost::program_options::options_description options("Configuration");
@@ -35,14 +41,18 @@ options_t::options_t(int argc, char** argv) {
     boost::program_options::store(parser.run(), vm);
     boost::program_options::notify(vm);
 
-    if (vm.count("app") == 0 || vm.count("uuid") == 0 || vm.count("endpoint") == 0 || vm.count("locator") == 0) {
+    if (vm.count("app") == 0 ||
+        vm.count("uuid") == 0 ||
+        vm.count("endpoint") == 0 ||
+        vm.count("locator") == 0)
+    {
         throw std::invalid_argument("invalid command line options");
     }
 
-    name = vm["app"].as<std::string>();
-    uuid = vm["uuid"].as<std::string>();
+    name     = vm["app"].as<std::string>();
+    uuid     = vm["uuid"].as<std::string>();
     endpoint = vm["endpoint"].as<std::string>();
-    locator = vm["locator"].as<std::string>();
+    locator  = vm["locator"].as<std::string>();
 }
 
 worker_t::worker_t(options_t options) :
@@ -116,22 +126,29 @@ void worker_session_t::connect(std::string endpoint, std::string uuid) {
 
     channel.reset(new channel_type(std::move(socket)));
 
-    // TODO: Result must be used.
     handshake(uuid);
-    inhale();
+
+    disown_timer.expires_from_now(DISOWN_TIMEOUT);
+    disown_timer.async_wait(std::bind(&worker_session_t::terminate, shared_from_this(), ph::_1));
+
     exhale();
 
     channel->reader->read(message, std::bind(&worker_session_t::on_read, shared_from_this(), ph::_1));
 }
 
+void worker_session_t::handshake(const std::string& uuid) {
+    CF_DBG("<- Handshake");
+
+    push(io::encoded<io::rpc::handshake>(CONTROL_CHANNEL, uuid));
+}
+
 void worker_session_t::inhale() {
     CF_DBG("-> ♥");
 
-    disown_timer.expires_from_now(boost::posix_time::seconds(60));
+    disown_timer.expires_from_now(DISOWN_TIMEOUT);
     disown_timer.async_wait(std::bind(&worker_session_t::terminate, shared_from_this(), ph::_1));
 }
 
-// Send heartbeat to the runtime, reset the timer.
 void worker_session_t::exhale(const std::error_code& ec) {
     if (ec) {
         // TODO: Log.
@@ -141,9 +158,9 @@ void worker_session_t::exhale(const std::error_code& ec) {
 
     CF_DBG("<- ♥");
 
-    push(io::encoded<io::rpc::heartbeat>(1)); // TODO: Magic.
+    push(io::encoded<io::rpc::heartbeat>(CONTROL_CHANNEL));
 
-    heartbeat_timer.expires_from_now(boost::posix_time::seconds(10));
+    heartbeat_timer.expires_from_now(HEARTBEAT_TIMEOUT);
     heartbeat_timer.async_wait(std::bind(&worker_session_t::exhale, shared_from_this(), ph::_1));
 }
 
@@ -154,7 +171,7 @@ void worker_session_t::terminate(const std::error_code& ec) {
             return;
         }
 
-        // TODO: Any other error - disconnect all channels.
+        on_error(ec);
     }
 
     // TODO: Timeout - disconnect all channels.
@@ -183,11 +200,16 @@ auto worker_session_t::push(io::encoder_t::message_type&& message) -> future_t<v
 
 void worker_session_t::on_read(const std::error_code& ec) {
     CF_DBG("read event: %s", CF_EC(ec));
-    // TODO: Stop the worker on any network error.
-    // TODO: If message.type() == 3, 4, 5, 6 => push. Otherwise unpack into the control message.
+
+    if (ec) {
+        on_error(ec);
+        return;
+    }
+
     switch (message.type()) {
     case (io::event_traits<io::rpc::handshake>::id):
-        // TODO: Should be never sent.
+        CF_DBG("-> Handshake");
+        // Cocaine runtime should never send handshake event.
         COCAINE_ASSERT(false);
         break;
     case (io::event_traits<io::rpc::heartbeat>::id):
@@ -212,16 +234,8 @@ void worker_session_t::on_read(const std::error_code& ec) {
     channel->reader->read(message, std::bind(&worker_session_t::on_read, this, ph::_1));
 }
 
-void worker_session_t::on_write(const std::error_code& ec) {
-    // TODO: Stop the worker on any network error.
-}
-
-void worker_session_t::handshake(const std::string& uuid) {
-    push(io::encoded<io::rpc::handshake>(1, uuid));
-}
-
 void worker_session_t::on_error(const std::error_code& ec) {
-
+    // TODO: Stop the worker on any network error.
 }
 
 void worker_session_t::revoke(std::uint64_t span) {
