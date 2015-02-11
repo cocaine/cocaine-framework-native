@@ -53,7 +53,7 @@ worker_session_t::worker_session_t(loop_t& loop, dispatch_t& dispatch) :
 {}
 
 void worker_session_t::connect(std::string endpoint, std::string uuid) {
-    std::unique_ptr<socket_type> socket(new socket_type(loop));
+    std::unique_ptr<protocol_type::socket> socket(new protocol_type::socket(loop));
     socket->connect(protocol_type::endpoint(endpoint));
 
     channel.reset(new channel_type(std::move(socket)));

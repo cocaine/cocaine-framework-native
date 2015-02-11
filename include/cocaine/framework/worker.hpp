@@ -120,6 +120,11 @@ private:
     }
 };
 
+/*!
+ * \brief The worker_session_t class - implementation heart of any worker.
+ *
+ * \note this class is not a member of public API.
+ */
 class worker_session_t : public std::enable_shared_from_this<worker_session_t> {
 public:
     typedef io::stream_of<std::string>::tag streaming_tag;
@@ -128,7 +133,6 @@ public:
     typedef receiver<streaming_tag, worker_session_t> receiver_type;
 
     typedef asio::local::stream_protocol protocol_type;
-    typedef protocol_type::socket socket_type;
     typedef io::channel<protocol_type> channel_type;
 
     typedef std::function<void(sender_type, receiver_type)> handler_type;
