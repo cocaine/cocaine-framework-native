@@ -59,10 +59,7 @@ void worker_session_t::connect(std::string endpoint, std::string uuid) {
     channel.reset(new channel_type(std::move(socket)));
 
     handshake(uuid);
-
-    disown_timer.expires_from_now(DISOWN_TIMEOUT);
-    disown_timer.async_wait(std::bind(&worker_session_t::terminate, shared_from_this(), ph::_1));
-
+    inhale();
     exhale();
 
     channel->reader->read(message, std::bind(&worker_session_t::on_read, shared_from_this(), ph::_1));
@@ -74,11 +71,10 @@ void worker_session_t::handshake(const std::string& uuid) {
     push(io::encoded<io::rpc::handshake>(CONTROL_CHANNEL_ID, uuid));
 }
 
-void worker_session_t::inhale() {
-    CF_DBG("-> ♥");
 
+void worker_session_t::inhale() {
     disown_timer.expires_from_now(DISOWN_TIMEOUT);
-    disown_timer.async_wait(std::bind(&worker_session_t::terminate, shared_from_this(), ph::_1));
+    disown_timer.async_wait(std::bind(&worker_session_t::on_disown, shared_from_this(), ph::_1));
 }
 
 void worker_session_t::exhale(const std::error_code& ec) {
@@ -96,7 +92,7 @@ void worker_session_t::exhale(const std::error_code& ec) {
     heartbeat_timer.async_wait(std::bind(&worker_session_t::exhale, shared_from_this(), ph::_1));
 }
 
-void worker_session_t::terminate(const std::error_code& ec) {
+void worker_session_t::on_disown(const std::error_code& ec) {
     if (ec) {
         if (ec == asio::error::operation_aborted) {
             // It's just normal timer reset. Do nothing.
@@ -148,6 +144,7 @@ void worker_session_t::on_read(const std::error_code& ec) {
         break;
     case (io::event_traits<io::rpc::heartbeat>::id):
         // We received a heartbeat message from the runtime. Reset the disown timer.
+        CF_DBG("-> ♥");
         inhale();
         break;
     case (io::event_traits<io::rpc::terminate>::id):

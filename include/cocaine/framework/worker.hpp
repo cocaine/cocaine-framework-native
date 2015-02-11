@@ -161,11 +161,11 @@ public:
     auto push(io::encoder_t::message_type&& message) -> future_t<void>;
     void revoke(std::uint64_t span);
 
-    void terminate(const std::error_code& ec);
-
 private:
     void on_read(const std::error_code& ec);
     void on_error(const std::error_code& ec);
+
+    void on_disown(const std::error_code& ec);
 
     void handshake(const std::string& uuid);
 
