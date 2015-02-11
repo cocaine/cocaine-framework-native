@@ -34,6 +34,8 @@ int worker_t::run() {
     session->connect(options.endpoint, options.uuid);
 
     // The main thread is guaranteed to work only with cocaine socket and timers.
+    // TODO: It may be a good idea to catch some typed exceptions, like disown_error etc and map
+    //       it into an error code.
     loop.run();
 
     return 0;
