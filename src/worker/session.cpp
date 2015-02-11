@@ -187,15 +187,13 @@ void worker_session_t::on_read(const std::error_code& ec) {
         dispatch.post([handler, tx, rx](){ (*handler)(tx, rx); });
         break;
     }
-    case (io::event_traits<io::rpc::chunk>::id):
-    case (io::event_traits<io::rpc::error>::id):
-    case (io::event_traits<io::rpc::choke>::id): {
+    case (io::event_traits<io::rpc::chunk>::id): {
         auto channels = this->channels.synchronize();
         auto it = channels->find(message.span());
         if (it == channels->end()) {
-            // TODO: Log orphan.
+            CF_DBG("received an orphan span %llu type %llu message", message.span(), message.type());
             // TODO: It's invariant at this moment.
-            return;
+            break;
         }
 
         // TODO: Refactor this crap!
@@ -213,10 +211,33 @@ void worker_session_t::on_read(const std::error_code& ec) {
         }
         break;
     }
+    case (io::event_traits<io::rpc::error>::id):
+        // TODO: Not implemented yet.
+        COCAINE_ASSERT(false);
+        break;
+    case (io::event_traits<io::rpc::choke>::id): {
+        auto channels = this->channels.synchronize();
+        auto it = channels->find(message.span());
+        if (it == channels->end()) {
+            CF_DBG("received an orphan span %llu type %llu message", message.span(), message.type());
+            // TODO: It's invariant at this moment.
+            break;
+        }
+
+        // TODO: Refactor this crap also!
+        io::encoded<io::streaming<boost::mpl::list<std::string>>::choke> emsg(message.span());
+        io::decoder_t::message_type dmsg;
+        std::error_code ec;
+        io::decoder_t decoder;
+        decoder.decode(emsg.data(), emsg.size(), dmsg, ec);
+        it->second->put(std::move(dmsg));
+        break;
+    }
     default:
         break;
     }
 
+    CF_DBG("waiting for more data ...");
     channel->reader->read(message, std::bind(&worker_session_t::on_read, this, ph::_1));
 }
 
