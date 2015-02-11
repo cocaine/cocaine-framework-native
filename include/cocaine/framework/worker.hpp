@@ -168,6 +168,7 @@ private:
     void on_disown(const std::error_code& ec);
 
     void handshake(const std::string& uuid);
+    void terminate(io::rpc::terminate::code code, std::string reason);
 
     // Called after receiving a heartbeat event from the runtime. Reset disown timer.
     void inhale();

@@ -1,5 +1,7 @@
 #include "cocaine/framework/worker.hpp"
 
+#include <cocaine/traits/enum.hpp>
+
 namespace ph = std::placeholders;
 
 using namespace cocaine::framework;
@@ -71,6 +73,12 @@ void worker_session_t::handshake(const std::string& uuid) {
     push(io::encoded<io::rpc::handshake>(CONTROL_CHANNEL_ID, uuid));
 }
 
+void worker_session_t::terminate(io::rpc::terminate::code code, std::string reason) {
+    CF_DBG("<- Terminate [%d, %s]", code, reason.c_str());
+
+    push(io::encoded<io::rpc::terminate>(1, code, std::move(reason)));
+    loop.stop();
+}
 
 void worker_session_t::inhale() {
     disown_timer.expires_from_now(DISOWN_TIMEOUT);
@@ -148,7 +156,8 @@ void worker_session_t::on_read(const std::error_code& ec) {
         inhale();
         break;
     case (io::event_traits<io::rpc::terminate>::id):
-        //worker->stop();
+        CF_DBG("-> Terminate");
+        terminate(io::rpc::terminate::normal, "per request");
         break;
     case (io::event_traits<io::rpc::invoke>::id): {
         std::string event;
