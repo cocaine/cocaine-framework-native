@@ -13,22 +13,22 @@ const boost::posix_time::time_duration HEARTBEAT_TIMEOUT = boost::posix_time::se
 const boost::posix_time::time_duration DISOWN_TIMEOUT = boost::posix_time::seconds(60);
 
 //! \note single shot.
-template<class Connection>
-class worker_session_t::push_t : public std::enable_shared_from_this<push_t<Connection>> {
+template<class Session>
+class worker_session_t::push_t : public std::enable_shared_from_this<push_t<Session>> {
     io::encoder_t::message_type message;
-    std::shared_ptr<Connection> connection;
+    std::shared_ptr<Session> session;
     promise_t<void> h;
 
 public:
-    explicit push_t(io::encoder_t::message_type&& message, std::shared_ptr<Connection> connection, promise_t<void>&& h) :
+    explicit push_t(io::encoder_t::message_type&& message, std::shared_ptr<Session> session, promise_t<void>&& h) :
         message(std::move(message)),
-        connection(connection),
+        session(session),
         h(std::move(h))
     {}
 
     void operator()() {
-        if (connection->channel) {
-            connection->channel->writer->write(message, std::bind(&push_t::on_write, this->shared_from_this(), ph::_1));
+        if (session->channel) {
+            session->channel->writer->write(message, std::bind(&push_t::on_write, this->shared_from_this(), ph::_1));
         } else {
             h.set_exception(std::system_error(asio::error::not_connected));
         }
@@ -39,7 +39,7 @@ private:
         CF_DBG("write event: %s", CF_EC(ec));
 
         if (ec) {
-            connection->on_error(ec);
+            session->on_error(ec);
             h.set_exception(std::system_error(ec));
         } else {
             h.set_value();
