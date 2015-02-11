@@ -87,8 +87,13 @@ void worker_session_t::inhale() {
 
 void worker_session_t::exhale(const std::error_code& ec) {
     if (ec) {
-        // TODO: Log.
-        // TODO: Stop the session.
+        if (ec == asio::error::operation_aborted) {
+            // Heartbeat timer can only be interrupted during graceful shutdown.
+            return;
+        }
+
+        CF_DBG("heartbeat timer termination: %s", CF_EC(ec));
+        on_error(ec);
         return;
     }
 
@@ -110,7 +115,9 @@ void worker_session_t::on_disown(const std::error_code& ec) {
         on_error(ec);
     }
 
-    // TODO: Timeout - disconnect all channels.
+    on_error(asio::error::make_error_code(asio::error::timed_out));
+
+    // TODO: Throw a typed exception.
     throw std::runtime_error("disowned");
 }
 
