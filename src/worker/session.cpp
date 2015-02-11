@@ -4,7 +4,7 @@ namespace ph = std::placeholders;
 
 using namespace cocaine::framework;
 
-const std::uint64_t CONTROL_CHANNEL = 1;
+const std::uint64_t CONTROL_CHANNEL_ID = 1;
 
 // TODO: Maybe make configurable?
 const boost::posix_time::time_duration HEARTBEAT_TIMEOUT = boost::posix_time::seconds(10);
@@ -71,7 +71,7 @@ void worker_session_t::connect(std::string endpoint, std::string uuid) {
 void worker_session_t::handshake(const std::string& uuid) {
     CF_DBG("<- Handshake");
 
-    push(io::encoded<io::rpc::handshake>(CONTROL_CHANNEL, uuid));
+    push(io::encoded<io::rpc::handshake>(CONTROL_CHANNEL_ID, uuid));
 }
 
 void worker_session_t::inhale() {
@@ -90,7 +90,7 @@ void worker_session_t::exhale(const std::error_code& ec) {
 
     CF_DBG("<- ♥");
 
-    push(io::encoded<io::rpc::heartbeat>(CONTROL_CHANNEL));
+    push(io::encoded<io::rpc::heartbeat>(CONTROL_CHANNEL_ID));
 
     heartbeat_timer.expires_from_now(HEARTBEAT_TIMEOUT);
     heartbeat_timer.async_wait(std::bind(&worker_session_t::exhale, shared_from_this(), ph::_1));
