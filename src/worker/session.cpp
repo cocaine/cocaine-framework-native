@@ -225,5 +225,7 @@ void worker_session_t::on_error(const std::error_code& ec) {
 }
 
 void worker_session_t::revoke(std::uint64_t span) {
-    // TODO: Make it work.
+    CF_DBG("revoking span %llu channel", span);
+
+    channels->erase(span);
 }
