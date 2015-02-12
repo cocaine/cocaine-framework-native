@@ -200,9 +200,10 @@ private:
  * \note this class is not a member of public API.
  */
 class worker_session_t : public std::enable_shared_from_this<worker_session_t> {
-public:
-    typedef io::stream_of<std::string>::tag streaming_tag;
+    template<class>
+    class push_t;
 
+public:
     typedef dispatch_t::sender_type sender_type;
     typedef dispatch_t::receiver_type receiver_type;
 
@@ -210,9 +211,6 @@ public:
     typedef io::channel<protocol_type> channel_type;
 
     typedef std::function<void(sender_type, receiver_type)> handler_type;
-
-    template<class>
-    class push_t;
 
 private:
     loop_t& loop;
