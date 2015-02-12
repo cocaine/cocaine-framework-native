@@ -51,6 +51,48 @@ public:
     }
 };
 
+template<class Session>
+class receiver<io::rpc_tag, Session> {
+    std::shared_ptr<basic_receiver_t<Session>> d;
+
+public:
+    receiver(std::shared_ptr<basic_receiver_t<Session>> d) :
+        d(d)
+    {}
+
+    future_t<boost::optional<std::string>>
+    recv() {
+        auto d = this->d;
+        return d->recv().then([d](future_t<io::decoder_t::message_type>& f) -> boost::optional<std::string> {
+            const auto message = f.get();
+            const std::uint64_t id = message.type();
+            switch (id) {
+            case io::event_traits<io::rpc::chunk>::id: {
+                std::string chunk;
+                io::type_traits<
+                    typename io::event_traits<io::rpc::chunk>::argument_type
+                >::unpack(message.args(), chunk);
+                return chunk;
+            }
+            case io::event_traits<io::rpc::error>::id: {
+                int id;
+                std::string reason;
+                io::type_traits<
+                    typename io::event_traits<io::rpc::error>::argument_type
+                >::unpack(message.args(), id, reason);
+                throw std::runtime_error(reason);
+            }
+            case io::event_traits<io::rpc::choke>::id:
+                return boost::none;
+            default:
+                COCAINE_ASSERT(false);
+            }
+
+            return boost::none;
+        });
+    }
+};
+
 class worker_t;
 class worker_session_t;
 
@@ -58,8 +100,8 @@ class worker_session_t;
 class dispatch_t {
     typedef io::stream_of<std::string>::tag streaming_tag;
 public:
-    typedef sender<io::rpc_tag, worker_session_t> sender_type;
-    typedef receiver<streaming_tag, worker_session_t> receiver_type;
+    typedef sender  <io::rpc_tag, worker_session_t> sender_type;
+    typedef receiver<io::rpc_tag, worker_session_t> receiver_type;
     typedef std::function<void(sender_type, receiver_type)> handler_type;
 
 private:
@@ -129,8 +171,8 @@ class worker_session_t : public std::enable_shared_from_this<worker_session_t> {
 public:
     typedef io::stream_of<std::string>::tag streaming_tag;
 
-    typedef sender<io::rpc_tag, worker_session_t> sender_type;
-    typedef receiver<streaming_tag, worker_session_t> receiver_type;
+    typedef dispatch_t::sender_type sender_type;
+    typedef dispatch_t::receiver_type receiver_type;
 
     typedef asio::local::stream_protocol protocol_type;
     typedef io::channel<protocol_type> channel_type;

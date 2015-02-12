@@ -196,19 +196,7 @@ void worker_session_t::on_read(const std::error_code& ec) {
             break;
         }
 
-        // TODO: Refactor this crap!
-        if (message.type() == io::event_traits<io::rpc::chunk>::id) {
-            std::string s;
-            io::type_traits<
-                typename io::event_traits<io::rpc::chunk>::argument_type
-            >::unpack(message.args(), s);
-            io::encoded<io::streaming<boost::mpl::list<std::string>>::chunk> emsg(message.span(), s);
-            io::decoder_t::message_type dmsg;
-            std::error_code ec;
-            io::decoder_t decoder;
-            decoder.decode(emsg.data(), emsg.size(), dmsg, ec);
-            it->second->put(std::move(dmsg));
-        }
+        it->second->put(std::move(message));
         break;
     }
     case (io::event_traits<io::rpc::error>::id):
@@ -224,13 +212,8 @@ void worker_session_t::on_read(const std::error_code& ec) {
             break;
         }
 
-        // TODO: Refactor this crap also!
-        io::encoded<io::streaming<boost::mpl::list<std::string>>::choke> emsg(message.span());
-        io::decoder_t::message_type dmsg;
-        std::error_code ec;
-        io::decoder_t decoder;
-        decoder.decode(emsg.data(), emsg.size(), dmsg, ec);
-        it->second->put(std::move(dmsg));
+        it->second->put(std::move(message));
+        channels->erase(it);
         break;
     }
     default:
