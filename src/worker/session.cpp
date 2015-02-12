@@ -184,10 +184,12 @@ void worker_session_t::process() {
         io::type_traits<
             typename io::event_traits<io::rpc::invoke>::argument_type
         >::unpack(message.args(), event);
+        CF_DBG("-> Invoke '%s'", event.c_str());
+
         auto handler = dispatch.get(event);
         if (!handler) {
-            // TODO: Log
-            // TODO: Notify the runtime about missing event.
+            CF_DBG("event '%s' not found", event.c_str());
+            push(io::encoded<io::rpc::error>(message.span(), 1, std::string("event not found")));
             return;
         }
 
