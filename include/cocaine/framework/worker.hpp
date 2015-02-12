@@ -40,15 +40,45 @@ public:
         d(d)
     {}
 
+    ~sender() {
+        // Close this stream if it wasn't explicitly closed.
+        if (d) {
+            close();
+        }
+    }
+
+    sender(const sender& other) = delete;
+    sender(sender&& other) = default;
+
+    sender& operator=(const sender& other) = delete;
+    sender& operator=(sender&& other) = default;
+
     template<class... Args>
     future_t<sender>
     write(Args&&... args) {
+        auto d = std::move(this->d);
         auto f = d->template send<io::rpc::chunk>(std::forward<Args>(args)...);
-
-        auto d = this->d;
         return f.then([d](future_t<void>& f){
             f.get();
             return sender<io::rpc_tag, Session>(d);
+        });
+    }
+
+    future_t<void>
+    error(int id, std::string reason) {
+        auto d = std::move(this->d);
+        auto f = d->template send<io::rpc::error>(id, std::move(reason));
+        return f.then([d](future_t<void>& f){
+            f.get();
+        });
+    }
+
+    future_t<void>
+    close() {
+        auto d = std::move(this->d);
+        auto f = d->template send<io::rpc::choke>();
+        return f.then([d](future_t<void>& f){
+            f.get();
         });
     }
 };
