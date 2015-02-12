@@ -6,15 +6,11 @@ int main(int argc, char** argv) {
     worker_t worker(options_t(argc, argv));
 
     worker.on("ping", [](worker_session_t::sender_type tx, worker_session_t::receiver_type rx){
-        try {
-        std::cout << "Invoke!" << std::endl;
+        CF_DBG("After invoke");
         std::string message = *rx.recv().get();
-        std::cout << "Le message:" << message << std::endl;
+        CF_DBG("After chunk: '%s'", message.c_str());
         tx.write(message).get();
-        std::cout << "After send" << std::endl;
-        } catch (std::runtime_error e) {
-            std::cout << e.what() << std::endl;
-        }
+        CF_DBG("After write");
     });
 
     return worker.run();
