@@ -149,18 +149,31 @@ void worker_session_t::on_read(const std::error_code& ec) {
         return;
     }
 
+    process();
+
+    CF_DBG("waiting for more data ...");
+    channel->reader->read(message, std::bind(&worker_session_t::on_read, this, ph::_1));
+}
+
+void worker_session_t::on_error(const std::error_code& ec) {
+    // TODO: Stop the worker on any network error.
+}
+
+void worker_session_t::revoke(std::uint64_t span) {
+    CF_DBG("revoking span %llu channel", span);
+
+    channels->erase(span);
+}
+
+void worker_session_t::process() {
     CF_DBG("event %llu, span %llu", message.type(), message.span());
 
     switch (message.type()) {
     case (io::event_traits<io::rpc::handshake>::id):
-        CF_DBG("-> Handshake");
-        // Cocaine runtime should never send handshake event.
-        COCAINE_ASSERT(false);
+        on_handshake();
         break;
     case (io::event_traits<io::rpc::heartbeat>::id):
-        // We received a heartbeat message from the runtime. Reset the disown timer.
-        CF_DBG("-> ♥");
-        inhale();
+        on_heartbeat();
         break;
     case (io::event_traits<io::rpc::terminate>::id):
         CF_DBG("-> Terminate");
@@ -219,17 +232,17 @@ void worker_session_t::on_read(const std::error_code& ec) {
     default:
         break;
     }
-
-    CF_DBG("waiting for more data ...");
-    channel->reader->read(message, std::bind(&worker_session_t::on_read, this, ph::_1));
 }
 
-void worker_session_t::on_error(const std::error_code& ec) {
-    // TODO: Stop the worker on any network error.
+void worker_session_t::on_handshake() {
+    CF_DBG("-> Handshake");
+
+    throw std::logic_error("invalid protocol: the runtime should never send handshake event");
 }
 
-void worker_session_t::revoke(std::uint64_t span) {
-    CF_DBG("revoking span %llu channel", span);
+void worker_session_t::on_heartbeat() {
+    // We received a heartbeat message from the runtime. Reset the disown timer.
+    CF_DBG("-> ♥");
 
-    channels->erase(span);
+    inhale();
 }

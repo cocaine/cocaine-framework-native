@@ -217,6 +217,10 @@ private:
 
     // Called on timer, send heartbeat to the runtime, restart the heartbeat timer.
     void exhale(const std::error_code& ec = std::error_code());
+
+    void process();
+    void on_handshake();
+    void on_heartbeat();
 };
 
 class worker_t {
