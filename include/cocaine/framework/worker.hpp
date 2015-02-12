@@ -5,6 +5,8 @@
 #include <string>
 #include <unordered_map>
 
+#include <boost/thread/thread.hpp>
+
 #include <asio/local/stream_protocol.hpp>
 
 #include <cocaine/common.hpp>
@@ -115,7 +117,7 @@ public:
     dispatch_t() :
         work(loop)
     {
-        auto threads = std::thread::hardware_concurrency();
+        auto threads = boost::thread::hardware_concurrency();
         start(threads != 0 ? threads : 1);
     }
 
