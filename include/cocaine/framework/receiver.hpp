@@ -33,11 +33,85 @@ namespace framework {
 // Forwards.
 class basic_session_t;
 
+struct decoder_t;
+
+struct owned_decoded_message_t {
+    friend struct decoder_t;
+
+    owned_decoded_message_t() {}
+
+    owned_decoded_message_t(owned_decoded_message_t&& other) :
+        raw(std::move(other.raw)),
+        unpacked(std::move(other.unpacked))
+    {}
+
+    auto
+    span() const -> uint64_t {
+        COCAINE_ASSERT(unpacked);
+        return unpacked->get().via.array.ptr[0].as<uint64_t>();
+    }
+
+    auto
+    type() const -> uint64_t {
+        COCAINE_ASSERT(unpacked);
+        return unpacked->get().via.array.ptr[1].as<uint64_t>();
+    }
+
+    auto
+    args() const -> const msgpack::object& {
+        COCAINE_ASSERT(unpacked);
+        return unpacked->get().via.array.ptr[2];
+    }
+
+//private:
+    std::vector<char> raw;
+    std::unique_ptr<msgpack::unpacked> unpacked;
+};
+
+struct decoder_t {
+    typedef owned_decoded_message_t message_type;
+
+    size_t
+    decode(const char* data, size_t size, message_type& message, std::error_code& ec) {
+        size_t offset = 0;
+
+        msgpack::object object;
+        std::auto_ptr<msgpack::zone> zone(new msgpack::zone);
+        msgpack::unpack_return rv = msgpack::unpack(data, size, &offset, zone.get(), &object);
+
+        if(rv == msgpack::UNPACK_SUCCESS || rv == msgpack::UNPACK_EXTRA_BYTES) {
+            if (object.type != msgpack::type::ARRAY || object.via.array.size < 3) {
+                ec = error::frame_format_error;
+            } else if(object.via.array.ptr[0].type != msgpack::type::POSITIVE_INTEGER ||
+                      object.via.array.ptr[1].type != msgpack::type::POSITIVE_INTEGER ||
+                      object.via.array.ptr[2].type != msgpack::type::ARRAY)
+            {
+                ec = error::frame_format_error;
+            } else {
+                // Copy the buffer explicitly.
+                message.raw.resize(offset);
+                std::copy(data, data + offset, message.raw.begin());
+                size_t offset2 = 0;
+                msgpack::object object2;
+                std::auto_ptr<msgpack::zone> zone2(new msgpack::zone);
+                msgpack::unpack(message.raw.data(), message.raw.size(), &offset2, zone2.get(), &object2);
+                message.unpacked = std::unique_ptr<msgpack::unpacked>(new msgpack::unpacked(object2, zone2));
+            }
+        } else if(rv == msgpack::UNPACK_CONTINUE) {
+            ec = error::insufficient_bytes;
+        } else if(rv == msgpack::UNPACK_PARSE_ERROR) {
+            ec = error::parse_error;
+        }
+
+        return offset;
+    }
+};
+
 namespace detail {
 
 class shared_state_t {
 public:
-    typedef io::decoder_t::message_type value_type;
+    typedef decoder_t::message_type value_type;
 
     std::queue<value_type> queue;
     std::queue<promise_t<value_type>> pending;
@@ -53,9 +127,9 @@ public:
         COCAINE_ASSERT(!broken);
 
         if (pending.empty()) {
-            queue.push(message);
+            queue.push(std::move(message));
         } else {
-            pending.front().set_value(message);
+            pending.front().set_value(std::move(message));
             pending.pop();
         }
     }
@@ -87,7 +161,7 @@ public:
             pending.push(std::move(promise));
             return future;
         } else {
-            auto future = make_ready_future<value_type>::value(queue.front());
+            auto future = make_ready_future<value_type>::value(std::move(queue.front()));
             queue.pop();
             return future;
         }
@@ -202,7 +276,7 @@ class basic_session_t;
 template<class Session>
 class basic_receiver_t {
 //    friend class Session;
-    typedef io::decoder_t::message_type result_type;
+    typedef decoder_t::message_type result_type;
 
     std::uint64_t id;
     std::shared_ptr<Session> session;
@@ -361,8 +435,8 @@ public:
 private:
     static
     typename receiver_traits<T>::result_type
-    convert(future_t<io::decoder_t::message_type>& f, std::shared_ptr<basic_receiver_t<Session>> d) {
-        const io::decoder_t::message_type message = f.get();
+    convert(future_t<decoder_t::message_type>& f, std::shared_ptr<basic_receiver_t<Session>> d) {
+        const decoder_t::message_type message = f.get();
         const std::uint64_t id = message.type();
         if (id >= boost::mpl::size<variant_typelist>::value) {
             // TODO: What to do? Notify the user, I think.

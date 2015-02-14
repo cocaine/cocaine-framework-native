@@ -24,6 +24,39 @@ namespace cocaine {
 
 namespace framework {
 
+template<class Protocol, class Encoder = io::encoder_t, class Decoder = io::decoder_t>
+struct ochannel {
+    typedef Protocol protocol_type;
+    typedef Encoder encoder_type;
+    typedef Decoder decoder_type;
+    typedef typename protocol_type::socket socket_type;
+
+    explicit
+    ochannel(std::unique_ptr<socket_type> socket_):
+        socket(std::move(socket_)),
+        reader(new io::readable_stream<protocol_type, decoder_type>(socket)),
+        writer(new io::writable_stream<protocol_type, encoder_type>(socket))
+    {
+        socket->non_blocking(true);
+    }
+
+   ~ochannel() {
+        try {
+            socket->shutdown(socket_type::shutdown_both);
+            socket->close();
+        } catch(const asio::system_error&) {
+            // Might be already disconnected by the remote peer, so ignore all errors.
+        }
+    }
+
+    // The underlying shared socket object.
+    const std::shared_ptr<socket_type> socket;
+
+    // Unidirectional channel streams.
+    const std::shared_ptr<io::readable_stream<protocol_type, decoder_type>> reader;
+    const std::shared_ptr<io::writable_stream<protocol_type, encoder_type>> writer;
+};
+
 /*!
  * \note I can't guarantee lifetime safety in other way than by making this class living as shared
  * pointer. The reason is: in particular case the connection's event loop runs in a separate
@@ -37,7 +70,7 @@ namespace framework {
 class basic_session_t : public std::enable_shared_from_this<basic_session_t> {
     typedef asio::ip::tcp protocol_type;
     typedef protocol_type::socket socket_type;
-    typedef io::channel<protocol_type> channel_type;
+    typedef ochannel<protocol_type, io::encoder_t, decoder_t> channel_type;
 
     typedef std::function<void(std::error_code)> callback_type;
 
@@ -56,7 +89,7 @@ class basic_session_t : public std::enable_shared_from_this<basic_session_t> {
 
     std::atomic<std::uint64_t> counter;
 
-    io::decoder_t::message_type message;
+    decoder_t::message_type message;
     synchronized<std::unordered_map<std::uint64_t, std::shared_ptr<detail::shared_state_t>>> channels;
 
     class push_t;
