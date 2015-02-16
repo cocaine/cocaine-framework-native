@@ -5,13 +5,7 @@ ENDIF()
 SET(CMAKE_BUILD_TYPE "Debug")
 
 SET(Boost_USE_MULTITHREADED ON)
-SET(BOOST_COMPONENTS
-    system
-    thread
-    program_options
-)
-
-FIND_PACKAGE(Boost COMPONENTS ${BOOST_COMPONENTS} REQUIRED)
+FIND_PACKAGE(Boost 1.40 REQUIRED COMPONENTS system thread program_options)
 
 SET(PROJECT cocaine-framework-cpp)
 
