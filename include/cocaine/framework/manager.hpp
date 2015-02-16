@@ -11,10 +11,12 @@ namespace cocaine {
 
 namespace framework {
 
+class execution_unit_t;
+
 class service_manager_t {
-    loop_t loop;
-    boost::optional<loop_t::work> work;
+    size_t current;
     boost::thread_group pool;
+    std::vector<std::unique_ptr<execution_unit_t>> units;
 
 public:
     service_manager_t();
