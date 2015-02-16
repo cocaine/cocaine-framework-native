@@ -33,6 +33,6 @@ private:
     loop_t& next();
 };
 
-}
+} // namespace framework
 
-} // namespace cocaine::framework
+} // namespace cocaine
