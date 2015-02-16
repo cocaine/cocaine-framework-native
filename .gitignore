@@ -3,3 +3,7 @@ build
 
 # IDE specific.
 *.user
+cocaine-framework-cpp.config
+cocaine-framework-cpp.creator
+cocaine-framework-cpp.files
+cocaine-framework-cpp.includes
