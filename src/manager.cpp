@@ -32,3 +32,7 @@ void service_manager_t::start(unsigned int threads) {
         );
     }
 }
+
+loop_t& service_manager_t::next() {
+    return loop;
+}

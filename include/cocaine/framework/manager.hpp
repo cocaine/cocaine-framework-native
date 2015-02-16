@@ -24,11 +24,13 @@ public:
 
     template<class Service, class... Args>
     std::shared_ptr<Service> create(const std::string& name) {
-        return std::make_shared<Service>(name, loop);
+        return std::make_shared<Service>(name, next());
     }
 
 private:
     void start(unsigned int threads);
+
+    loop_t& next();
 };
 
 }
