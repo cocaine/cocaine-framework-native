@@ -17,35 +17,11 @@ SET(PROJECT cocaine-framework-cpp)
 
 SET(COCAINE_FRAMEWORK_INCLUDES_DIR ${CMAKE_SOURCE_DIR}/include/cocaine/framework)
 
-SET(HEADERS
-    ${COCAINE_FRAMEWORK_INCLUDES_DIR}/common
-    ${COCAINE_FRAMEWORK_INCLUDES_DIR}/config
-    ${COCAINE_FRAMEWORK_INCLUDES_DIR}/connection
-    ${COCAINE_FRAMEWORK_INCLUDES_DIR}/forwards
-    ${COCAINE_FRAMEWORK_INCLUDES_DIR}/error
-    ${COCAINE_FRAMEWORK_INCLUDES_DIR}/detail/log
-    ${COCAINE_FRAMEWORK_INCLUDES_DIR}/sender
-    ${COCAINE_FRAMEWORK_INCLUDES_DIR}/service
-    ${COCAINE_FRAMEWORK_INCLUDES_DIR}/session
-    ${COCAINE_FRAMEWORK_INCLUDES_DIR}/receiver
-    ${COCAINE_FRAMEWORK_INCLUDES_DIR}/worker
-
-    ${COCAINE_FRAMEWORK_INCLUDES_DIR}/util/future.hpp
-    ${COCAINE_FRAMEWORK_INCLUDES_DIR}/util/future/error
-    ${COCAINE_FRAMEWORK_INCLUDES_DIR}/util/future/future
-    ${COCAINE_FRAMEWORK_INCLUDES_DIR}/util/future/future_detail
-    ${COCAINE_FRAMEWORK_INCLUDES_DIR}/util/future/packaged_task
-    ${COCAINE_FRAMEWORK_INCLUDES_DIR}/util/future/promise
-    ${COCAINE_FRAMEWORK_INCLUDES_DIR}/util/future/shared_state
-    ${COCAINE_FRAMEWORK_INCLUDES_DIR}/util/future/traits
-    ${COCAINE_FRAMEWORK_INCLUDES_DIR}/util/future/utility
-    ${COCAINE_FRAMEWORK_INCLUDES_DIR}/util/future/variant
-)
-
 SET(SOURCES
     connection
     error
     log
+    manager
     sender
     session
     receiver
@@ -65,10 +41,7 @@ INCLUDE_DIRECTORIES(
     ${CMAKE_SOURCE_DIR}/../cocaine-core/cocaine-core/foreign/blackhole/src
 )
 
-ADD_LIBRARY(${PROJECT} SHARED
-    ${HEADERS}
-    ${SOURCES}
-)
+ADD_LIBRARY(${PROJECT} SHARED ${SOURCES})
 
 TARGET_LINK_LIBRARIES(${PROJECT}
     ${Boost_LIBRARIES}
