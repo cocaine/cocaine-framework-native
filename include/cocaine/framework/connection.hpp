@@ -23,7 +23,8 @@ namespace framework {
  *
  * \thread_safety unsafe - all methods of this class **must** be called from the event loop thread,
  * otherwise the behavior is undefined.
- * \visibility internal usage only.
+ *
+ * \internal
  */
 class basic_connection_t : public std::enable_shared_from_this<basic_connection_t> {
     typedef std::function<void(const std::error_code&)> callback_type;
