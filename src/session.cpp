@@ -44,7 +44,8 @@ private:
 basic_session_t::basic_session_t(loop_t& loop) noexcept :
     loop(loop),
     state(state_t::disconnected),
-    counter(1)
+    counter(1),
+    message(boost::none)
 {}
 
 basic_session_t::~basic_session_t() {

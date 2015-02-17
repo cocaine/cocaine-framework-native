@@ -50,6 +50,7 @@ private:
 worker_session_t::worker_session_t(loop_t& loop, dispatch_t& dispatch) :
     loop(loop),
     dispatch(dispatch),
+    message(boost::none),
     heartbeat_timer(loop),
     disown_timer(loop)
 {}

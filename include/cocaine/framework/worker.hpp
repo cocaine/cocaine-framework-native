@@ -96,7 +96,7 @@ public:
     future_t<boost::optional<std::string>>
     recv() {
         auto d = this->d;
-        return d->recv().then([d](future_t<decoder_t::message_type>& f) -> boost::optional<std::string> {
+        return d->recv().then([d](future_t<detail::decoder_t::message_type>& f) -> boost::optional<std::string> {
             const auto message = f.get();
             const std::uint64_t id = message.type();
             switch (id) {
@@ -209,7 +209,7 @@ public:
     typedef dispatch_t::receiver_type receiver_type;
 
     typedef asio::local::stream_protocol protocol_type;
-    typedef ochannel<protocol_type, io::encoder_t, decoder_t> channel_type;
+    typedef detail::channel<protocol_type, io::encoder_t, detail::decoder_t> channel_type;
 
     typedef std::function<void(sender_type, receiver_type)> handler_type;
 
@@ -217,7 +217,7 @@ private:
     loop_t& loop;
     dispatch_t& dispatch;
 
-    decoder_t::message_type message;
+    detail::decoder_t::message_type message;
     std::unique_ptr<channel_type> channel;
     synchronized<std::unordered_map<std::uint64_t, std::shared_ptr<detail::shared_state_t>>> channels;
 
