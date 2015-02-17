@@ -121,6 +121,9 @@ public:
     auto push(std::uint64_t span, io::encoder_t::message_type&& message) -> future_t<void>;
     auto push(io::encoder_t::message_type&& message) -> future_t<void>;
 
+    /*!
+     * Unsubscribe a span channel.
+     */
     void revoke(std::uint64_t span);
 
 private:
