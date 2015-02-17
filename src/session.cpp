@@ -130,6 +130,27 @@ void basic_session_t::revoke(std::uint64_t span) {
     });
 }
 
+auto basic_session_t::next() -> std::uint64_t {
+    return counter++;
+}
+
+auto
+basic_session_t::invoke(std::uint64_t span, io::encoder_t::message_type&& message) -> future_t<basic_session_t::basic_invocation_result> {
+    auto tx = std::make_shared<basic_sender_t<basic_session_t>>(span, shared_from_this());
+    auto state = std::make_shared<detail::shared_state_t>();
+    auto rx = std::make_shared<basic_receiver_t<basic_session_t>>(span, shared_from_this(), state);
+
+    // TODO: Do not insert mute channels.
+    channels->insert(std::make_pair(span, state));
+    auto f1 = push(std::move(message));
+    auto f2 = f1.then([tx, rx](future_t<void>& f){ // TODO: Executor!
+        f.get();
+        return std::make_tuple(tx, rx);
+    });
+
+    return f2;
+}
+
 void basic_session_t::on_connect(const std::error_code& ec, promise_t<std::error_code>& promise, std::unique_ptr<socket_type>& s) {
     CF_DBG("connect event: %s", CF_EC(ec));
     COCAINE_ASSERT(state_t::connecting == state);

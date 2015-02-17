@@ -75,6 +75,11 @@ class basic_session_t : public std::enable_shared_from_this<basic_session_t> {
 
     class push_t;
 public:
+    typedef std::tuple<
+        std::shared_ptr<basic_sender_t<basic_session_t>>,
+        std::shared_ptr<basic_receiver_t<basic_session_t>>
+    > basic_invocation_result;
+
     /*!
      * \note the event loop reference should be valid until all asynchronous operations complete
      * otherwise the behavior is undefined.
@@ -108,28 +113,9 @@ public:
      * transporting.
      */
     template<class Event, class... Args>
-    future_t<
-        std::tuple<
-            std::shared_ptr<basic_sender_t<basic_session_t>>,
-            std::shared_ptr<basic_receiver_t<basic_session_t>>
-        >
-    >
-    invoke(Args&&... args) {
-        const auto id = counter++;
-        auto message = io::encoded<Event>(id, std::forward<Args>(args)...);
-        auto tx = std::make_shared<basic_sender_t<basic_session_t>>(id, shared_from_this());
-        auto ss = std::make_shared<detail::shared_state_t>();
-        auto rx = std::make_shared<basic_receiver_t<basic_session_t>>(id, shared_from_this(), ss);
-
-        // TODO: Do not insert mute channels.
-        channels->insert(std::make_pair(id, ss));
-        auto f1 = push(std::move(message));
-        auto f2 = f1.then([tx, rx](future_t<void>& f){
-            f.get();
-            return std::make_tuple(tx, rx);
-        });
-
-        return f2;
+    auto invoke(Args&&... args) -> future_t<basic_invocation_result> {
+        const std::uint64_t span(next());
+        return invoke(span, io::encoded<Event>(span, std::forward<Args>(args)...));
     }
 
     auto push(std::uint64_t span, io::encoder_t::message_type&& message) -> future_t<void>;
@@ -138,6 +124,9 @@ public:
     void revoke(std::uint64_t span);
 
 private:
+    auto next() -> std::uint64_t;
+    auto invoke(std::uint64_t span, io::encoder_t::message_type&& message) -> future_t<basic_invocation_result>;
+
     void on_connect(const std::error_code& ec, promise_t<std::error_code>& promise, std::unique_ptr<socket_type>& s);
     void on_read(const std::error_code& ec);
     void on_error(const std::error_code& ec);
