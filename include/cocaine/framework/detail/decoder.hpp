@@ -5,7 +5,7 @@
 
 #include <boost/none_t.hpp>
 
-// TODO: Detail forwards.
+// TODO: Move to detail forwards.
 namespace msgpack { struct object; }
 
 namespace cocaine {
@@ -14,6 +14,7 @@ namespace framework {
 
 namespace detail {
 
+/// \internal
 class decoded_message {
     class impl;
     std::unique_ptr<impl> d;
