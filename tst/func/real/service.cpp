@@ -47,3 +47,34 @@ TEST(service, Echo) {
 
     EXPECT_EQ("le message", *result);
 }
+
+//TEST(service, EchoMT) {
+//    typedef typename cocaine::io::protocol<cocaine::io::app::enqueue::dispatch_type>::scope upstream;
+
+//    std::vector<boost::thread> threads;
+//    for (size_t tid = 0; tid < 8; ++tid) {
+//        client_t client;
+//        service<cocaine::io::app_tag> echo("echo-cpp", client.loop());
+
+//        threads.push_back(boost::thread([tid, &echo]{
+//            for (size_t id = 0; id < 250; ++id) {
+//                auto ch = echo.invoke<cocaine::io::app::enqueue>(std::string("ping")).get();
+//                auto tx = std::move(std::get<0>(ch));
+//                auto rx = std::move(std::get<1>(ch));
+//                auto chunk = std::to_string(tid) + "/" + std::to_string(id) + ": le message";
+//                tx.send<upstream::chunk>(chunk).get();
+//                auto result = rx.recv().get();
+//                rx.recv().get();
+
+//                EXPECT_EQ(chunk, *result);
+//                if (chunk != *result) {
+//                    std::terminate();
+//                }
+//            }
+//        }));
+
+//        for (auto& t : threads) {
+//            t.join();
+//        }
+//    }
+//}

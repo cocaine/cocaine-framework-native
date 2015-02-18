@@ -12,11 +12,12 @@ SET(PROJECT cocaine-framework-cpp)
 SET(COCAINE_FRAMEWORK_INCLUDES_DIR ${CMAKE_SOURCE_DIR}/include/cocaine/framework)
 
 SET(SOURCES
-    connection
+#    connection ## Currently disable
     decoder
     error
     log
     manager
+    resolver
     sender
     session
     receiver

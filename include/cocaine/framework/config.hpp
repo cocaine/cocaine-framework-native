@@ -19,7 +19,6 @@ namespace framework {
 #endif
 
 using loop_t = asio::io_service;
-using endpoint_t = asio::ip::tcp::endpoint;
 
 } // namespace framework
 

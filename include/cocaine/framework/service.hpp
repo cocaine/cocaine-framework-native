@@ -1,5 +1,7 @@
 #pragma once
 
+#include <boost/asio/ip/tcp.hpp>
+
 #include <cocaine/common.hpp>
 #include <cocaine/idl/locator.hpp>
 #include <cocaine/traits/endpoint.hpp>
@@ -52,10 +54,64 @@ struct invocation_result<Event, io::streaming_tag<U>, io::streaming_tag<D>> {
     }
 };
 
+class scheduler_t {};
+
+//class resolver_t {
+//public:
+//    typedef endpoint_t endpoint_type;
+//    typedef std::tuple<std::vector<endpoint_type>, unsigned int, io::graph_basis_t> result_type;
+
+//public:
+////    explicit resolver_t(scheduler_t*);
+//    explicit resolver_t(loop_t&);
+//    ~resolver_t();
+
+//    void timeout(std::chrono::duration);
+//    void endpoints(std::vector<endpoint_type> endpoints);
+
+//    // No queue.
+//    auto resolve(std::string name) -> future_type<result_type>;
+//};
+
+//class connector_t {
+//public:
+//    typedef resolver_t::endpoint_type endpoint_type;
+
+//public:
+//    // Queue.
+//    connector_t(resolver_t& resolver, loop_t&);
+//    // connector_t(resolver_t*, scheduler_t*);
+//    ~connector_t();
+
+//    void timeout(std::chrono::duration);
+//    void endpoints(std::vector<endpoint_type>);
+
+//    auto connect(std::string) -> future_type<std::shared_ptr<basic_session_t>>;
+//};
+
+static inline
+boost::asio::ip::address
+convert(const asio::ip::address& address) {
+    if (address.is_v4()) {
+        return boost::asio::ip::address_v4(address.to_v4().to_ulong());
+    } else if (address.is_v6()) {
+        return boost::asio::ip::address_v6(address.to_v6().to_bytes());
+    }
+
+    COCAINE_ASSERT(false);
+}
+
+static inline
+boost::asio::ip::tcp::endpoint
+convert(const asio::ip::tcp::endpoint& endpoint) {
+    return boost::asio::ip::tcp::endpoint(convert(endpoint.address()), endpoint.port());
+}
+
 template<class T>
 class service {
     std::string name;
     loop_t& loop;
+    std::atomic<bool> detached;
     std::shared_ptr<session<T>> d;
 
     std::mutex mutex;
@@ -64,18 +120,22 @@ public:
     service(std::string name, loop_t& loop) :
         name(std::move(name)),
         loop(loop),
+        detached(false),
         d(std::make_shared<session<T>>(std::make_shared<basic_session_t>(loop)))
     {}
 
     ~service() {
         // TODO: Wait until all channels are closed.
-        // TODO: If detached - don't wait (but internally already finish all requests).
-        CF_DBG("destroying '%s' service ...", name.c_str());
-        d->disconnect();
+        if (!detached) {
+            CF_DBG("destroying '%s' service ...", name.c_str());
+            d->disconnect();
+        }
     }
 
     auto connect() -> future_t<void> {
-        CF_CTX("connect '%s'", name);
+        // TODO: Connector, which manages future queue and returns future<shared_ptr<session<T>>> for 'name'.
+        CF_CTX("service '%s'", name);
+        CF_CTX("connect");
         CF_DBG("connecting ...");
 
         // TODO: Make async.
@@ -88,10 +148,11 @@ public:
             return make_ready_future<void>::value();
         }
 
+        // connector.connect(name).then(executor, [](d){ lock; if !this->d.connected() this->d = d });
         try {
             CF_DBG("connecting to the locator ...");
             // TODO: Explicitly set Locator endpoints.
-            const io_provider::ip::tcp::endpoint endpoint(io_provider::ip::tcp::v4(), 10053);
+            const boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::tcp::v4(), 10053);
             auto locator = std::make_shared<session<io::locator_tag>>(std::make_shared<basic_session_t>(loop));
             try {
                 locator->connect(endpoint).get();
@@ -108,7 +169,7 @@ public:
                 auto version = std::get<1>(result);
                 CF_DBG("version: %d", version);
 
-                d->connect(endpoints[0]).get();
+                d->connect(convert(endpoints[0])).get();
                 CF_DBG("connecting - done");
             } catch (std::exception err) {
                 CF_DBG("connecting - error: %s", err.what());
@@ -124,7 +185,7 @@ public:
     template<class Event, class... Args>
     future_t<typename invocation_result<Event>::type>
     invoke(Args&&... args) {
-        CF_CTX("invoke '%s' - %s", name, Event::alias());
+//        CF_CTX("invoke '%s' - %s", name, Event::alias());
         CF_DBG("invoking ...");
         typedef typename invocation_result<Event>::type result_type;
 
@@ -137,6 +198,10 @@ public:
         } catch (const std::exception& err) {
             return make_ready_future<result_type>::error(err);
         }
+    }
+
+    void detach() {
+        detached = true;
     }
 };
 

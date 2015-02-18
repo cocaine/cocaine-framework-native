@@ -4,7 +4,6 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
-#include <cocaine/framework/connection.hpp>
 #include <cocaine/framework/session.hpp>
 
 #include "mock/event.hpp"
@@ -21,8 +20,10 @@ namespace mock {
 
 class basic_session_t {
 public:
+    typedef cocaine::framework::basic_session_t::endpoint_type endpoint_type;
+
     MOCK_CONST_METHOD0(connected, bool());
-    MOCK_METHOD1(connect, future_t<std::error_code>&(const endpoint_t&));
+    MOCK_METHOD1(connect, future_t<std::error_code>&(const endpoint_type&));
 };
 
 } // namespace mock
@@ -40,7 +41,7 @@ TEST(session, Constructor) {
 }
 
 TEST(session, Connect) {
-    const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), 42);
+    const basic_session_t::endpoint_type endpoint(boost::asio::ip::tcp::v4(), 42);
 
     auto d = std::make_shared<mock::basic_session_t>();
     auto s = std::make_shared<session<mock::event_tag, mock::basic_session_t>>(d);
@@ -54,7 +55,7 @@ TEST(session, Connect) {
 }
 
 TEST(session, ConnectionRefused) {
-    const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), 42);
+    const basic_session_t::endpoint_type endpoint(boost::asio::ip::tcp::v4(), 42);
 
     auto d = std::make_shared<mock::basic_session_t>();
     auto s = std::make_shared<session<mock::event_tag, mock::basic_session_t>>(d);
@@ -68,7 +69,7 @@ TEST(session, ConnectionRefused) {
 }
 
 TEST(session, ConnectWhileConnecting) {
-    const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), 42);
+    const basic_session_t::endpoint_type endpoint(boost::asio::ip::tcp::v4(), 42);
 
     auto d = std::make_shared<mock::basic_session_t>();
     auto s = std::make_shared<session<mock::event_tag, mock::basic_session_t>>(d);
@@ -91,7 +92,7 @@ TEST(session, ConnectWhileConnecting) {
 }
 
 TEST(session, ConnectWhileConnectingError) {
-    const io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), 42);
+    const basic_session_t::endpoint_type endpoint(boost::asio::ip::tcp::v4(), 42);
 
     auto d = std::make_shared<mock::basic_session_t>();
     auto s = std::make_shared<session<mock::event_tag, mock::basic_session_t>>(d);

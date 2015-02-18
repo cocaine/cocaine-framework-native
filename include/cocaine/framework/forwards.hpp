@@ -16,6 +16,9 @@ using promise_t = promise<T>;
 template<typename T>
 using future_t = future<T>;
 
+template<typename T>
+using future_type = future<T>;
+
 } // namespace framework
 
 } // namespace cocaine

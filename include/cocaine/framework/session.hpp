@@ -4,6 +4,8 @@
 #include <queue>
 #include <unordered_map>
 
+#include <boost/asio/ip/tcp.hpp>
+
 #include <asio/io_service.hpp>
 #include <asio/ip/tcp.hpp>
 
@@ -25,16 +27,6 @@ namespace cocaine {
 
 namespace framework {
 
-namespace detail {
-
-class executor_type {
-    loop_t& loop() {}
-
-    void post() {}
-};
-
-}
-
 /*!
  * \note I can't guarantee lifetime safety in other way than by making this class living as shared
  * pointer. The reason is: in particular case the connection's event loop runs in a separate
@@ -48,6 +40,10 @@ class executor_type {
 class basic_session_t : public std::enable_shared_from_this<basic_session_t> {
     typedef asio::ip::tcp protocol_type;
     typedef protocol_type::socket socket_type;
+public:
+    typedef boost::asio::ip::tcp::endpoint endpoint_type;
+
+private:
     typedef detail::channel<protocol_type, io::encoder_t, detail::decoder_t> channel_type;
 
     typedef std::function<void(std::error_code)> callback_type;
@@ -95,7 +91,7 @@ public:
     bool connected() const noexcept;
 
     // TODO: Make overload `connect(const std::vector<endpoint_t>&)`.
-    auto connect(const endpoint_t& endpoint) -> future_t<std::error_code>;
+    auto connect(const endpoint_type& endpoint) -> future_t<std::error_code>;
 
     /*!
      * \brief Emits a disconnection request to the current session.
@@ -141,6 +137,8 @@ public:
     typedef T tag_type;
     typedef BasicSession basic_session_type;
 
+    typedef typename basic_session_type::endpoint_type endpoint_type;
+
 private:
     std::shared_ptr<basic_session_type> d;
     std::vector<std::shared_ptr<promise_t<void>>> queue;
@@ -158,7 +156,7 @@ public:
 
     // TODO: Accept vector<endpoint_t>.
     // TODO: Non template code - decompose.
-    auto connect(const endpoint_t& endpoint) -> future_t<void> {
+    auto connect(const endpoint_type& endpoint) -> future_t<void> {
         // TODO: Make sure that the connection queue contains tokens for only single endpoint.
         auto p = std::make_shared<promise_t<void>>();
         auto future = p->get_future();

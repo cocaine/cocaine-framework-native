@@ -33,19 +33,15 @@ FIND_PACKAGE(Boost COMPONENTS ${BOOST_COMPONENTS} REQUIRED)
 
 SET(PROJECT cocaine-framework-cpp-tests)
 
-SET(HEADERS
-    mock/event
-    util/net
-)
-
 SET(SOURCES
     util/net
 
-    connection
+#    connection ## Disable for now.
 #    session
     session_t
     service
     functional
+    func/real/connector
     func/real/service
     func/stub/session
 )

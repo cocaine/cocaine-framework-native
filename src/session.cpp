@@ -56,7 +56,7 @@ bool basic_session_t::connected() const noexcept {
     return state == state_t::connected;
 }
 
-auto basic_session_t::connect(const endpoint_t& endpoint) -> future_t<std::error_code> {
+auto basic_session_t::connect(const endpoint_type& endpoint) -> future_t<std::error_code> {
     promise_t<std::error_code> promise;
     auto future = promise.get_future();
 
@@ -69,9 +69,14 @@ auto basic_session_t::connect(const endpoint_t& endpoint) -> future_t<std::error
         // current object's state.
         state = state_t::connecting;
 
+        protocol_type::endpoint ep(
+            asio::ip::address::from_string(endpoint.address().to_string()),
+            endpoint.port()
+        );
+
         socket_type* socket_ = socket.get();
         socket_->async_connect(
-            endpoint,
+            ep,
             std::bind(&basic_session_t::on_connect, shared_from_this(), ph::_1, std::move(promise), std::move(socket))
         );
 
@@ -195,6 +200,8 @@ void basic_session_t::on_read(const std::error_code& ec) {
 
 void basic_session_t::on_error(const std::error_code& ec) {
     COCAINE_ASSERT(ec);
+
+    state = state_t::disconnected;
 
     auto channels = this->channels.synchronize();
     for (auto channel : *channels) {
