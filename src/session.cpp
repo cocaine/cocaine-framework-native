@@ -215,3 +215,96 @@ void basic_session_t::on_error(const std::error_code& ec) {
     }
     channels->clear();
 }
+
+template<class BasicSession>
+class session<BasicSession>::impl : public std::enable_shared_from_this<session<BasicSession>::impl> {
+public:
+    scheduler_t& scheduler;
+    synchronized<std::vector<endpoint_type>> endpoints;
+    std::vector<std::shared_ptr<promise_t<void>>> queue;
+
+    impl(scheduler_t& scheduler) :
+        scheduler(scheduler)
+    {}
+
+    /// \warning call only from event loop thread, otherwise the behavior is undefined.
+    void on_connect(future_type<std::error_code>& f, std::shared_ptr<promise_type<void>> promise) {
+        const auto ec = f.get();
+
+        CF_DBG("basic session connect event: %s", CF_EC(ec));
+
+        if (ec) {
+            switch (ec.value()) {
+            case io_provider::error::already_started:
+                queue.push_back(promise);
+                break;
+            case io_provider::error::already_connected:
+                // TODO: Return ready future.
+                COCAINE_ASSERT(false);
+                break;
+            default:
+                promise->set_exception(std::system_error(ec));
+                for (auto it = queue.begin(); it != queue.end(); ++it) {
+                    (*it)->set_exception(std::system_error(ec));
+                }
+                queue.clear();
+            }
+        } else {
+            promise->set_value();
+            for (auto it = queue.begin(); it != queue.end(); ++it) {
+                (*it)->set_value();
+            }
+            queue.clear();
+        }
+    }
+};
+
+template<class BasicSession>
+session<BasicSession>::session(scheduler_t& scheduler) :
+    d(new impl(scheduler)),
+    sess(std::make_shared<basic_session_type>(scheduler))
+{}
+
+template<class BasicSession>
+session<BasicSession>::~session() {
+    sess->disconnect();
+}
+
+template<class BasicSession>
+bool session<BasicSession>::connected() const {
+    return sess->connected();
+}
+
+template<class BasicSession>
+auto session<BasicSession>::connect(const session::endpoint_type& endpoint) -> future_t<void> {
+    return connect(std::vector<endpoint_type> {{ endpoint }});
+}
+
+template<class BasicSession>
+auto session<BasicSession>::connect(const std::vector<session::endpoint_type>& endpoints) -> future_t<void> {
+    if (endpoints == *d->endpoints.synchronize()) {
+        return make_ready_future<void>::error(
+            std::runtime_error("already in progress with different endpoint set")
+        );
+    }
+
+    auto promise = std::make_shared<promise_t<void>>();
+    auto future = promise->get_future();
+
+    sess->connect(endpoints).then(d->scheduler, std::bind(&impl::on_connect, d, ph::_1, promise));
+
+    return future;
+}
+
+template<class BasicSession>
+void session<BasicSession>::disconnect() {
+    sess->disconnect();
+}
+
+namespace cocaine {
+namespace framework {
+
+template class session<basic_session_t>;
+
+}
+}

@@ -60,7 +60,7 @@ class service {
     std::string name;
     scheduler_t& scheduler;
     std::atomic<bool> detached;
-    std::shared_ptr<session<T>> d;
+    std::shared_ptr<session<>> d;
 
     std::mutex mutex;
 
@@ -69,7 +69,7 @@ public:
         name(std::move(name)),
         scheduler(scheduler),
         detached(false),
-        d(std::make_shared<session<T>>(std::make_shared<basic_session_t>(scheduler)))
+        d(std::make_shared<session<>>(scheduler))
     {}
 
     ~service() {
@@ -101,17 +101,16 @@ public:
             CF_DBG("connecting to the locator ...");
             // TODO: Explicitly set Locator endpoints.
             const boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::tcp::v4(), 10053);
-            auto locator = std::make_shared<session<io::locator_tag>>(std::make_shared<basic_session_t>(scheduler));
             try {
-                locator->connect(endpoint).get();
+                session<> locator(scheduler);
+                locator.connect(endpoint).get();
                 // TODO: Simplify that shit.
                 CF_DBG("resolving");
-                auto ch = locator->template invoke<io::locator::resolve>(name).get();
+                auto ch = locator.invoke<io::locator::resolve>(name).get();
                 auto rx = std::move(std::get<1>(ch));
                 auto result = rx.recv().get();
                 CF_DBG("resolving - done");
                 // TODO: Check version.
-                locator->disconnect();
 
                 auto endpoints = std::get<0>(result);
                 auto version = std::get<1>(result);
@@ -121,7 +120,6 @@ public:
                 CF_DBG("connecting - done");
             } catch (std::exception err) {
                 CF_DBG("connecting - error: %s", err.what());
-                locator->disconnect();
                 throw;
             }
             return make_ready_future<void>::value();

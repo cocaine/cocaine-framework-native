@@ -5,16 +5,16 @@
 #include <boost/thread/barrier.hpp>
 #include <boost/thread/thread.hpp>
 
-#include <asio.hpp>
+#include <asio/ip/tcp.hpp>
+
+#include <cocaine/framework/forwards.hpp>
 
 /// Alias for asyncronous i/o implementation namespace (either boost::asio or pure asio).
-namespace io = asio;
-
 namespace testing {
 
 namespace util {
 
-using loop_t = io::io_service;
+namespace fw = cocaine::framework;
 
 static const std::uint64_t TIMEOUT = 1000;
 
@@ -22,20 +22,20 @@ static const std::uint64_t TIMEOUT = 1000;
 std::uint16_t port();
 
 class server_t {
-    loop_t loop;
-    std::unique_ptr<loop_t::work> work;
+    fw::loop_t loop;
+    std::unique_ptr<fw::loop_t::work> work;
     boost::thread thread;
 
 public:
-    std::vector<std::shared_ptr<io::ip::tcp::socket>> sockets;
+    std::vector<std::shared_ptr<asio::ip::tcp::socket>> sockets;
 
-    server_t(std::uint16_t port, std::function<void(io::ip::tcp::acceptor&, loop_t&)> fn) :
-        work(new loop_t::work(loop))
+    server_t(std::uint16_t port, std::function<void(asio::ip::tcp::acceptor&, fw::loop_t&)> fn) :
+        work(new fw::loop_t::work(loop))
     {
         boost::barrier barrier(2);
         thread = std::move(boost::thread([this, port, fn, &barrier]{
-            io::ip::tcp::acceptor acceptor(loop);
-            io::ip::tcp::endpoint endpoint(io::ip::tcp::v4(), port);
+            asio::ip::tcp::acceptor acceptor(loop);
+            asio::ip::tcp::endpoint endpoint(asio::ip::tcp::v4(), port);
             acceptor.open(endpoint.protocol());
             acceptor.bind(endpoint);
             acceptor.listen();
@@ -59,14 +59,14 @@ public:
 };
 
 class client_t {
-    loop_t io;
-    std::unique_ptr<loop_t::work> work;
+    fw::loop_t io;
+    std::unique_ptr<fw::loop_t::work> work;
     boost::thread thread;
 
 public:
     client_t() :
-        work(new loop_t::work(io)),
-        thread(std::bind(static_cast<std::size_t(loop_t::*)()>(&loop_t::run), std::ref(io)))
+        work(new fw::loop_t::work(io)),
+        thread(std::bind(static_cast<std::size_t(fw::loop_t::*)()>(&fw::loop_t::run), std::ref(io)))
     {}
 
     ~client_t() {
@@ -74,7 +74,7 @@ public:
         thread.join();
     }
 
-    loop_t& loop() {
+    fw::loop_t& loop() {
         return io;
     }
 };

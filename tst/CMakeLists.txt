@@ -17,6 +17,7 @@ INCLUDE_DIRECTORIES(
 LINK_DIRECTORIES(${GTEST_BINARY_DIR} ${GMOCK_BINARY_DIR})
 
 INCLUDE_DIRECTORIES(
+    ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/../cocaine-core/cocaine-core/include
     ${CMAKE_SOURCE_DIR}/../cocaine-core/cocaine-core/foreign/asio/asio/include
@@ -38,9 +39,8 @@ SET(SOURCES
 
 #    connection ## Disable for now.
 #    session
-    session_t
+#    session_t
     service
-    functional
     func/real/connector
     func/real/service
     func/stub/session

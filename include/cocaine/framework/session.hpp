@@ -20,9 +20,6 @@
 #include "cocaine/framework/sender.hpp"
 #include "cocaine/framework/detail/channel.hpp"
 
-// TMP!
-#include "cocaine/framework/detail/log.hpp"
-
 namespace cocaine {
 
 namespace framework {
@@ -66,9 +63,6 @@ private:
     detail::decoder_t::message_type message;
     synchronized<std::unordered_map<std::uint64_t, std::shared_ptr<detail::shared_state_t>>> channels;
 
-//    class impl;
-//    std::unique_ptr<impl> d;
-
     class push_t;
 public:
     typedef std::tuple<
@@ -77,7 +71,7 @@ public:
     > basic_invocation_result;
 
     /*!
-     * \note the scheduler reference should be valid until all asynchronous operations complete
+     * \warning the scheduler reference should be valid until all asynchronous operations complete
      * otherwise the behavior is undefined.
      */
     explicit basic_session_t(scheduler_t& scheduler) noexcept;
@@ -136,79 +130,31 @@ private:
     void on_error(const std::error_code& ec);
 };
 
-template<class T, class BasicSession = basic_session_t>
-class session : public std::enable_shared_from_this<session<T, BasicSession>> {
+/*!
+ * RAII class that manages with connection queue and returns a typed sender/receiver.
+ */
+template<class BasicSession = basic_session_t>
+class session {
 public:
-    typedef T tag_type;
     typedef BasicSession basic_session_type;
-
-    typedef typename basic_session_type::endpoint_type endpoint_type;
+    typedef boost::asio::ip::tcp::endpoint endpoint_type;
 
 private:
-    std::shared_ptr<basic_session_type> d;
-    std::vector<std::shared_ptr<promise_t<void>>> queue;
+    class impl;
+    std::shared_ptr<impl> d;
+    std::shared_ptr<basic_session_type> sess;
 
 public:
-    // TODO: Non template code - decompose.
-    session(std::shared_ptr<basic_session_type> d) :
-        d(d)
-    {}
+    session(scheduler_t& scheduler);
+    ~session();
 
-    // TODO: Non template code - decompose.
-    bool connected() const {
-        return d->connected();
-    }
+    bool connected() const;
 
-    // TODO: Non template code - decompose.
-    auto connect(const endpoint_type& endpoint) -> future_t<void> {
-        return connect(std::vector<endpoint_type> {{ endpoint }});
-    }
+    auto connect(const endpoint_type& endpoint) -> future_t<void>;
+    auto connect(const std::vector<endpoint_type>& endpoints) -> future_t<void>;
 
-    // TODO: Non template code - decompose.
-    auto connect(const std::vector<endpoint_type>& endpoints) -> future_t<void> {
-        // TODO: Make sure that the connection queue contains tokens for only single endpoint.
-        auto p = std::make_shared<promise_t<void>>();
-        auto future = p->get_future();
+    void disconnect();
 
-        auto this_ = this->shared_from_this();
-        d->connect(endpoints).then([this_, p](future_t<std::error_code>& f){
-            auto ec = f.get();
-            CF_DBG("basic session connect event: %s", CF_EC(ec));
-
-            if (ec) {
-                switch (ec.value()) {
-                case io_provider::error::already_started:
-                    this_->queue.push_back(p);
-                    break;
-                case io_provider::error::already_connected:
-                    // TODO: Return ready future.
-                    COCAINE_ASSERT(false);
-                    break;
-                default:
-                    p->set_exception(std::system_error(ec));
-                    for (auto& it : this_->queue) {
-                        it->set_exception(std::system_error(ec));
-                    }
-                    this_->queue.clear();
-                }
-            } else {
-                p->set_value();
-                for (auto& it : this_->queue) {
-                    it->set_value();
-                }
-                this_->queue.clear();
-            }
-        });
-
-        return future;
-    }
-
-    // TODO: Non template code - decompose.
-    void disconnect() {
-        d->disconnect();
-    }
-
-    // TODO: Check Event is in T.
     template<class Event, class... Args>
     future_t<
         std::tuple<
@@ -223,7 +169,7 @@ public:
                 std::shared_ptr<basic_receiver_t<basic_session_t>>
             >
         > f_type;
-        return d->template invoke<Event>(std::forward<Args>(args)...).then([](f_type& f){
+        return sess->template invoke<Event>(std::forward<Args>(args)...).then([](f_type& f){
             auto ch = f.get();
             auto tx = std::get<0>(ch);
             auto rx = std::get<1>(ch);

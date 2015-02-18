@@ -57,9 +57,9 @@ auto resolver_t::resolve(std::string name) -> future_type<resolver_result_t> {
     CF_CTX("resoling '%s'", name);
     CF_DBG("connecting to the locator ...");
 
-    auto locator = std::make_shared<session<io::locator_tag>>(std::make_shared<basic_session_t>(d->scheduler));
+    session<> locator(d->scheduler);
     try {
-        locator->connect(d->endpoints).get();
+        locator.connect(d->endpoints).get();
     } catch (const std::exception &err) {
         CF_DBG("connecting - error: %s", err.what());
         return make_ready_future<resolver_result_t>::error(err);
@@ -67,11 +67,10 @@ auto resolver_t::resolve(std::string name) -> future_type<resolver_result_t> {
 
     CF_DBG("resolving ...");
     try {
-        auto ch = locator->template invoke<io::locator::resolve>(name).get();
+        auto ch = locator.invoke<io::locator::resolve>(name).get();
         auto rx = std::move(std::get<1>(ch));
         auto result = rx.recv().get();
         CF_DBG("resolving - done");
-        locator->disconnect();
 
         resolver_result_t res = { util::endpoints_cast<boost::asio::ip::tcp::endpoint>(std::get<0>(result)), std::get<1>(result) };
         return make_ready_future<resolver_result_t>::value(res);
