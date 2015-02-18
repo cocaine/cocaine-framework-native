@@ -18,7 +18,7 @@ struct resolver_result_t {
 };
 
 /*!
- * \thread_safety all methods are reentrant.
+ * \reentrant
  */
 class resolver_t {
 public:
@@ -30,7 +30,7 @@ private:
 
 public:
     /*!
-     * \todo \note set default endpoint to [::]:10053.
+     * \note sets default endpoint to [::]:10053.
      */
     explicit resolver_t(scheduler_t& scheduler);
 
