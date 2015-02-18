@@ -5,6 +5,7 @@
 #include <functional>
 #include <queue>
 
+#include <boost/mpl/at.hpp>
 #include <boost/mpl/lambda.hpp>
 #include <boost/mpl/for_each.hpp>
 #include <boost/mpl/front.hpp>
