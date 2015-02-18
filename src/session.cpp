@@ -1,5 +1,7 @@
 #include "cocaine/framework/session.hpp"
 
+#include <asio/connect.hpp>
+
 #include "cocaine/framework/detail/log.hpp"
 #include "cocaine/framework/detail/loop.hpp"
 #include "cocaine/framework/scheduler.hpp"
@@ -60,7 +62,11 @@ bool basic_session_t::connected() const noexcept {
 }
 
 auto basic_session_t::connect(const endpoint_type& endpoint) -> future_t<std::error_code> {
-    promise_t<std::error_code> promise;
+    return connect(std::vector<endpoint_type>({ endpoint }));
+}
+
+auto basic_session_t::connect(const std::vector<endpoint_type>& endpoints) -> future_type<std::error_code> {
+    promise_type<std::error_code> promise;
     auto future = promise.get_future();
 
     std::lock_guard<std::mutex> lock(mutex);
@@ -72,9 +78,11 @@ auto basic_session_t::connect(const endpoint_type& endpoint) -> future_t<std::er
         // current object's state.
         state = state_t::connecting;
 
+        auto converted = util::endpoints_cast<asio::ip::tcp::endpoint>(endpoints);
         socket_type* socket_ = socket.get();
-        socket_->async_connect(
-            util::endpoint_cast(endpoint),
+        asio::async_connect(
+            *socket_,
+            converted.begin(), converted.end(),
             std::bind(&basic_session_t::on_connect, shared_from_this(), ph::_1, std::move(promise), std::move(socket))
         );
 

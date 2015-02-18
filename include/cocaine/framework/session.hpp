@@ -90,8 +90,11 @@ public:
      */
     bool connected() const noexcept;
 
-    // TODO: Make overload `connect(const std::vector<endpoint_t>&)`.
     auto connect(const endpoint_type& endpoint) -> future_t<std::error_code>;
+
+    auto connect(const std::vector<endpoint_type>& endpoints) -> future_t<std::error_code>;
+
+    // TODO: boost::optional<endpoint_type> endpoint() const;
 
     /*!
      * \brief Emits a disconnection request to the current session.

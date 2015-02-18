@@ -52,19 +52,6 @@ struct completer_t {
     }
 };
 
-namespace {
-
-std::vector<resolver_t::endpoint_type> convert(const std::vector<asio::ip::tcp::endpoint>& from) {
-    std::vector<resolver_t::endpoint_type> result;
-    for (auto it = from.begin(); it != from.end(); ++it) {
-        result.push_back(util::endpoint_cast(*it));
-    }
-
-    return result;
-}
-
-}
-
 auto resolver_t::resolve(std::string name) -> future_type<resolver_result_t> {
     CF_CTX("resolver");
     CF_CTX("resoling '%s'", name);
@@ -88,7 +75,7 @@ auto resolver_t::resolve(std::string name) -> future_type<resolver_result_t> {
         CF_DBG("resolving - done");
         locator->disconnect();
 
-        resolver_result_t res = { convert(std::get<0>(result)), std::get<1>(result) };
+        resolver_result_t res = { util::endpoints_cast<boost::asio::ip::tcp::endpoint>(std::get<0>(result)), std::get<1>(result) };
         return make_ready_future<resolver_result_t>::value(res);
     } catch (const std::exception &err) {
         CF_DBG("resolving - error: %s", err.what());

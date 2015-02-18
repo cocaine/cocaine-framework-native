@@ -17,6 +17,9 @@ template<typename T>
 using future_t = future<T>;
 
 template<typename T>
+using promise_type = promise<T>;
+
+template<typename T>
 using future_type = future<T>;
 
 /// \internal

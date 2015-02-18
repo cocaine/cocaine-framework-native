@@ -15,6 +15,16 @@ asio::ip::address address_cast(const boost::asio::ip::address& address);
 boost::asio::ip::tcp::endpoint endpoint_cast(const asio::ip::tcp::endpoint& endpoint);
 asio::ip::tcp::endpoint endpoint_cast(const boost::asio::ip::tcp::endpoint& endpoint);
 
+template<class To, class From>
+std::vector<To> endpoints_cast(const std::vector<From>& from) {
+    std::vector<To> result;
+    for (auto it = from.begin(); it != from.end(); ++it) {
+        result.push_back(endpoint_cast(*it));
+    }
+
+    return result;
+}
+
 }
 
 }
