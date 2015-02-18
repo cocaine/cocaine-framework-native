@@ -61,8 +61,8 @@ bool basic_session_t::connected() const noexcept {
     return state == state_t::connected;
 }
 
-auto basic_session_t::connect(const endpoint_type& endpoint) -> future_t<std::error_code> {
-    return connect(std::vector<endpoint_type>({ endpoint }));
+auto basic_session_t::connect(const endpoint_type& endpoint) -> future_type<std::error_code> {
+    return connect(std::vector<endpoint_type> {{ endpoint }});
 }
 
 auto basic_session_t::connect(const std::vector<endpoint_type>& endpoints) -> future_type<std::error_code> {
