@@ -34,7 +34,7 @@ namespace framework {
  * Thus no one can guarantee that all asynchronous operations are completed before the connection
  * instance be destroyed.
  *
- * \thread_safety safe.
+ * \threadsafe
  */
 // TODO: Thing, that sends/receives messages & thing, that manages with channel map.
 class basic_session_t : public std::enable_shared_from_this<basic_session_t> {
@@ -90,8 +90,10 @@ public:
      */
     bool connected() const noexcept;
 
+    /// \threadsafe
     auto connect(const endpoint_type& endpoint) -> future_type<std::error_code>;
 
+    /// \threadsafe
     auto connect(const std::vector<endpoint_type>& endpoints) -> future_type<std::error_code>;
 
     // TODO: boost::optional<endpoint_type> endpoint() const;
