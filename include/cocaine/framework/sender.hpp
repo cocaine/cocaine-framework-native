@@ -13,15 +13,15 @@ namespace framework {
 
 class basic_session_t;
 
-template<class Pusher>
+template<class Session>
 class basic_sender_t {
-    typedef Pusher pusher_type;
+    typedef Session session_type;
 
     std::uint64_t id;
-    std::shared_ptr<pusher_type> session;
+    std::shared_ptr<session_type> session;
 
 public:
-    basic_sender_t(std::uint64_t id, std::shared_ptr<pusher_type> session);
+    basic_sender_t(std::uint64_t id, std::shared_ptr<session_type> session);
 
     /*!
      * Pack given args in the message and push it through session pointer.

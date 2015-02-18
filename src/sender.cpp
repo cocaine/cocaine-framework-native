@@ -5,15 +5,15 @@
 
 using namespace cocaine::framework;
 
-template<class Pusher>
-basic_sender_t<Pusher>::basic_sender_t(std::uint64_t id, std::shared_ptr<pusher_type> session) :
+template<class Session>
+basic_sender_t<Session>::basic_sender_t(std::uint64_t id, std::shared_ptr<session_type> session) :
     id(id),
     session(session)
 {}
 
-template<class Pusher>
+template<class Session>
 future_t<void>
-basic_sender_t<Pusher>::send(io::encoder_t::message_type&& message) {
+basic_sender_t<Session>::send(io::encoder_t::message_type&& message) {
     return session->push(id, std::move(message));
 }
 
