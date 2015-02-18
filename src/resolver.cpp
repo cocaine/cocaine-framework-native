@@ -8,6 +8,7 @@
 
 #include "cocaine/framework/detail/log.hpp"
 #include "cocaine/framework/detail/scheduler.hpp"
+#include "cocaine/framework/util/net.hpp"
 
 #include "cocaine/framework/session.hpp"
 
@@ -48,12 +49,7 @@ namespace {
 std::vector<resolver_t::endpoint_type> convert(const std::vector<asio::ip::tcp::endpoint>& from) {
     std::vector<resolver_t::endpoint_type> result;
     for (auto it = from.begin(); it != from.end(); ++it) {
-        result.push_back(
-            resolver_t::endpoint_type(
-                boost::asio::ip::address::from_string(it->address().to_string()),
-                it->port()
-            )
-        );
+        result.push_back(util::endpoint_cast(*it));
     }
 
     return result;
