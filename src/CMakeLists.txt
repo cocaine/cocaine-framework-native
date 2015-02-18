@@ -22,6 +22,7 @@ SET(SOURCES
     resolver
     sender
     session
+    service
     receiver
     worker.cpp
     worker/options

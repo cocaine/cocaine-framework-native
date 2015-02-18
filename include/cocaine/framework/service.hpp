@@ -55,99 +55,33 @@ struct invocation_result<Event, io::streaming_tag<U>, io::streaming_tag<D>> {
     }
 };
 
-template<class T>
-class service {
-    std::string name;
-    scheduler_t& scheduler;
-    std::atomic<bool> detached;
-    std::shared_ptr<session<>> d;
-
-    std::mutex mutex;
+class basic_service_t {
+    class impl;
+    std::unique_ptr<impl> d;
+    std::shared_ptr<session<>> sess;
 
 public:
-    service(std::string name, scheduler_t& scheduler) :
-        name(std::move(name)),
-        scheduler(scheduler),
-        detached(false),
-        d(std::make_shared<session<>>(scheduler))
-    {}
+    basic_service_t(std::string name, scheduler_t& scheduler);
+    ~basic_service_t();
 
-    ~service() {
-        // TODO: Wait until all channels are closed.
-        if (!detached) {
-            CF_DBG("destroying '%s' service ...", name.c_str());
-            d->disconnect();
-        }
-    }
+    auto name() const -> const std::string&;
 
-    auto connect() -> future_t<void> {
-        // TODO: Connector, which manages future queue and returns future<shared_ptr<session<T>>> for 'name'.
-        CF_CTX("service '%s'", name);
-        CF_CTX("connect");
-        CF_DBG("connecting ...");
-
-        // TODO: Make async.
-        std::lock_guard<std::mutex> lock(mutex);
-
-        // Internally the session manages with connection state itself. On any network error it
-        // should drop its internal state and return false.
-        if (d->connected()) {
-            CF_DBG("already connected");
-            return make_ready_future<void>::value();
-        }
-
-        // connector.connect(name).then(executor, [](d){ lock; if !this->d.connected() this->d = d });
-        try {
-            CF_DBG("connecting to the locator ...");
-            // TODO: Explicitly set Locator endpoints.
-            const boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::tcp::v4(), 10053);
-            try {
-                session<> locator(scheduler);
-                locator.connect(endpoint).get();
-                // TODO: Simplify that shit.
-                CF_DBG("resolving");
-                auto ch = locator.invoke<io::locator::resolve>(name).get();
-                auto rx = std::move(std::get<1>(ch));
-                auto result = rx.recv().get();
-                CF_DBG("resolving - done");
-                // TODO: Check version.
-
-                auto endpoints = std::get<0>(result);
-                auto version = std::get<1>(result);
-                CF_DBG("version: %d", version);
-
-                d->connect(util::endpoint_cast(endpoints[0])).get();
-                CF_DBG("connecting - done");
-            } catch (std::exception err) {
-                CF_DBG("connecting - error: %s", err.what());
-                throw;
-            }
-            return make_ready_future<void>::value();
-        } catch (const std::runtime_error& err) {
-            return make_ready_future<void>::error(err);
-        }
-    }
+    auto connect() -> future_t<void>;
 
     template<class Event, class... Args>
     future_t<typename invocation_result<Event>::type>
     invoke(Args&&... args) {
-//        CF_CTX("invoke '%s' - %s", name, Event::alias());
-        CF_DBG("invoking ...");
         typedef typename invocation_result<Event>::type result_type;
 
         try {
             // TODO: Make asyncronous call through `then`.
             connect().get();
 
-            auto ch = d->template invoke<Event>(std::forward<Args>(args)...).get();
+            auto ch = sess->invoke<Event>(std::forward<Args>(args)...).get();
             return invocation_result<Event>::apply(ch);
         } catch (const std::exception& err) {
             return make_ready_future<result_type>::error(err);
         }
-    }
-
-    void detach() {
-        detached = true;
     }
 };
 

@@ -15,14 +15,14 @@ using namespace cocaine::framework;
 using namespace testing;
 using namespace testing::util;
 
-TEST(service, Storage) {
+TEST(basic_service_t, Storage) {
     // Helper object, that runs event loop in the separate thread.
     client_t client;
     event_loop_t loop { client.loop() };
     scheduler_t scheduler(loop);
 
     // Service's constructor does nothing.
-    service<cocaine::io::storage_tag> storage("storage", scheduler);
+    basic_service_t storage("storage", scheduler);
 
     // Invoke (and internally connect) read method.
     auto result = storage.invoke<cocaine::io::storage::read>(std::string("collection"), std::string("key")).get();
@@ -30,23 +30,23 @@ TEST(service, Storage) {
     EXPECT_EQ("le value", result);
 }
 
-TEST(service, StorageError) {
+TEST(basic_service_t, StorageError) {
     client_t client;
     event_loop_t loop { client.loop() };
     scheduler_t scheduler(loop);
 
-    service<cocaine::io::storage_tag> storage("storage", scheduler);
+    basic_service_t storage("storage", scheduler);
     EXPECT_THROW(storage.invoke<cocaine::io::storage::read>(std::string("i-collection"), std::string("key")).get(), cocaine_error);
 }
 
-TEST(service, Echo) {
+TEST(basic_service_t, Echo) {
     typedef typename cocaine::io::protocol<cocaine::io::app::enqueue::dispatch_type>::scope upstream;
 
     client_t client;
     event_loop_t loop { client.loop() };
     scheduler_t scheduler(loop);
 
-    service<cocaine::io::app_tag> echo("echo", scheduler);
+    basic_service_t echo("echo", scheduler);
     auto ch = echo.invoke<cocaine::io::app::enqueue>(std::string("ping")).get();
     auto tx = std::move(std::get<0>(ch));
     auto rx = std::move(std::get<1>(ch));
@@ -57,7 +57,7 @@ TEST(service, Echo) {
     EXPECT_EQ("le message", *result);
 }
 
-TEST(service, EchoMT) {
+TEST(basic_service_t, EchoMT) {
     typedef typename cocaine::io::protocol<cocaine::io::app::enqueue::dispatch_type>::scope upstream;
 
     std::vector<boost::thread> threads;
@@ -65,7 +65,7 @@ TEST(service, EchoMT) {
         client_t client;
         event_loop_t loop { client.loop() };
         scheduler_t scheduler(loop);
-        service<cocaine::io::app_tag> echo("echo-cpp", scheduler);
+        basic_service_t echo("echo-cpp", scheduler);
 
         threads.push_back(boost::thread([tid, &echo]{
             for (size_t id = 0; id < 250; ++id) {
