@@ -55,56 +55,21 @@ struct invocation_result<Event, io::streaming_tag<U>, io::streaming_tag<D>> {
     }
 };
 
-class scheduler_t {};
-
-//class resolver_t {
-//public:
-//    typedef endpoint_t endpoint_type;
-//    typedef std::tuple<std::vector<endpoint_type>, unsigned int, io::graph_basis_t> result_type;
-
-//public:
-////    explicit resolver_t(scheduler_t*);
-//    explicit resolver_t(loop_t&);
-//    ~resolver_t();
-
-//    void timeout(std::chrono::duration);
-//    void endpoints(std::vector<endpoint_type> endpoints);
-
-//    // No queue.
-//    auto resolve(std::string name) -> future_type<result_type>;
-//};
-
-//class connector_t {
-//public:
-//    typedef resolver_t::endpoint_type endpoint_type;
-
-//public:
-//    // Queue.
-//    connector_t(resolver_t& resolver, loop_t&);
-//    // connector_t(resolver_t*, scheduler_t*);
-//    ~connector_t();
-
-//    void timeout(std::chrono::duration);
-//    void endpoints(std::vector<endpoint_type>);
-
-//    auto connect(std::string) -> future_type<std::shared_ptr<basic_session_t>>;
-//};
-
 template<class T>
 class service {
     std::string name;
-    loop_t& loop;
+    scheduler_t& scheduler;
     std::atomic<bool> detached;
     std::shared_ptr<session<T>> d;
 
     std::mutex mutex;
 
 public:
-    service(std::string name, loop_t& loop) :
+    service(std::string name, scheduler_t& scheduler) :
         name(std::move(name)),
-        loop(loop),
+        scheduler(scheduler),
         detached(false),
-        d(std::make_shared<session<T>>(std::make_shared<basic_session_t>(loop)))
+        d(std::make_shared<session<T>>(std::make_shared<basic_session_t>(scheduler)))
     {}
 
     ~service() {
@@ -136,7 +101,7 @@ public:
             CF_DBG("connecting to the locator ...");
             // TODO: Explicitly set Locator endpoints.
             const boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::tcp::v4(), 10053);
-            auto locator = std::make_shared<session<io::locator_tag>>(std::make_shared<basic_session_t>(loop));
+            auto locator = std::make_shared<session<io::locator_tag>>(std::make_shared<basic_session_t>(scheduler));
             try {
                 locator->connect(endpoint).get();
                 // TODO: Simplify that shit.

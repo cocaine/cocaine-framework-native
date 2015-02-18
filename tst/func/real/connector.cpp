@@ -28,6 +28,22 @@ TEST(Resolver, Resolve) {
     EXPECT_EQ(1, result.version);
 }
 
+//class connector_t {
+//public:
+//    typedef resolver_t::endpoint_type endpoint_type;
+
+//public:
+//    // Queue.
+//    connector_t(resolver_t& resolver, loop_t&);
+//    // connector_t(resolver_t*, scheduler_t*);
+//    ~connector_t();
+
+//    void timeout(std::chrono::duration);
+//    void endpoints(std::vector<endpoint_type>);
+
+//    auto connect(std::string) -> future_type<std::shared_ptr<basic_session_t>>;
+//};
+
 //TEST(Connector, SingleConnect) {
 //    loop.run(); // in thread
 

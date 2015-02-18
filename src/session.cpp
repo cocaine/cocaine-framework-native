@@ -44,15 +44,8 @@ private:
     }
 };
 
-basic_session_t::basic_session_t(loop_t& loop) noexcept :
-    loop(loop),
-    state(state_t::disconnected),
-    counter(1),
-    message(boost::none)
-{}
-
 basic_session_t::basic_session_t(scheduler_t& scheduler) noexcept :
-    loop(scheduler.loop().loop),
+    scheduler(scheduler),
     state(state_t::disconnected),
     counter(1),
     message(boost::none)
@@ -73,7 +66,7 @@ auto basic_session_t::connect(const endpoint_type& endpoint) -> future_t<std::er
     std::lock_guard<std::mutex> lock(mutex);
     switch (state.load()) {
     case state_t::disconnected: {
-        std::unique_ptr<socket_type> socket(new socket_type(loop));
+        std::unique_ptr<socket_type> socket(new socket_type(scheduler.loop().loop));
 
         // The code above can throw std::bad_alloc, so here it is the right place to change
         // current object's state.
@@ -105,7 +98,7 @@ auto basic_session_t::connect(const endpoint_type& endpoint) -> future_t<std::er
 void basic_session_t::disconnect() {
     CF_DBG("disconnecting basic session ...");
     auto this_ = shared_from_this();
-    loop.post([this_]{
+    scheduler([this_]{
         this_->channel.reset();
         CF_DBG("disconnecting basic session - done");
     });
@@ -127,7 +120,7 @@ auto basic_session_t::push(io::encoder_t::message_type&& message) -> future_t<vo
     promise_t<void> p;
     auto f = p.get_future();
 
-    loop.post(std::bind(&push_t::operator(),
+    scheduler(std::bind(&push_t::operator(),
                         std::make_shared<push_t>(std::move(message), shared_from_this(), std::move(p))));
     return f;
 }
@@ -136,7 +129,7 @@ void basic_session_t::revoke(std::uint64_t span) {
     CF_DBG("revoking span %llu channel", span);
 
     auto this_ = shared_from_this();
-    loop.post([this_, span]{
+    scheduler([this_, span]{
         this_->channels->erase(span);
     });
 }

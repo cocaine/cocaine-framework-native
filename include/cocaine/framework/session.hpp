@@ -54,7 +54,7 @@ private:
         connected
     };
 
-    loop_t& loop;
+    scheduler_t& scheduler;
 
     std::unique_ptr<channel_type> channel;
 
@@ -77,12 +77,8 @@ public:
     > basic_invocation_result;
 
     /*!
-     * \note the event loop reference should be valid until all asynchronous operations complete
+     * \note the scheduler reference should be valid until all asynchronous operations complete
      * otherwise the behavior is undefined.
-     */
-    basic_session_t(loop_t& loop) noexcept;
-    /*!
-     * \overload
      */
     explicit basic_session_t(scheduler_t& scheduler) noexcept;
 
