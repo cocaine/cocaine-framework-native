@@ -125,6 +125,7 @@ private:
     auto invoke(std::uint64_t span, io::encoder_t::message_type&& message) -> future_t<basic_invocation_result>;
 
     void on_disconnect();
+    void on_revoke(std::uint64_t span);
     void on_connect(const std::error_code& ec, promise_t<std::error_code>& promise, std::unique_ptr<socket_type>& s);
     void on_read(const std::error_code& ec);
     void on_error(const std::error_code& ec);

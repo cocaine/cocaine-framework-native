@@ -128,12 +128,9 @@ auto basic_session_t::push(io::encoder_t::message_type&& message) -> future_type
 }
 
 void basic_session_t::revoke(std::uint64_t span) {
-    CF_DBG("revoking span %llu channel", span);
+    CF_DBG(">> revoking span %llu channel", span);
 
-    auto this_ = shared_from_this();
-    scheduler([this_, span]{
-        this_->channels->erase(span);
-    });
+    scheduler(wrap(std::bind(&basic_session_t::on_revoke, shared_from_this(), span)));
 }
 
 auto basic_session_t::next() -> std::uint64_t {
@@ -164,6 +161,12 @@ void basic_session_t::on_disconnect() {
     CF_DBG("<< disconnected");
 
     channel.reset();
+}
+
+void basic_session_t::on_revoke(std::uint64_t span) {
+    CF_DBG("<< revoke span %llu channel", span);
+
+    channels->erase(span);
 }
 
 void basic_session_t::on_connect(const std::error_code& ec, promise_t<std::error_code>& promise, std::unique_ptr<socket_type>& s) {
