@@ -36,8 +36,8 @@ public:
 
     ~resolver_t();
 
-    void timeout(std::chrono::milliseconds) {}
-    void endpoints(std::vector<endpoint_type> endpoints) {}
+    void timeout(std::chrono::milliseconds);
+    void endpoints(std::vector<endpoint_type> endpoints);
 
     // No queue.
     auto resolve(std::string name) -> future_type<resolver_result_t>;

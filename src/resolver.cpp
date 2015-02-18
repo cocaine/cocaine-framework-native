@@ -30,6 +30,14 @@ resolver_t::resolver_t(scheduler_t& scheduler) :
 
 resolver_t::~resolver_t() {}
 
+void resolver_t::timeout(std::chrono::milliseconds) {
+
+}
+
+void resolver_t::endpoints(std::vector<resolver_t::endpoint_type> endpoints) {
+
+}
+
 namespace {
 
 void on_locator_connect(future_type<void>&) {
