@@ -1,12 +1,8 @@
 #pragma once
 
-#include <boost/asio/ip/tcp.hpp>
-
-#include <cocaine/common.hpp>
-
 #include "cocaine/framework/forwards.hpp"
-#include "cocaine/framework/session.hpp"
 #include "cocaine/framework/receiver.hpp"
+#include "cocaine/framework/session.hpp"
 #include "cocaine/framework/scheduler.hpp"
 
 namespace cocaine {
