@@ -32,7 +32,6 @@ auto basic_service_t::name() const -> const std::string& {
 }
 
 auto basic_service_t::connect() -> future_t<void> {
-    // TODO: Connector, which manages future queue and returns future<shared_ptr<session<T>>> for 'name'.
     CF_CTX("service '%s'", name());
     CF_CTX("connect");
     CF_DBG("connecting ...");

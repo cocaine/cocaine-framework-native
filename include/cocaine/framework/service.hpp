@@ -3,17 +3,10 @@
 #include <boost/asio/ip/tcp.hpp>
 
 #include <cocaine/common.hpp>
-#include <cocaine/idl/locator.hpp>
-#include <cocaine/traits/endpoint.hpp>
-#include <cocaine/traits/graph.hpp>
-#include <cocaine/traits/tuple.hpp>
-#include <cocaine/traits/vector.hpp>
-#include <cocaine/idl/streaming.hpp>
 
 #include "cocaine/framework/forwards.hpp"
 #include "cocaine/framework/session.hpp"
 #include "cocaine/framework/receiver.hpp"
-#include "cocaine/framework/util/net.hpp"
 
 namespace cocaine {
 
