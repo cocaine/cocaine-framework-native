@@ -116,18 +116,6 @@ void basic_session_t::disconnect() {
     scheduler(wrap(std::bind(&basic_session_t::on_disconnect, shared_from_this())));
 }
 
-auto basic_session_t::push(std::uint64_t span, io::encoder_t::message_type&& message) -> future_t<void> {
-    // TODO: There are mute events, which only push, but doesn't listen.
-    auto channels = this->channels.synchronize();
-    auto it = channels->find(span);
-    if (it == channels->end()) {
-        // TODO: Throw a typed exception.
-        throw std::runtime_error("trying to send message through non-registered channel");
-    }
-
-    return push(std::move(message));
-}
-
 auto basic_session_t::push(io::encoder_t::message_type&& message) -> future_type<void> {
     CF_DBG(">> writing message ...");
 

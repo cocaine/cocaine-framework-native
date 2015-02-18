@@ -113,7 +113,6 @@ public:
         return invoke(span, io::encoded<Event>(span, std::forward<Args>(args)...));
     }
 
-    auto push(std::uint64_t span, io::encoder_t::message_type&& message) -> future_t<void>;
     auto push(io::encoder_t::message_type&& message) -> future_t<void>;
 
     /*!

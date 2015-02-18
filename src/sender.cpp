@@ -14,7 +14,7 @@ basic_sender_t<Session>::basic_sender_t(std::uint64_t id, std::shared_ptr<sessio
 template<class Session>
 future_t<void>
 basic_sender_t<Session>::send(io::encoder_t::message_type&& message) {
-    return session->push(id, std::move(message));
+    return session->push(std::move(message));
 }
 
 template class cocaine::framework::basic_sender_t<basic_session_t>;
