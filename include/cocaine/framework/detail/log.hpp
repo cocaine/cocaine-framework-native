@@ -41,7 +41,7 @@ static logger_type logger = create();
 
 #   define CF_EC(ec) ec ? ec.message().c_str() : "ok"
 #   define CF_LOG BH_LOG
-#   define CF_DBG(...) CF_LOG(detail::logger, detail::debug, __VA_ARGS__)
+#   define CF_DBG(...) CF_LOG(::cocaine::framework::detail::logger, ::cocaine::framework::detail::debug, __VA_ARGS__)
 
 static inline
 std::string merge_context(std::string context) {
