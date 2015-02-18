@@ -25,7 +25,7 @@ public:
 resolver_t::resolver_t(scheduler_t& scheduler) :
     d(new impl(scheduler))
 {
-    d->endpoints.emplace_back(boost::asio::ip::tcp::v4(), 10053);
+    d->endpoints.emplace_back(boost::asio::ip::tcp::v6(), 10053);
 }
 
 resolver_t::~resolver_t() {}
