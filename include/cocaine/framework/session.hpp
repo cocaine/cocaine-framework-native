@@ -139,6 +139,14 @@ public:
     typedef BasicSession basic_session_type;
     typedef boost::asio::ip::tcp::endpoint endpoint_type;
 
+    template<class Event>
+    struct invoke_result {
+        typedef std::tuple<
+            sender  <typename io::event_traits<Event>::dispatch_type, basic_session_t>,
+            receiver<typename io::event_traits<Event>::upstream_type, basic_session_t>
+        > type;
+    };
+
 private:
     class impl;
     std::shared_ptr<impl> d;
@@ -156,12 +164,7 @@ public:
     void disconnect();
 
     template<class Event, class... Args>
-    future_t<
-        std::tuple<
-            sender<typename io::event_traits<Event>::dispatch_type, basic_session_t>,
-            receiver<typename io::event_traits<Event>::upstream_type, basic_session_t>
-        >
-    >
+    future_type<typename invoke_result<Event>::type>
     invoke(Args&&... args) {
         typedef future_t<
             std::tuple<

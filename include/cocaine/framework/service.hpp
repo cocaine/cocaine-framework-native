@@ -7,6 +7,7 @@
 #include "cocaine/framework/forwards.hpp"
 #include "cocaine/framework/session.hpp"
 #include "cocaine/framework/receiver.hpp"
+#include "cocaine/framework/scheduler.hpp"
 
 namespace cocaine {
 
@@ -27,7 +28,7 @@ struct invocation_result<Event, io::primitive_tag<T>, void> {
     typedef value_type type;
 
     static
-    future_t<value_type>
+    future_type<value_type>
     apply(channel_type& channel) {
         auto rx = std::move(std::get<1>(channel));
         return rx.recv();
@@ -42,7 +43,7 @@ struct invocation_result<Event, io::streaming_tag<U>, io::streaming_tag<D>> {
     typedef channel_type type;
 
     static
-    future_t<type>
+    future_type<type>
     apply(channel_type& channel) {
         return make_ready_future<type>::value(std::move(channel));
     }
@@ -52,6 +53,7 @@ class basic_service_t {
     class impl;
     std::unique_ptr<impl> d;
     std::shared_ptr<session<>> sess;
+    scheduler_t& scheduler;
 
 public:
     basic_service_t(std::string name, uint version, scheduler_t& scheduler);
@@ -60,22 +62,35 @@ public:
     auto name() const noexcept -> const std::string&;
     auto version() const noexcept -> uint;
 
-    auto connect() -> future_t<void>;
+    auto connect() -> future_type<void>;
 
     template<class Event, class... Args>
-    future_t<typename invocation_result<Event>::type>
+    future_type<typename invocation_result<Event>::type>
     invoke(Args&&... args) {
-        typedef typename invocation_result<Event>::type result_type;
+        namespace ph = std::placeholders;
 
-        try {
-            // TODO: Make asyncronous call through `then`.
-            connect().get();
+        return connect()
+            .then(scheduler, std::bind(&basic_service_t::on_connect<Event, Args...>, ph::_1, sess, std::forward<Args>(args)...))
+            .then(scheduler, std::bind(&basic_service_t::on_invoke<Event>, ph::_1));
+    }
 
-            auto ch = sess->invoke<Event>(std::forward<Args>(args)...).get();
-            return invocation_result<Event>::apply(ch);
-        } catch (const std::exception& err) {
-            return make_ready_future<result_type>::error(err);
-        }
+private:
+    template<class Event, class... Args>
+    static
+    future_type<typename session<>::invoke_result<Event>::type>
+    on_connect(future_type<void>& f, std::shared_ptr<session<>> sess, Args&... args) {
+        f.get();
+        // Between these calls no one can guarantee, that the connection won't be broken. In this
+        // case you will get a system error after either write or read attempt.
+        return sess->invoke<Event>(std::forward<Args>(args)...);
+    }
+
+    template<class Event>
+    static
+    future_type<typename invocation_result<Event>::type>
+    on_invoke(future_type<typename session<>::invoke_result<Event>::type>& f) {
+        auto channel = f.get();
+        return invocation_result<Event>::apply(channel);
     }
 };
 

@@ -22,7 +22,8 @@ public:
 
 basic_service_t::basic_service_t(std::string name, uint version, scheduler_t& scheduler) :
     d(new impl(std::move(name), version, scheduler)),
-    sess(std::make_shared<session<>>(scheduler))
+    sess(std::make_shared<session<>>(scheduler)),
+    scheduler(scheduler)
 {}
 
 basic_service_t::~basic_service_t() {}
@@ -35,7 +36,7 @@ uint basic_service_t::version() const noexcept {
     return d->version;
 }
 
-auto basic_service_t::connect() -> future_t<void> {
+auto basic_service_t::connect() -> future_type<void> {
     CF_CTX("service '%s'", name());
     CF_CTX("connect");
     CF_DBG("connecting ...");
