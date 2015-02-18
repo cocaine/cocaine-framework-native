@@ -1,16 +1,20 @@
 #include "cocaine/framework/service.hpp"
 
+#include "cocaine/framework/resolver.hpp"
+
 using namespace cocaine::framework;
 
 class basic_service_t::impl {
 public:
     std::string name;
     scheduler_t& scheduler;
+    resolver_t resolver;
     std::mutex mutex;
 
     impl(std::string name, scheduler_t& scheduler) :
         name(std::move(name)),
-        scheduler(scheduler)
+        scheduler(scheduler),
+        resolver(scheduler)
     {}
 };
 
@@ -21,7 +25,7 @@ basic_service_t::basic_service_t(std::string name, scheduler_t& scheduler) :
 
 basic_service_t::~basic_service_t() {}
 
-auto basic_service_t::name() const -> const std::string&{
+auto basic_service_t::name() const -> const std::string& {
     return d->name;
 }
 
@@ -41,27 +45,13 @@ auto basic_service_t::connect() -> future_t<void> {
         return make_ready_future<void>::value();
     }
 
-    // connector.connect(name).then(executor, [](d){ lock; if !this->d.connected() this->d = d });
     try {
-        CF_DBG("connecting to the locator ...");
-        // TODO: Explicitly set Locator endpoints.
-        const boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::tcp::v4(), 10053);
         try {
-            session<> locator(d->scheduler);
-            locator.connect(endpoint).get();
-            // TODO: Simplify that shit.
-            CF_DBG("resolving");
-            auto ch = locator.invoke<io::locator::resolve>(d->name).get();
-            auto rx = std::move(std::get<1>(ch));
-            auto result = rx.recv().get();
-            CF_DBG("resolving - done");
+            auto info = d->resolver.resolve(d->name).get();
             // TODO: Check version.
+            CF_DBG("version: %d", info.version);
 
-            auto endpoints = std::get<0>(result);
-            auto version = std::get<1>(result);
-            CF_DBG("version: %d", version);
-
-            sess->connect(util::endpoint_cast(endpoints[0])).get();
+            sess->connect(info.endpoints).get();
             CF_DBG("connecting - done");
         } catch (std::exception err) {
             CF_DBG("connecting - error: %s", err.what());
