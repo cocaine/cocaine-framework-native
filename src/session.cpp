@@ -219,6 +219,7 @@ void basic_session_t::on_read(const std::error_code& ec) {
         it->second->put(std::move(message));
     }
 
+    // TODO: Probably it will be better to conditionally stop listening if no channels left.
     CF_DBG(">> listening for read events ...");
     channel->reader->read(message, wrap(std::bind(&basic_session_t::on_read, shared_from_this(), ph::_1)));
 }
