@@ -57,7 +57,8 @@ public:
     basic_service_t(std::string name, uint version, scheduler_t& scheduler);
     ~basic_service_t();
 
-    auto name() const -> const std::string&;
+    auto name() const noexcept -> const std::string&;
+    auto version() const noexcept -> uint;
 
     auto connect() -> future_t<void>;
 

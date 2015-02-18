@@ -27,8 +27,12 @@ basic_service_t::basic_service_t(std::string name, uint version, scheduler_t& sc
 
 basic_service_t::~basic_service_t() {}
 
-auto basic_service_t::name() const -> const std::string& {
+auto basic_service_t::name() const noexcept -> const std::string& {
     return d->name;
+}
+
+uint basic_service_t::version() const noexcept {
+    return d->version;
 }
 
 auto basic_service_t::connect() -> future_t<void> {
