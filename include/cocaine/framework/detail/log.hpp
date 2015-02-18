@@ -31,7 +31,9 @@ typedef blackhole::wrapper_t<logger_type> wrapper_type;
 
 logger_type create();
 
-static logger_type logger = create();
+logger_type& logger();
+
+std::string merge_context(std::string context);
 
 } // namespace detail
 
@@ -41,24 +43,13 @@ static logger_type logger = create();
 
 #   define CF_EC(ec) ec ? ec.message().c_str() : "ok"
 #   define CF_LOG BH_LOG
-#   define CF_DBG(...) CF_LOG(::cocaine::framework::detail::logger, ::cocaine::framework::detail::debug, __VA_ARGS__)
-
-static inline
-std::string merge_context(std::string context) {
-    auto record = cocaine::framework::detail::logger.open_record(cocaine::framework::detail::error);
-    if (record.valid()) {
-        if (auto current = record.attributes().find("context")) {
-            return blackhole::utils::format("%s/%s", boost::get<std::string>(current->value), context);
-        }
-    }
-    return context;
-}
+#   define CF_DBG(...) CF_LOG(::cocaine::framework::detail::logger(), ::cocaine::framework::detail::debug, __VA_ARGS__)
 
 #define CF_CTX(...) \
     ::blackhole::scoped_attributes_t BOOST_PP_CAT(__context__, __COUNTER__)( \
-        ::cocaine::framework::detail::logger, \
+        ::cocaine::framework::detail::logger(), \
         ::blackhole::attribute::set_t({ \
-            { "context", merge_context(::blackhole::utils::format(__VA_ARGS__)) } \
+            { "context", ::cocaine::framework::detail::merge_context(::blackhole::utils::format(__VA_ARGS__)) } \
         }) \
     );
 

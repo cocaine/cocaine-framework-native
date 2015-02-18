@@ -291,7 +291,7 @@ auto session<BasicSession>::connect(const std::vector<session::endpoint_type>& e
     auto promise = std::make_shared<promise_t<void>>();
     auto future = promise->get_future();
 
-    sess->connect(endpoints).then(d->scheduler, std::bind(&impl::on_connect, d, ph::_1, promise));
+    sess->connect(endpoints).then(d->scheduler, wrap(std::bind(&impl::on_connect, d, ph::_1, promise)));
 
     return future;
 }

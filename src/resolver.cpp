@@ -47,8 +47,7 @@ struct completer_t {
 };
 
 auto resolver_t::resolve(std::string name) -> future_type<resolver_result_t> {
-    CF_CTX("resolver");
-    CF_CTX("resoling '%s'", name);
+    CF_CTX("SR");
     CF_DBG("connecting to the locator ...");
 
     session<> locator(d->scheduler);

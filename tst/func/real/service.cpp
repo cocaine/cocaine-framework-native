@@ -57,35 +57,35 @@ TEST(basic_service_t, Echo) {
     EXPECT_EQ("le message", *result);
 }
 
-TEST(basic_service_t, EchoMT) {
-    typedef typename cocaine::io::protocol<cocaine::io::app::enqueue::dispatch_type>::scope upstream;
+//TEST(basic_service_t, EchoMT) {
+//    typedef typename cocaine::io::protocol<cocaine::io::app::enqueue::dispatch_type>::scope upstream;
 
-    std::vector<boost::thread> threads;
-    for (size_t tid = 0; tid < 8; ++tid) {
-        client_t client;
-        event_loop_t loop { client.loop() };
-        scheduler_t scheduler(loop);
-        basic_service_t echo("echo-cpp", 1, scheduler);
+//    std::vector<boost::thread> threads;
+//    for (size_t tid = 0; tid < 8; ++tid) {
+//        client_t client;
+//        event_loop_t loop { client.loop() };
+//        scheduler_t scheduler(loop);
+//        basic_service_t echo("echo-cpp", 1, scheduler);
 
-        threads.push_back(boost::thread([tid, &echo]{
-            for (size_t id = 0; id < 250; ++id) {
-                auto ch = echo.invoke<cocaine::io::app::enqueue>(std::string("ping")).get();
-                auto tx = std::move(std::get<0>(ch));
-                auto rx = std::move(std::get<1>(ch));
-                auto chunk = std::to_string(tid) + "/" + std::to_string(id) + ": le message";
-                tx.send<upstream::chunk>(chunk).get();
-                auto result = rx.recv().get();
-                rx.recv().get();
+//        threads.push_back(boost::thread([tid, &echo]{
+//            for (size_t id = 0; id < 250; ++id) {
+//                auto ch = echo.invoke<cocaine::io::app::enqueue>(std::string("ping")).get();
+//                auto tx = std::move(std::get<0>(ch));
+//                auto rx = std::move(std::get<1>(ch));
+//                auto chunk = std::to_string(tid) + "/" + std::to_string(id) + ": le message";
+//                tx.send<upstream::chunk>(chunk).get();
+//                auto result = rx.recv().get();
+//                rx.recv().get();
 
-                EXPECT_EQ(chunk, *result);
-                if (chunk != *result) {
-                    std::terminate();
-                }
-            }
-        }));
+//                EXPECT_EQ(chunk, *result);
+//                if (chunk != *result) {
+//                    std::terminate();
+//                }
+//            }
+//        }));
 
-        for (auto& t : threads) {
-            t.join();
-        }
-    }
-}
+//        for (auto& t : threads) {
+//            t.join();
+//        }
+//    }
+//}
