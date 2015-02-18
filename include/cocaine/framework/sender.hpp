@@ -46,16 +46,16 @@ private:
     auto send(io::encoder_t::message_type&& message) -> future_t<void>;
 };
 
-template<class T, class Pusher>
+template<class T, class Session>
 class sender {
 public:
     typedef T tag_type;
 
 private:
-    std::shared_ptr<basic_sender_t<Pusher>> d;
+    std::shared_ptr<basic_sender_t<Session>> d;
 
 public:
-    sender(std::shared_ptr<basic_sender_t<Pusher>> d) :
+    sender(std::shared_ptr<basic_sender_t<Session>> d) :
         d(std::move(d))
     {}
 
@@ -77,7 +77,7 @@ public:
      * \warning this sender will be invalidated after this call.
      */
     template<class Event, class... Args>
-    future_t<sender<typename io::event_traits<Event>::dispatch_type, Pusher>>
+    future_t<sender<typename io::event_traits<Event>::dispatch_type, Session>>
     send(Args&&... args) {
         auto future = d->template send<Event>(std::forward<Args>(args)...);
         return future.then(std::bind(&sender::traverse<Event>, std::placeholders::_1, d));
@@ -86,17 +86,17 @@ public:
 private:
     template<class Event>
     static
-    sender<typename io::event_traits<Event>::dispatch_type, Pusher>
-    traverse(future_t<void>& f, std::shared_ptr<basic_sender_t<Pusher>> d) {
+    sender<typename io::event_traits<Event>::dispatch_type, Session>
+    traverse(future_t<void>& f, std::shared_ptr<basic_sender_t<Session>> d) {
         f.get();
-        return sender<typename io::event_traits<Event>::dispatch_type, Pusher>(std::move(d));
+        return sender<typename io::event_traits<Event>::dispatch_type, Session>(std::move(d));
     }
 };
 
-template<class Pusher>
-class sender<void, Pusher> {
+template<class Session>
+class sender<void, Session> {
 public:
-    sender(std::shared_ptr<basic_sender_t<Pusher>>) {}
+    sender(std::shared_ptr<basic_sender_t<Session>>) {}
 };
 
 } // namespace framework
