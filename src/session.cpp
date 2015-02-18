@@ -207,10 +207,11 @@ void basic_session_t::on_read(const std::error_code& ec) {
     if (it == channels->end()) {
         CF_DBG("dropping an orphan span %llu message", message.span());
     } else {
+        // TODO: Probably it will be better to conditionally stop listening if no channels left.
+        // Then I need a bool flag here indicating that there won't be messages more.
         it->second->put(std::move(message));
     }
 
-    // TODO: Probably it will be better to conditionally stop listening if no channels left.
     CF_DBG(">> listening for read events ...");
     channel->reader->read(message, wrap(std::bind(&basic_session_t::on_read, shared_from_this(), ph::_1)));
 }
