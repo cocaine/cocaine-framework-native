@@ -13,6 +13,7 @@
 #include "cocaine/framework/forwards.hpp"
 #include "cocaine/framework/session.hpp"
 #include "cocaine/framework/receiver.hpp"
+#include "cocaine/framework/util/net.hpp"
 
 namespace cocaine {
 
@@ -89,24 +90,6 @@ class scheduler_t {};
 //    auto connect(std::string) -> future_type<std::shared_ptr<basic_session_t>>;
 //};
 
-static inline
-boost::asio::ip::address
-convert(const asio::ip::address& address) {
-    if (address.is_v4()) {
-        return boost::asio::ip::address_v4(address.to_v4().to_ulong());
-    } else if (address.is_v6()) {
-        return boost::asio::ip::address_v6(address.to_v6().to_bytes());
-    }
-
-    COCAINE_ASSERT(false);
-}
-
-static inline
-boost::asio::ip::tcp::endpoint
-convert(const asio::ip::tcp::endpoint& endpoint) {
-    return boost::asio::ip::tcp::endpoint(convert(endpoint.address()), endpoint.port());
-}
-
 template<class T>
 class service {
     std::string name;
@@ -169,7 +152,7 @@ public:
                 auto version = std::get<1>(result);
                 CF_DBG("version: %d", version);
 
-                d->connect(convert(endpoints[0])).get();
+                d->connect(util::endpoint_cast(endpoints[0])).get();
                 CF_DBG("connecting - done");
             } catch (std::exception err) {
                 CF_DBG("connecting - error: %s", err.what());

@@ -1,6 +1,7 @@
 #include "cocaine/framework/session.hpp"
 
 #include "cocaine/framework/detail/log.hpp"
+#include "cocaine/framework/util/net.hpp"
 
 namespace ph = std::placeholders;
 
@@ -69,14 +70,9 @@ auto basic_session_t::connect(const endpoint_type& endpoint) -> future_t<std::er
         // current object's state.
         state = state_t::connecting;
 
-        protocol_type::endpoint ep(
-            asio::ip::address::from_string(endpoint.address().to_string()),
-            endpoint.port()
-        );
-
         socket_type* socket_ = socket.get();
         socket_->async_connect(
-            ep,
+            util::endpoint_cast(endpoint),
             std::bind(&basic_session_t::on_connect, shared_from_this(), ph::_1, std::move(promise), std::move(socket))
         );
 
