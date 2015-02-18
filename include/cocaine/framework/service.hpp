@@ -29,7 +29,7 @@ struct invocation_result<Event, io::primitive_tag<T>, void> {
 
     static
     future_type<value_type>
-    apply(channel_type& channel) {
+    apply(channel_type&& channel) {
         auto rx = std::move(std::get<1>(channel));
         return rx.recv();
     }
@@ -44,7 +44,7 @@ struct invocation_result<Event, io::streaming_tag<U>, io::streaming_tag<D>> {
 
     static
     future_type<type>
-    apply(channel_type& channel) {
+    apply(channel_type&& channel) {
         return make_ready_future<type>::value(std::move(channel));
     }
 };
@@ -89,8 +89,7 @@ private:
     static
     future_type<typename invocation_result<Event>::type>
     on_invoke(future_type<typename session<>::invoke_result<Event>::type>& f) {
-        auto channel = f.get();
-        return invocation_result<Event>::apply(channel);
+        return invocation_result<Event>::apply(f.get());
     }
 };
 
