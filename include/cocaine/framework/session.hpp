@@ -157,15 +157,19 @@ public:
         return d->connected();
     }
 
-    // TODO: Accept vector<endpoint_t>.
     // TODO: Non template code - decompose.
     auto connect(const endpoint_type& endpoint) -> future_t<void> {
+        return connect(std::vector<endpoint_type> {{ endpoint }});
+    }
+
+    // TODO: Non template code - decompose.
+    auto connect(const std::vector<endpoint_type>& endpoints) -> future_t<void> {
         // TODO: Make sure that the connection queue contains tokens for only single endpoint.
         auto p = std::make_shared<promise_t<void>>();
         auto future = p->get_future();
 
         auto this_ = this->shared_from_this();
-        d->connect(endpoint).then([this_, p](future_t<std::error_code>& f){
+        d->connect(endpoints).then([this_, p](future_t<std::error_code>& f){
             auto ec = f.get();
             CF_DBG("basic session connect event: %s", CF_EC(ec));
 

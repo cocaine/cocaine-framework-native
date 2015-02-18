@@ -58,10 +58,8 @@ auto resolver_t::resolve(std::string name) -> future_type<resolver_result_t> {
     CF_DBG("connecting to the locator ...");
 
     auto locator = std::make_shared<session<io::locator_tag>>(std::make_shared<basic_session_t>(d->scheduler));
-    // TODO: Support more than 1 endpoint.
-//    locator->connect(d->endpoints[0]).then(d->scheduler, completer);
     try {
-        locator->connect(d->endpoints[0]).get();
+        locator->connect(d->endpoints).get();
     } catch (const std::exception &err) {
         CF_DBG("connecting - error: %s", err.what());
         return make_ready_future<resolver_result_t>::error(err);
