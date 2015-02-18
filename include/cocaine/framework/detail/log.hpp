@@ -1,6 +1,6 @@
 #pragma once
 
-#define CF_USE_INTERNAL_LOGGING
+#include "cocaine/framework/config.hpp"
 
 #ifdef CF_USE_INTERNAL_LOGGING
 

@@ -37,7 +37,6 @@ uint basic_service_t::version() const noexcept {
 }
 
 auto basic_service_t::connect() -> future_type<void> {
-    CF_CTX("S %s", name());
     CF_CTX("SC");
     CF_DBG("connecting ...");
 

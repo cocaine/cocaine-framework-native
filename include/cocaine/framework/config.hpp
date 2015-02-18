@@ -1,5 +1,8 @@
 #pragma once
 
+/// Use internal logging system (much verbose, so spam, wow).
+#define CF_USE_INTERNAL_LOGGING
+
 #define USE_PURE_ASIO
 
 #ifdef USE_PURE_ASIO

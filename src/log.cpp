@@ -11,6 +11,14 @@ namespace framework {
 
 namespace detail {
 
+// S - service
+// s - session
+// C - connect
+// I - invoke
+// R - resolve with locator
+// >> op - start asynchronous operation
+// << op - finished asynchronous operation
+
 void
 map_severity(blackhole::aux::attachable_ostringstream& stream, const level_t& level) {
     typedef blackhole::aux::underlying_type<level_t>::type underlying_type;

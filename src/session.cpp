@@ -16,32 +16,33 @@ using namespace cocaine::framework;
 class basic_session_t::push_t : public std::enable_shared_from_this<push_t> {
     io::encoder_t::message_type message;
     std::shared_ptr<basic_session_t> connection;
-    promise_t<void> h;
+    promise_type<void> promise;
 
 public:
-    explicit push_t(io::encoder_t::message_type&& message, std::shared_ptr<basic_session_t> connection, promise_t<void>&& h) :
+    explicit push_t(io::encoder_t::message_type&& message, std::shared_ptr<basic_session_t> connection, promise_type<void>&& promise) :
         message(std::move(message)),
         connection(connection),
-        h(std::move(h))
+        promise(std::move(promise))
     {}
 
     void operator()() {
         if (connection->channel) {
-            connection->channel->writer->write(message, std::bind(&push_t::on_write, shared_from_this(), ph::_1));
+            connection->channel->writer->write(message, wrap(std::bind(&push_t::on_write, shared_from_this(), ph::_1)));
         } else {
-            h.set_exception(std::system_error(io_provider::error::not_connected));
+            CF_DBG("<< write aborted: not connected");
+            promise.set_exception(std::system_error(io_provider::error::not_connected));
         }
     }
 
 private:
     void on_write(const std::error_code& ec) {
-        CF_DBG("write event: %s", CF_EC(ec));
+        CF_DBG("<< write: %s", CF_EC(ec));
 
         if (ec) {
             connection->on_error(ec);
-            h.set_exception(std::system_error(ec));
+            promise.set_exception(std::system_error(ec));
         } else {
-            h.set_value();
+            promise.set_value();
         }
     }
 };
@@ -66,6 +67,9 @@ auto basic_session_t::connect(const endpoint_type& endpoint) -> future_type<std:
 }
 
 auto basic_session_t::connect(const std::vector<endpoint_type>& endpoints) -> future_type<std::error_code> {
+    CF_CTX("sC");
+    CF_DBG(">> connecting ...");
+
     promise_type<std::error_code> promise;
     auto future = promise.get_future();
 
@@ -83,16 +87,20 @@ auto basic_session_t::connect(const std::vector<endpoint_type>& endpoints) -> fu
         asio::async_connect(
             *socket_,
             converted.begin(), converted.end(),
-            std::bind(&basic_session_t::on_connect, shared_from_this(), ph::_1, std::move(promise), std::move(socket))
+            wrap(std::bind(&basic_session_t::on_connect, shared_from_this(), ph::_1, std::move(promise), std::move(socket)))
         );
 
         break;
     }
     case state_t::connecting: {
+        CF_DBG("<< already in progress");
+
         promise.set_value(io_provider::error::already_started);
         break;
     }
     case state_t::connected: {
+        CF_DBG("<< already connected");
+
         promise.set_value(io_provider::error::already_connected);
         break;
     }
@@ -104,12 +112,8 @@ auto basic_session_t::connect(const std::vector<endpoint_type>& endpoints) -> fu
 }
 
 void basic_session_t::disconnect() {
-    CF_DBG("disconnecting basic session ...");
-    auto this_ = shared_from_this();
-    scheduler([this_]{
-        this_->channel.reset();
-        CF_DBG("disconnecting basic session - done");
-    });
+    CF_DBG(">> disconnecting ...");
+    scheduler(wrap(std::bind(&basic_session_t::on_disconnect, shared_from_this())));
 }
 
 auto basic_session_t::push(std::uint64_t span, io::encoder_t::message_type&& message) -> future_t<void> {
@@ -124,13 +128,15 @@ auto basic_session_t::push(std::uint64_t span, io::encoder_t::message_type&& mes
     return push(std::move(message));
 }
 
-auto basic_session_t::push(io::encoder_t::message_type&& message) -> future_t<void> {
-    promise_t<void> p;
-    auto f = p.get_future();
+auto basic_session_t::push(io::encoder_t::message_type&& message) -> future_type<void> {
+    CF_DBG(">> writing message ...");
 
-    scheduler(std::bind(&push_t::operator(),
-                        std::make_shared<push_t>(std::move(message), shared_from_this(), std::move(p))));
-    return f;
+    promise_type<void> promise;
+    auto future = promise.get_future();
+
+    scheduler(wrap(std::bind(&push_t::operator(),
+                   std::make_shared<push_t>(std::move(message), shared_from_this(), std::move(promise)))));
+    return future;
 }
 
 void basic_session_t::revoke(std::uint64_t span) {
@@ -148,6 +154,9 @@ auto basic_session_t::next() -> std::uint64_t {
 
 auto
 basic_session_t::invoke(std::uint64_t span, io::encoder_t::message_type&& message) -> future_t<basic_session_t::basic_invocation_result> {
+    CF_CTX("sI");
+    CF_DBG("invoking span %llu event ...", span);
+
     auto tx = std::make_shared<basic_sender_t<basic_session_t>>(span, shared_from_this());
     auto state = std::make_shared<detail::shared_state_t>();
     auto rx = std::make_shared<basic_receiver_t<basic_session_t>>(span, shared_from_this(), state);
@@ -155,24 +164,33 @@ basic_session_t::invoke(std::uint64_t span, io::encoder_t::message_type&& messag
     // TODO: Do not insert mute channels.
     channels->insert(std::make_pair(span, state));
     auto f1 = push(std::move(message));
-    auto f2 = f1.then([tx, rx](future_t<void>& f){ // TODO: Executor!
+    auto f2 = f1.then(wrap([tx, rx](future_t<void>& f){ // TODO: Executor!
         f.get();
         return std::make_tuple(tx, rx);
-    });
+    }));
 
     return f2;
 }
 
+void basic_session_t::on_disconnect() {
+    CF_DBG("<< disconnected");
+
+    channel.reset();
+}
+
 void basic_session_t::on_connect(const std::error_code& ec, promise_t<std::error_code>& promise, std::unique_ptr<socket_type>& s) {
-    CF_DBG("connect event: %s", CF_EC(ec));
+    CF_DBG("<< connect: %s", CF_EC(ec));
+
     COCAINE_ASSERT(state_t::connecting == state);
 
     if (ec) {
         channel.reset();
         state = state_t::disconnected;
     } else {
+        CF_DBG(">> listening for read events ...");
+
         channel.reset(new channel_type(std::move(s)));
-        channel->reader->read(message, std::bind(&basic_session_t::on_read, shared_from_this(), ph::_1));
+        channel->reader->read(message, wrap(std::bind(&basic_session_t::on_read, shared_from_this(), ph::_1)));
         state = state_t::connected;
     }
 
@@ -180,7 +198,7 @@ void basic_session_t::on_connect(const std::error_code& ec, promise_t<std::error
 }
 
 void basic_session_t::on_read(const std::error_code& ec) {
-    CF_DBG("read event: %s", CF_EC(ec));
+    CF_DBG("<< read: %s", CF_EC(ec));
 
     if (ec) {
         on_error(ec);
@@ -201,7 +219,8 @@ void basic_session_t::on_read(const std::error_code& ec) {
         it->second->put(std::move(message));
     }
 
-    channel->reader->read(message, std::bind(&basic_session_t::on_read, shared_from_this(), ph::_1));
+    CF_DBG(">> listening for read events ...");
+    channel->reader->read(message, wrap(std::bind(&basic_session_t::on_read, shared_from_this(), ph::_1)));
 }
 
 void basic_session_t::on_error(const std::error_code& ec) {
@@ -231,7 +250,7 @@ public:
     void on_connect(future_type<std::error_code>& f, std::shared_ptr<promise_type<void>> promise) {
         const auto ec = f.get();
 
-        CF_DBG("basic session connect event: %s", CF_EC(ec));
+        CF_DBG("<< connect: %s", CF_EC(ec));
 
         if (ec) {
             switch (ec.value()) {

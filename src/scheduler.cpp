@@ -8,29 +8,8 @@
 
 using namespace cocaine::framework;
 
-struct context_wrapper {
-    scheduler_t::closure_type fn;
-    blackhole::attribute::set_t set;
-
-    context_wrapper(scheduler_t::closure_type fn) :
-        fn(std::move(fn))
-    {
-        blackhole::scoped_attributes_t scoped(detail::logger(), blackhole::attribute::set_t());
-        set = scoped.attributes();
-    }
-
-    void operator()() {
-        blackhole::scoped_attributes_t scoped(detail::logger(), set);
-        fn();
-    }
-};
-
 void scheduler_t::operator()(closure_type fn) {
-#ifdef CF_USE_INTERNAL_LOGGING
-    ev.loop.post(context_wrapper(std::move(fn)));
-#else
     ev.loop.post(std::move(fn));
-#endif
 }
 
 namespace {

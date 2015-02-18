@@ -2,6 +2,7 @@
 
 #include <functional>
 
+#include "cocaine/framework/config.hpp"
 #include "cocaine/framework/forwards.hpp"
 
 namespace cocaine {
@@ -15,6 +16,8 @@ struct context_holder {
     context_holder(boost::optional<std::string>);
     ~context_holder();
 };
+
+#ifdef CF_USE_INTERNAL_LOGGING
 
 boost::optional<std::string> current_context();
 
@@ -34,9 +37,9 @@ public:
     {}
 
     template<typename... Args>
-    void operator()(Args&&... args) {
+    auto operator()(Args&&... args) -> decltype(fn(std::forward<Args>(args)...)) {
         context_holder holder(context);
-        fn(std::forward<Args>(args)...);
+        return fn(std::forward<Args>(args)...);
     }
 };
 
@@ -44,6 +47,12 @@ template<typename F>
 callable<F> wrap(F&& f) {
     return callable<F>(std::forward<F>(f));
 }
+#else
+template<typename F>
+F wrap(F&& f) {
+    return std::forward<F>(f);
+}
+#endif
 
 class scheduler_t {
 public:
