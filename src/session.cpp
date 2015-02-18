@@ -1,6 +1,8 @@
 #include "cocaine/framework/session.hpp"
 
 #include "cocaine/framework/detail/log.hpp"
+#include "cocaine/framework/detail/loop.hpp"
+#include "cocaine/framework/scheduler.hpp"
 #include "cocaine/framework/util/net.hpp"
 
 namespace ph = std::placeholders;
@@ -44,6 +46,13 @@ private:
 
 basic_session_t::basic_session_t(loop_t& loop) noexcept :
     loop(loop),
+    state(state_t::disconnected),
+    counter(1),
+    message(boost::none)
+{}
+
+basic_session_t::basic_session_t(scheduler_t& scheduler) noexcept :
+    loop(scheduler.loop().loop),
     state(state_t::disconnected),
     counter(1),
     message(boost::none)

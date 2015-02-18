@@ -18,6 +18,7 @@ SET(SOURCES
     error
     log
     manager
+    scheduler
     resolver
     sender
     session

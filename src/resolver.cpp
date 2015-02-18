@@ -7,7 +7,7 @@
 #include <cocaine/traits/vector.hpp>
 
 #include "cocaine/framework/detail/log.hpp"
-#include "cocaine/framework/detail/scheduler.hpp"
+#include "cocaine/framework/scheduler.hpp"
 #include "cocaine/framework/util/net.hpp"
 
 #include "cocaine/framework/session.hpp"
@@ -70,7 +70,7 @@ auto resolver_t::resolve(std::string name) -> future_type<resolver_result_t> {
     CF_CTX("resoling '%s'", name);
     CF_DBG("connecting to the locator ...");
 
-    auto locator = std::make_shared<session<io::locator_tag>>(std::make_shared<basic_session_t>(d->scheduler.loop()));
+    auto locator = std::make_shared<session<io::locator_tag>>(std::make_shared<basic_session_t>(d->scheduler));
     // TODO: Support more than 1 endpoint.
 //    locator->connect(d->endpoints[0]).then(d->scheduler, completer);
     try {

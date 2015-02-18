@@ -6,7 +6,8 @@
 #include <cocaine/framework/detail/log.hpp>
 #include <cocaine/framework/resolver.hpp>
 
-#include <cocaine/framework/detail/scheduler.hpp>
+#include <cocaine/framework/scheduler.hpp>
+#include <cocaine/framework/detail/loop.hpp>
 
 #include "../../util/net.hpp"
 
@@ -17,7 +18,8 @@ using namespace cocaine::framework;
 
 TEST(Resolver, Resolve) {
     client_t client;
-    scheduler_t scheduler(client.loop());
+    event_loop_t loop { client.loop() };
+    scheduler_t scheduler(loop);
 
     resolver_t resolver(scheduler);
     auto result = resolver.resolve("echo").get();

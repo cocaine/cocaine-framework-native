@@ -19,6 +19,11 @@ using future_t = future<T>;
 template<typename T>
 using future_type = future<T>;
 
+/// \internal
+struct event_loop_t;
+
+class scheduler_t;
+
 } // namespace framework
 
 } // namespace cocaine

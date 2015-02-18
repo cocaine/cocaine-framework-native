@@ -81,6 +81,10 @@ public:
      * otherwise the behavior is undefined.
      */
     basic_session_t(loop_t& loop) noexcept;
+    /*!
+     * \overload
+     */
+    explicit basic_session_t(scheduler_t& scheduler) noexcept;
 
     ~basic_session_t();
 
