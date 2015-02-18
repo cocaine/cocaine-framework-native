@@ -90,9 +90,9 @@ public:
      */
     bool connected() const noexcept;
 
-    auto connect(const endpoint_type& endpoint) -> future_t<std::error_code>;
+    auto connect(const endpoint_type& endpoint) -> future_type<std::error_code>;
 
-    auto connect(const std::vector<endpoint_type>& endpoints) -> future_t<std::error_code>;
+    auto connect(const std::vector<endpoint_type>& endpoints) -> future_type<std::error_code>;
 
     // TODO: boost::optional<endpoint_type> endpoint() const;
 
