@@ -22,7 +22,7 @@ TEST(basic_service_t, Storage) {
     scheduler_t scheduler(loop);
 
     // Service's constructor does nothing.
-    basic_service_t storage("storage", scheduler);
+    basic_service_t storage("storage", 1, scheduler);
 
     // Invoke (and internally connect) read method.
     auto result = storage.invoke<cocaine::io::storage::read>(std::string("collection"), std::string("key")).get();
@@ -35,7 +35,7 @@ TEST(basic_service_t, StorageError) {
     event_loop_t loop { client.loop() };
     scheduler_t scheduler(loop);
 
-    basic_service_t storage("storage", scheduler);
+    basic_service_t storage("storage", 1, scheduler);
     EXPECT_THROW(storage.invoke<cocaine::io::storage::read>(std::string("i-collection"), std::string("key")).get(), cocaine_error);
 }
 
@@ -46,7 +46,7 @@ TEST(basic_service_t, Echo) {
     event_loop_t loop { client.loop() };
     scheduler_t scheduler(loop);
 
-    basic_service_t echo("echo", scheduler);
+    basic_service_t echo("echo", 1, scheduler);
     auto ch = echo.invoke<cocaine::io::app::enqueue>(std::string("ping")).get();
     auto tx = std::move(std::get<0>(ch));
     auto rx = std::move(std::get<1>(ch));
@@ -65,7 +65,7 @@ TEST(basic_service_t, EchoMT) {
         client_t client;
         event_loop_t loop { client.loop() };
         scheduler_t scheduler(loop);
-        basic_service_t echo("echo-cpp", scheduler);
+        basic_service_t echo("echo-cpp", 1, scheduler);
 
         threads.push_back(boost::thread([tid, &echo]{
             for (size_t id = 0; id < 250; ++id) {

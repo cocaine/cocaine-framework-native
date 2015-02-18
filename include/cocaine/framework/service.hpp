@@ -61,7 +61,7 @@ class basic_service_t {
     std::shared_ptr<session<>> sess;
 
 public:
-    basic_service_t(std::string name, scheduler_t& scheduler);
+    basic_service_t(std::string name, uint version, scheduler_t& scheduler);
     ~basic_service_t();
 
     auto name() const -> const std::string&;

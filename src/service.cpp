@@ -7,19 +7,21 @@ using namespace cocaine::framework;
 class basic_service_t::impl {
 public:
     std::string name;
+    uint version;
     scheduler_t& scheduler;
     resolver_t resolver;
     std::mutex mutex;
 
-    impl(std::string name, scheduler_t& scheduler) :
+    impl(std::string name, uint version, scheduler_t& scheduler) :
         name(std::move(name)),
+        version(version),
         scheduler(scheduler),
         resolver(scheduler)
     {}
 };
 
-basic_service_t::basic_service_t(std::string name, scheduler_t& scheduler) :
-    d(new impl(std::move(name), scheduler)),
+basic_service_t::basic_service_t(std::string name, uint version, scheduler_t& scheduler) :
+    d(new impl(std::move(name), version, scheduler)),
     sess(std::make_shared<session<>>(scheduler))
 {}
 
@@ -46,19 +48,16 @@ auto basic_service_t::connect() -> future_t<void> {
     }
 
     try {
-        try {
-            auto info = d->resolver.resolve(d->name).get();
-            // TODO: Check version.
-            CF_DBG("version: %d", info.version);
-
-            sess->connect(info.endpoints).get();
-            CF_DBG("connecting - done");
-        } catch (std::exception err) {
-            CF_DBG("connecting - error: %s", err.what());
-            throw;
+        const auto info = d->resolver.resolve(d->name).get();
+        if (d->version != info.version) {
+            return make_ready_future<void>::error(std::runtime_error("version mismatch"));
         }
+
+        sess->connect(info.endpoints).get();
+        CF_DBG("connected");
         return make_ready_future<void>::value();
     } catch (const std::runtime_error& err) {
+        CF_DBG("failed to connect: %s", err.what());
         return make_ready_future<void>::error(err);
     }
 }
