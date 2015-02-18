@@ -11,11 +11,31 @@ namespace framework {
 
 namespace detail {
 
+void
+map_severity(blackhole::aux::attachable_ostringstream& stream, const level_t& level) {
+    typedef blackhole::aux::underlying_type<level_t>::type underlying_type;
+
+    static std::array<const char*, 5> describe = {{ "D", "N", "I", "W", "E" }};
+
+    const size_t value = static_cast<underlying_type>(level);
+
+    if(value < describe.size()) {
+        stream << describe[value];
+    } else {
+        stream << value;
+    }
+}
+
 blackhole::verbose_logger_t<level_t> create() {
     blackhole::verbose_logger_t<level_t> logger(level_t::debug);
     auto formatter = blackhole::aux::util::make_unique<
         blackhole::formatter::string_t
-    >("[%(timestamp)s] [%(tid)s]: %(context:[:] )s%(message)s");
+    >("[%(severity)s] [%(timestamp)s] [%(tid)s]: %(context:[:] )s%(message)s");
+
+    blackhole::mapping::value_t mapper;
+    mapper.add<blackhole::keyword::tag::timestamp_t>("%H:%M:%S.%f");
+    mapper.add<blackhole::keyword::tag::severity_t<level_t>>(&map_severity);
+    formatter->set_mapper(mapper);
 
     auto sink = blackhole::aux::util::make_unique<
         blackhole::sink::stream_t
