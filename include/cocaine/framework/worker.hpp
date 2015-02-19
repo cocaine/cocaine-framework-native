@@ -122,44 +122,18 @@ public:
 class worker_t;
 class worker_session_t;
 
-//! RAII thread pool
 class dispatch_t {
     typedef io::stream_of<std::string>::tag streaming_tag;
+
 public:
     typedef sender  <io::rpc_tag, worker_session_t> sender_type;
     typedef receiver<io::rpc_tag, worker_session_t> receiver_type;
     typedef std::function<void(sender_type, receiver_type)> handler_type;
 
 private:
-    detail::loop_t loop;
-    boost::optional<detail::loop_t::work> work;
-    boost::thread_group pool;
-
     std::unordered_map<std::string, handler_type> handlers;
 
 public:
-    dispatch_t() :
-        work(boost::optional<detail::loop_t::work>(detail::loop_t::work(loop)))
-    {
-        auto threads = boost::thread::hardware_concurrency();
-        start(threads != 0 ? threads : 1);
-    }
-
-    dispatch_t(unsigned int threads) :
-        work(boost::optional<detail::loop_t::work>(detail::loop_t::work(loop)))
-    {
-        if (threads == 0) {
-            throw std::invalid_argument("thread count must be a positive number");
-        }
-
-        start(threads);
-    }
-
-    ~dispatch_t() {
-        work.reset();
-        pool.join_all();
-    }
-
     boost::optional<handler_type> get(const std::string& event) {
         auto it = handlers.find(event);
         if (it != handlers.end()) {
@@ -172,19 +146,6 @@ public:
     template<typename F>
     void on(std::string event, F handler) {
         handlers[event] = std::move(handler);
-    }
-
-    void post(std::function<void()> fn) {
-        loop.post(fn);
-    }
-
-private:
-    void start(unsigned int threads) {
-        for (unsigned int i = 0; i < threads; ++i) {
-            pool.create_thread(
-                std::bind(static_cast<std::size_t(detail::loop_t::*)()>(&detail::loop_t::run), std::ref(loop))
-            );
-        }
     }
 };
 
