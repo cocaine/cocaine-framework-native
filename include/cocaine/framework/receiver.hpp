@@ -362,7 +362,9 @@ private:
     convert(typename task<detail::decoder_t::message_type>::future_type& f, std::shared_ptr<basic_receiver_t<Session>> d) {
         const detail::decoder_t::message_type message = f.get();
         const std::uint64_t id = message.type();
-        if (id >= boost::mpl::size<variant_typelist>::value) {
+
+        // Ancient boost::mpl versions return sized integer instead of unsized one.
+        if (id >= static_cast<size_t>(boost::mpl::size<variant_typelist>::value)) {
             // TODO: What to do? Notify the user, I think.
             CF_DBG("dropping a %llu type message", id);
         }
