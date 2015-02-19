@@ -39,6 +39,10 @@ std::string merge_context(std::string context);
 
 } // namespace cocaine
 
+/// Silently cast std::uint64_t to unsigned long long to suppress logger format warnings
+/// in cross-platform manner.
+#define CF_US(sized) static_cast<unsigned long long>(sized)
+
 #   define CF_EC(ec) ec ? ec.message().c_str() : "ok"
 #   define CF_LOG BH_LOG
 #   define CF_DBG(...) CF_LOG(::cocaine::framework::detail::logger(), ::cocaine::framework::detail::debug, __VA_ARGS__)
@@ -52,6 +56,8 @@ std::string merge_context(std::string context);
     );
 
 #else
+
+#define CF_US(...)
 #   define CF_EC(...)
 #   define CF_LOG(...)
 #   define CF_DBG(...)

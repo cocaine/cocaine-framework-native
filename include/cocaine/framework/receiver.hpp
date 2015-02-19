@@ -366,7 +366,7 @@ private:
         // Ancient boost::mpl versions return sized integer instead of unsized one.
         if (id >= static_cast<size_t>(boost::mpl::size<variant_typelist>::value)) {
             // TODO: What to do? Notify the user, I think.
-            CF_DBG("dropping a %llu type message", id);
+            CF_DBG("dropping a %llu type message", CF_US(id));
         }
 
         variant_type payload = visitors[id](message.args());

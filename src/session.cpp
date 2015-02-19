@@ -128,7 +128,7 @@ auto basic_session_t::push(io::encoder_t::message_type&& message) -> typename ta
 }
 
 void basic_session_t::revoke(std::uint64_t span) {
-    CF_DBG(">> revoking span %llu channel", span);
+    CF_DBG(">> revoking span %llu channel", CF_US(span));
 
     scheduler(wrap(std::bind(&basic_session_t::on_revoke, shared_from_this(), span)));
 }
@@ -140,7 +140,7 @@ auto basic_session_t::next() -> std::uint64_t {
 auto
 basic_session_t::invoke(std::uint64_t span, io::encoder_t::message_type&& message) -> typename task<basic_session_t::basic_invocation_result>::future_type {
     CF_CTX("sI");
-    CF_DBG("invoking span %llu event ...", span);
+    CF_DBG("invoking span %llu event ...", CF_US(span));
 
     auto tx = std::make_shared<basic_sender_t<basic_session_t>>(span, shared_from_this());
     auto state = std::make_shared<detail::shared_state_t>();
@@ -164,7 +164,7 @@ void basic_session_t::on_disconnect() {
 }
 
 void basic_session_t::on_revoke(std::uint64_t span) {
-    CF_DBG("<< revoke span %llu channel", span);
+    CF_DBG("<< revoke span %llu channel", CF_US(span));
 
     channels->erase(span);
 }
@@ -201,7 +201,7 @@ void basic_session_t::on_read(const std::error_code& ec) {
         return;
     }
 
-    CF_DBG("received message [%llu, %llu]", message.span(), message.type());
+    CF_DBG("received message [%llu, %llu]", CF_US(message.span()), CF_US(message.type()));
     auto channels = this->channels.synchronize();
     auto it = channels->find(message.span());
     if (it == channels->end()) {
