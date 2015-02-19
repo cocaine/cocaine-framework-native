@@ -205,7 +205,7 @@ void basic_session_t::on_read(const std::error_code& ec) {
     auto channels = this->channels.synchronize();
     auto it = channels->find(message.span());
     if (it == channels->end()) {
-        CF_DBG("dropping an orphan span %llu message", message.span());
+        CF_DBG("dropping an orphan span %llu message", CF_US(message.span()));
     } else {
         // TODO: Probably it will be better to conditionally stop listening if no channels left.
         // Then I need a bool flag here indicating that there won't be messages more.
