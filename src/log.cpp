@@ -65,12 +65,18 @@ logger_type& logger() {
     return log;
 }
 
+namespace {
+
+bool match_context(const blackhole::attribute::pair_t& pair) {
+    return pair.first == "context";
+}
+
+} // namespace
+
 std::string merge_context(std::string context) {
     blackhole::scoped_attributes_t scoped(logger(), blackhole::attribute::set_t());
     const auto& attributes = scoped.attributes();
-    auto it = std::find_if(attributes.begin(), attributes.end(), [](const blackhole::attribute::pair_t& pair){
-        return pair.first == "context";
-    });
+    auto it = std::find_if(attributes.begin(), attributes.end(), &match_context);
 
     if (it == attributes.end()) {
         return context;

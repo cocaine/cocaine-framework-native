@@ -18,7 +18,7 @@ bool match_context(const blackhole::attribute::pair_t& pair) {
     return pair.first == "context";
 }
 
-}
+} // namespace
 
 namespace cocaine {
 
