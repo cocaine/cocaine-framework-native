@@ -7,8 +7,6 @@
 #include <asio/local/stream_protocol.hpp>
 #include <asio/connect.hpp>
 
-#include <cocaine/detail/service/node/messages.hpp>
-
 #include "cocaine/framework/forwards.hpp"
 #include "cocaine/framework/scheduler.hpp"
 

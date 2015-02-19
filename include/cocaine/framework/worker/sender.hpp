@@ -4,7 +4,7 @@
 #include <string>
 
 #include <cocaine/forwards.hpp>
-// TODO: WTF? Detail???
+// WTF? Detail???
 #include <cocaine/detail/service/node/messages.hpp>
 
 #include "cocaine/framework/forwards.hpp"

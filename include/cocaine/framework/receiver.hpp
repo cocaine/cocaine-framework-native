@@ -19,7 +19,6 @@
 #include <cocaine/idl/streaming.hpp>
 #include <cocaine/rpc/asio/decoder.hpp>
 #include <cocaine/tuple.hpp>
-#include <cocaine/detail/service/node/messages.hpp>
 
 #include "cocaine/framework/error.hpp"
 #include "cocaine/framework/forwards.hpp"

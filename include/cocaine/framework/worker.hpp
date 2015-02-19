@@ -9,16 +9,10 @@
 
 #include <asio/local/stream_protocol.hpp>
 
-#include <cocaine/common.hpp>
-#include <cocaine/idl/node.hpp>
-#include <cocaine/rpc/asio/channel.hpp>
-#include <cocaine/detail/service/node/messages.hpp>
 #include <cocaine/locked_ptr.hpp>
 
-#include "cocaine/framework/sender.hpp"
 #include "cocaine/framework/receiver.hpp"
 #include "cocaine/framework/session.hpp"
-#include "cocaine/framework/detail/loop.hpp"
 #include "cocaine/framework/worker/options.hpp"
 #include "cocaine/framework/worker/sender.hpp"
 
