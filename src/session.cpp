@@ -30,7 +30,7 @@ public:
             connection->channel->writer->write(message, wrap(std::bind(&push_t::on_write, shared_from_this(), ph::_1)));
         } else {
             CF_DBG("<< write aborted: not connected");
-            promise.set_exception(std::system_error(io_provider::error::not_connected));
+            promise.set_exception(std::system_error(asio::error::not_connected));
         }
     }
 
@@ -95,13 +95,13 @@ auto basic_session_t::connect(const std::vector<endpoint_type>& endpoints) -> fu
     case state_t::connecting: {
         CF_DBG("<< already in progress");
 
-        promise.set_value(io_provider::error::already_started);
+        promise.set_value(asio::error::already_started);
         break;
     }
     case state_t::connected: {
         CF_DBG("<< already connected");
 
-        promise.set_value(io_provider::error::already_connected);
+        promise.set_value(asio::error::already_connected);
         break;
     }
     default:
@@ -197,7 +197,7 @@ void basic_session_t::on_read(const std::error_code& ec) {
     }
 
     if (!channel) {
-        on_error(io_provider::error::operation_aborted);
+        on_error(asio::error::operation_aborted);
         return;
     }
 
@@ -247,10 +247,10 @@ public:
 
         if (ec) {
             switch (ec.value()) {
-            case io_provider::error::already_started:
+            case asio::error::already_started:
                 queue.push_back(promise);
                 break;
-            case io_provider::error::already_connected:
+            case asio::error::already_connected:
                 // TODO: Return ready future.
                 COCAINE_ASSERT(false);
                 break;

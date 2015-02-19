@@ -15,13 +15,7 @@ namespace cocaine {
 
 namespace framework {
 
-#ifdef USE_PURE_ASIO
-    namespace io_provider = asio;
-#else
-    namespace io_provider = boost::asio;
-#endif
-
-using loop_t = asio::io_service;
+typedef asio::io_service loop_t;
 
 } // namespace framework
 

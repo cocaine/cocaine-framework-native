@@ -11,8 +11,6 @@
 
 #include "cocaine/framework/config.hpp"
 
-namespace io_provider = asio;
-
 namespace cocaine {
 
 namespace framework {
@@ -29,7 +27,7 @@ class basic_connection_t : public std::enable_shared_from_this<basic_connection_
     typedef std::function<void(const std::error_code&)> callback_type;
 
 public:
-    typedef io_provider::ip::tcp protocol_type;
+    typedef asio::ip::tcp protocol_type;
     typedef protocol_type::socket socket_type;
     typedef io::channel<protocol_type> channel_type;
 

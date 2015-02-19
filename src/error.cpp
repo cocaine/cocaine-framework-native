@@ -13,3 +13,5 @@ cocaine_error::cocaine_error(int id, const std::string& reason) :
     id(id),
     reason(reason)
 {}
+
+cocaine_error::~cocaine_error() throw() {}

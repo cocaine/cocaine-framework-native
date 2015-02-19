@@ -59,7 +59,7 @@ void basic_connection_t::read(io::decoder_t::message_type& message, callback_typ
             std::bind(&basic_connection_t::on_readwrite, shared_from_this(), ph::_1, current)
         );
     } else {
-        loop.post(std::bind(callback, io_provider::error::not_connected));
+        loop.post(std::bind(callback, asio::error::not_connected));
     }
 }
 
@@ -73,7 +73,7 @@ void basic_connection_t::write(const io::encoder_t::message_type& message, callb
             std::bind(&basic_connection_t::on_readwrite, shared_from_this(), ph::_1, current)
         );
     } else {
-        loop.post(std::bind(callback, io_provider::error::not_connected));
+        loop.post(std::bind(callback, asio::error::not_connected));
     }
 }
 
@@ -81,7 +81,7 @@ void basic_connection_t::cancel() {
     state = state_t::disconnected;
 
     for (auto it = pending.begin(); it != pending.end(); ++it) {
-        it->second(io_provider::error::operation_aborted);
+        it->second(asio::error::operation_aborted);
     }
 
     pending.clear();

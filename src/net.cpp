@@ -1,5 +1,7 @@
 #include "cocaine/framework/util/net.hpp"
 
+#include <boost/version.hpp>
+
 namespace cocaine {
 
 namespace framework {
@@ -11,7 +13,14 @@ address_cast(const asio::ip::address& address) {
     if (address.is_v4()) {
         return boost::asio::ip::address_v4(address.to_v4().to_ulong());
     } else if (address.is_v6()) {
+#if BOOST_VERSION >= 105600
         return boost::asio::ip::address_v6(address.to_v6().to_bytes());
+#else
+        auto from = address.to_v6().to_bytes();
+        boost::array<unsigned char, 16> bytes;
+        std::copy(from.begin(), from.end(), bytes.begin());
+        return boost::asio::ip::address_v6(bytes);
+#endif
     }
 
     throw std::invalid_argument("address must be either v4 or v6");
@@ -22,7 +31,14 @@ address_cast(const boost::asio::ip::address& address) {
     if (address.is_v4()) {
         return asio::ip::address_v4(address.to_v4().to_ulong());
     } else if (address.is_v6()) {
+#if BOOST_VERSION >= 105600
         return asio::ip::address_v6(address.to_v6().to_bytes());
+#else
+        auto from = address.to_v6().to_bytes();
+        std::array<unsigned char, 16> bytes;
+        std::copy(from.begin(), from.end(), bytes.begin());
+        return asio::ip::address_v6(bytes);
+#endif
     }
 
     throw std::invalid_argument("address must be either v4 or v6");
