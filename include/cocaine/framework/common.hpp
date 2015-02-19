@@ -31,6 +31,12 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 #include <cocaine/traits.hpp>
 #include <cocaine/common.hpp>
 
+#if defined(__clang__) || defined(HAVE_GCC46)
+    #include <atomic>
+#else
+    #include <cstdatomic>
+#endif
+
 #define COCAINE_ASSERT(expr) assert((expr))
 
 namespace cocaine { namespace framework {
