@@ -1,7 +1,5 @@
 #include "cocaine/framework/manager.hpp"
 
-#include "cocaine/framework/common.hpp"
-
 using namespace cocaine::framework;
 
 class cocaine::framework::execution_unit_t {

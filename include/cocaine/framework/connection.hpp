@@ -9,7 +9,6 @@
 #include <cocaine/common.hpp>
 #include <cocaine/rpc/asio/channel.hpp>
 
-#include "cocaine/framework/common.hpp"
 #include "cocaine/framework/config.hpp"
 
 namespace io_provider = asio;

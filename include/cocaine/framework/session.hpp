@@ -13,9 +13,8 @@
 #include <cocaine/locked_ptr.hpp>
 #include <cocaine/rpc/asio/channel.hpp>
 
-#include "cocaine/framework/forwards.hpp"
-#include "cocaine/framework/common.hpp"
 #include "cocaine/framework/config.hpp"
+#include "cocaine/framework/forwards.hpp"
 #include "cocaine/framework/receiver.hpp"
 #include "cocaine/framework/sender.hpp"
 #include "cocaine/framework/detail/channel.hpp"

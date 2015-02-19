@@ -21,7 +21,6 @@
 #include <cocaine/tuple.hpp>
 #include <cocaine/detail/service/node/messages.hpp>
 
-#include "cocaine/framework/common.hpp"
 #include "cocaine/framework/error.hpp"
 #include "cocaine/framework/forwards.hpp"
 
