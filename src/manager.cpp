@@ -12,7 +12,7 @@ public:
 
     execution_unit_t() :
         event_loop(loop),
-        work(loop)
+        work(boost::optional<detail::loop_t::work>(detail::loop_t::work(loop)))
     {}
 
     ~execution_unit_t() {
