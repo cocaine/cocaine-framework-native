@@ -139,14 +139,14 @@ private:
 
 public:
     dispatch_t() :
-        work(loop)
+        work(boost::optional<detail::loop_t::work>(detail::loop_t::work(loop)))
     {
         auto threads = boost::thread::hardware_concurrency();
         start(threads != 0 ? threads : 1);
     }
 
     dispatch_t(unsigned int threads) :
-        work(loop)
+        work(boost::optional<detail::loop_t::work>(detail::loop_t::work(loop)))
     {
         if (threads == 0) {
             throw std::invalid_argument("thread count must be a positive number");
@@ -191,7 +191,7 @@ private:
 /*!
  * \brief The worker_session_t class - implementation heart of any worker.
  *
- * \note this class is not a member of public API.
+ * \internal
  */
 class worker_session_t : public std::enable_shared_from_this<worker_session_t> {
     template<class>
