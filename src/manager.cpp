@@ -1,5 +1,7 @@
 #include "cocaine/framework/manager.hpp"
 
+#include "cocaine/framework/scheduler.hpp"
+
 #include "cocaine/framework/detail/loop.hpp"
 
 using namespace cocaine::framework;
@@ -8,10 +10,12 @@ class cocaine::framework::execution_unit_t {
 public:
     detail::loop_t loop;
     event_loop_t event_loop;
+    scheduler_t scheduler;
     boost::optional<detail::loop_t::work> work;
 
     execution_unit_t() :
         event_loop(loop),
+        scheduler(event_loop),
         work(boost::optional<detail::loop_t::work>(detail::loop_t::work(loop)))
     {}
 
@@ -53,10 +57,10 @@ void service_manager_t::start(unsigned int threads) {
     }
 }
 
-event_loop_t& service_manager_t::next() {
+scheduler_t& service_manager_t::next() {
     if (current >= units.size()) {
         current = 0;
     }
 
-    return units[current]->event_loop;
+    return units[current]->scheduler;
 }

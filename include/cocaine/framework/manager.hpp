@@ -32,7 +32,7 @@ public:
 private:
     void start(unsigned int threads);
 
-    event_loop_t& next();
+    scheduler_t& next();
 };
 
 } // namespace framework
