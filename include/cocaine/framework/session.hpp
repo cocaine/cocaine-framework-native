@@ -17,6 +17,7 @@
 #include "cocaine/framework/forwards.hpp"
 #include "cocaine/framework/receiver.hpp"
 #include "cocaine/framework/sender.hpp"
+
 #include "cocaine/framework/detail/channel.hpp"
 
 namespace cocaine {

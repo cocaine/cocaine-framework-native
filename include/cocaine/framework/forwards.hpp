@@ -24,7 +24,10 @@ template<class T, class Session>
 class receiver;
 
 class basic_session_t;
+
+/// Worker side.
 class worker_session_t;
+class worker_t;
 
 } // namespace framework
 

@@ -11,18 +11,17 @@
 
 #include <cocaine/locked_ptr.hpp>
 
+#include "cocaine/framework/forwards.hpp"
 #include "cocaine/framework/receiver.hpp"
-#include "cocaine/framework/session.hpp" // TODO: Need?
 #include "cocaine/framework/worker/options.hpp"
 #include "cocaine/framework/worker/sender.hpp"
 #include "cocaine/framework/worker/receiver.hpp"
 
+#include "cocaine/framework/detail/channel.hpp"
+
 namespace cocaine {
 
 namespace framework {
-
-class worker_t;
-class worker_session_t;
 
 class dispatch_t {
     typedef io::stream_of<std::string>::tag streaming_tag;
