@@ -2,8 +2,6 @@ IF(APPLE)
     SET(CMAKE_MACOSX_RPATH ON)
 ENDIF()
 
-SET(CMAKE_BUILD_TYPE "Debug")
-
 SET(Boost_USE_MULTITHREADED ON)
 FIND_PACKAGE(Boost 1.40 REQUIRED COMPONENTS system thread program_options)
 
@@ -48,7 +46,7 @@ TARGET_LINK_LIBRARIES(${PROJECT}
 )
 
 SET_TARGET_PROPERTIES(${PROJECT} PROPERTIES
-    COMPILE_FLAGS "-std=c++0x -Wall -pedantic -Wextra -Winit-self -Wconversion -Wno-sign-conversion -Wold-style-cast -Woverloaded-virtual -Wctor-dtor-privacy -Wnon-virtual-dtor"
+    COMPILE_FLAGS "-Wall -pedantic -Wextra -Winit-self -Wconversion -Wno-sign-conversion -Wold-style-cast -Woverloaded-virtual -Wctor-dtor-privacy -Wnon-virtual-dtor"
 )
 
-ADD_DEFINITIONS(-std=c++11)
+ADD_DEFINITIONS(-std=c++0x)
