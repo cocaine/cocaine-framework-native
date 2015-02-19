@@ -17,10 +17,10 @@ template<class Session>
 class worker_session_t::push_t : public std::enable_shared_from_this<push_t<Session>> {
     io::encoder_t::message_type message;
     std::shared_ptr<Session> session;
-    promise_t<void> h;
+    typename task<void>::promise_type h;
 
 public:
-    explicit push_t(io::encoder_t::message_type&& message, std::shared_ptr<Session> session, promise_t<void>&& h) :
+    explicit push_t(io::encoder_t::message_type&& message, std::shared_ptr<Session> session, typename task<void>::promise_type&& h) :
         message(std::move(message)),
         session(session),
         h(std::move(h))
@@ -122,7 +122,7 @@ void worker_session_t::on_disown(const std::error_code& ec) {
     throw std::runtime_error("disowned");
 }
 
-auto worker_session_t::push(std::uint64_t span, io::encoder_t::message_type&& message) -> future_t<void> {
+auto worker_session_t::push(std::uint64_t span, io::encoder_t::message_type&& message) -> typename task<void>::future_type {
     auto channels = this->channels.synchronize();
     auto it = channels->find(span);
     if (it == channels->end()) {
@@ -133,13 +133,13 @@ auto worker_session_t::push(std::uint64_t span, io::encoder_t::message_type&& me
     return push(std::move(message));
 }
 
-auto worker_session_t::push(io::encoder_t::message_type&& message) -> future_t<void> {
-    promise_t<void> p;
-    auto f = p.get_future();
+auto worker_session_t::push(io::encoder_t::message_type&& message) -> typename task<void>::future_type {
+    typename task<void>::promise_type promise;
+    auto future = promise.get_future();
 
     loop.post(std::bind(&push_t<worker_session_t>::operator(),
-                        std::make_shared<push_t<worker_session_t>>(std::move(message), shared_from_this(), std::move(p))));
-    return f;
+                        std::make_shared<push_t<worker_session_t>>(std::move(message), shared_from_this(), std::move(promise))));
+    return future;
 }
 
 void worker_session_t::on_read(const std::error_code& ec) {

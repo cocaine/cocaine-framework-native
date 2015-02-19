@@ -13,12 +13,12 @@ basic_receiver_t<Session>::basic_receiver_t(std::uint64_t id, std::shared_ptr<Se
 
 template<class Session>
 basic_receiver_t<Session>::~basic_receiver_t() {
-    // TODO: Need?
+    // TODO: Really need?
     session->revoke(id);
 }
 
 template<class Session>
-future_t<typename basic_receiver_t<Session>::result_type>
+typename task<typename basic_receiver_t<Session>::result_type>::future_type
 basic_receiver_t<Session>::recv() {
     return state->get();
 }

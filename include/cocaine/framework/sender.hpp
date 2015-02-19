@@ -38,12 +38,12 @@ public:
      */
     template<class Event, class... Args>
     auto
-    send(Args&&... args) -> future_t<void> {
+    send(Args&&... args) -> typename task<void>::future_type {
         return send(io::encoded<Event>(id, std::forward<Args>(args)...));
     }
 
 private:
-    auto send(io::encoder_t::message_type&& message) -> future_t<void>;
+    auto send(io::encoder_t::message_type&& message) -> typename task<void>::future_type;
 };
 
 template<class T, class Session>
@@ -77,7 +77,7 @@ public:
      * \warning this sender will be invalidated after this call.
      */
     template<class Event, class... Args>
-    future_t<sender<typename io::event_traits<Event>::dispatch_type, Session>>
+    typename task<sender<typename io::event_traits<Event>::dispatch_type, Session>>::future_type
     send(Args&&... args) {
         auto future = d->template send<Event>(std::forward<Args>(args)...);
         return future.then(std::bind(&sender::traverse<Event>, std::placeholders::_1, d));
@@ -87,7 +87,7 @@ private:
     template<class Event>
     static
     sender<typename io::event_traits<Event>::dispatch_type, Session>
-    traverse(future_t<void>& f, std::shared_ptr<basic_sender_t<Session>> d) {
+    traverse(typename task<void>::future_type& f, std::shared_ptr<basic_sender_t<Session>> d) {
         f.get();
         return sender<typename io::event_traits<Event>::dispatch_type, Session>(std::move(d));
     }

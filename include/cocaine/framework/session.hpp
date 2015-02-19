@@ -84,10 +84,10 @@ public:
     bool connected() const noexcept;
 
     /// \threadsafe
-    auto connect(const endpoint_type& endpoint) -> future_type<std::error_code>;
+    auto connect(const endpoint_type& endpoint) -> typename task<std::error_code>::future_type;
 
     /// \threadsafe
-    auto connect(const std::vector<endpoint_type>& endpoints) -> future_type<std::error_code>;
+    auto connect(const std::vector<endpoint_type>& endpoints) -> typename task<std::error_code>::future_type;
 
     // TODO: boost::optional<endpoint_type> endpoint() const;
 
@@ -107,12 +107,12 @@ public:
      * transporting.
      */
     template<class Event, class... Args>
-    auto invoke(Args&&... args) -> future_t<basic_invocation_result> {
+    auto invoke(Args&&... args) -> typename task<basic_invocation_result>::future_type {
         const std::uint64_t span(next());
         return invoke(span, io::encoded<Event>(span, std::forward<Args>(args)...));
     }
 
-    auto push(io::encoder_t::message_type&& message) -> future_t<void>;
+    auto push(io::encoder_t::message_type&& message) -> typename task<void>::future_type;
 
     /*!
      * Unsubscribe a span channel.
@@ -121,11 +121,11 @@ public:
 
 private:
     auto next() -> std::uint64_t;
-    auto invoke(std::uint64_t span, io::encoder_t::message_type&& message) -> future_t<basic_invocation_result>;
+    auto invoke(std::uint64_t span, io::encoder_t::message_type&& message) -> typename task<basic_invocation_result>::future_type;
 
     void on_disconnect();
     void on_revoke(std::uint64_t span);
-    void on_connect(const std::error_code& ec, promise_t<std::error_code>& promise, std::unique_ptr<socket_type>& s);
+    void on_connect(const std::error_code& ec, typename task<std::error_code>::promise_type& promise, std::unique_ptr<socket_type>& s);
     void on_read(const std::error_code& ec);
     void on_error(const std::error_code& ec);
 };
@@ -165,13 +165,13 @@ public:
 
     bool connected() const;
 
-    auto connect(const endpoint_type& endpoint) -> future_t<void>;
-    auto connect(const std::vector<endpoint_type>& endpoints) -> future_t<void>;
+    auto connect(const endpoint_type& endpoint) -> typename task<void>::future_type;
+    auto connect(const std::vector<endpoint_type>& endpoints) -> typename task<void>::future_type;
 
     void disconnect();
 
     template<class Event, class... Args>
-    future_type<typename invoke_result<Event>::type>
+    typename task<typename invoke_result<Event>::type>::future_type
     invoke(Args&&... args) {
         return sess->template invoke<Event>(std::forward<Args>(args)...)
             .then(scheduler, std::bind(&session::on_invoke<Event>, std::placeholders::_1));
@@ -181,7 +181,7 @@ private:
     template<class Event>
     static
     typename invoke_result<Event>::type
-    on_invoke(future_type<typename basic_invoke_result<Event>::type>& f) {
+    on_invoke(typename task<typename basic_invoke_result<Event>::type>::future_type& f) {
         typedef typename invoke_result<Event>::sender_type sender_type;
         typedef typename invoke_result<Event>::receiver_type receiver_type;
 

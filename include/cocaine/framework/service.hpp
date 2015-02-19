@@ -24,7 +24,7 @@ struct invocation_result<Event, io::primitive_tag<T>, void> {
     typedef value_type type;
 
     static
-    future_type<value_type>
+    typename task<value_type>::future_type
     apply(channel_type&& channel) {
         auto rx = std::move(std::get<1>(channel));
         return rx.recv();
@@ -39,7 +39,7 @@ struct invocation_result<Event, io::streaming_tag<U>, io::streaming_tag<D>> {
     typedef channel_type type;
 
     static
-    future_type<type>
+    typename task<type>::future_type
     apply(channel_type&& channel) {
         return make_ready_future<type>::value(std::move(channel));
     }
@@ -58,10 +58,10 @@ public:
     auto name() const noexcept -> const std::string&;
     auto version() const noexcept -> uint;
 
-    auto connect() -> future_type<void>;
+    auto connect() -> typename task<void>::future_type;
 
     template<class Event, class... Args>
-    future_type<typename invocation_result<Event>::type>
+    typename task<typename invocation_result<Event>::type>::future_type
     invoke(Args&&... args) {
         namespace ph = std::placeholders;
 
@@ -74,8 +74,8 @@ public:
 private:
     template<class Event, class... Args>
     static
-    future_type<typename session<>::invoke_result<Event>::type>
-    on_connect(future_type<void>& f, std::shared_ptr<session<>> sess, Args&... args) {
+    typename task<typename session<>::invoke_result<Event>::type>::future_type
+    on_connect(typename task<void>::future_type& f, std::shared_ptr<session<>> sess, Args&... args) {
         f.get();
         // Between these calls no one can guarantee, that the connection won't be broken. In this
         // case you will get a system error after either write or read attempt.
@@ -84,8 +84,8 @@ private:
 
     template<class Event>
     static
-    future_type<typename invocation_result<Event>::type>
-    on_invoke(future_type<typename session<>::invoke_result<Event>::type>& f) {
+    typename task<typename invocation_result<Event>::type>::future_type
+    on_invoke(typename task<typename session<>::invoke_result<Event>::type>::future_type& f) {
         return invocation_result<Event>::apply(f.get());
     }
 };

@@ -40,7 +40,7 @@ public:
     void endpoints(std::vector<endpoint_type> endpoints);
 
     // No queue.
-    auto resolve(std::string name) -> future_type<resolver_result_t>;
+    auto resolve(std::string name) -> typename task<resolver_result_t>::future_type;
 };
 
 }

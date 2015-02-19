@@ -41,7 +41,7 @@ public:
     typedef decoder_t::message_type value_type;
 
     std::queue<value_type> queue;
-    std::queue<promise_t<value_type>> pending;
+    std::queue<typename task<value_type>::promise_type> pending;
 
     boost::optional<std::error_code> broken;
 
@@ -73,7 +73,7 @@ public:
         }
     }
 
-    auto get() -> future_t<value_type> {
+    auto get() -> typename task<value_type>::future_type {
         std::lock_guard<std::mutex> lock(mutex);
 
         if (broken) {
@@ -83,18 +83,15 @@ public:
         }
 
         if (queue.empty()) {
-            promise_t<value_type> promise;
+            typename task<value_type>::promise_type promise;
             auto future = promise.get_future();
             pending.push(std::move(promise));
             return future;
-        } else {
-            auto future = make_ready_future<value_type>::value(std::move(queue.front()));
-            queue.pop();
-            return future;
         }
 
-        COCAINE_ASSERT(false);
-        return future_t<value_type>();
+        auto future = make_ready_future<value_type>::value(std::move(queue.front()));
+        queue.pop();
+        return future;
     }
 };
 
@@ -214,7 +211,7 @@ public:
 
     ~basic_receiver_t();
 
-    auto recv() -> future_t<result_type>;
+    auto recv() -> typename task<result_type>::future_type;
 
     void revoke();
 };
@@ -354,7 +351,7 @@ public:
      *
      * \warning this receiver will be invalidated after this call.
      */
-    future_t<typename receiver_traits<T>::result_type>
+    typename task<typename receiver_traits<T>::result_type>::future_type
     recv() {
         return d->recv().then(std::bind(&receiver<T, Session>::convert, std::placeholders::_1, d));
     }
@@ -362,7 +359,7 @@ public:
 private:
     static
     typename receiver_traits<T>::result_type
-    convert(future_t<detail::decoder_t::message_type>& f, std::shared_ptr<basic_receiver_t<Session>> d) {
+    convert(typename task<detail::decoder_t::message_type>::future_type& f, std::shared_ptr<basic_receiver_t<Session>> d) {
         const detail::decoder_t::message_type message = f.get();
         const std::uint64_t id = message.type();
         if (id >= boost::mpl::size<variant_typelist>::value) {

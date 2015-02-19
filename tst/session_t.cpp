@@ -25,9 +25,9 @@ public:
     basic_session_t(scheduler_t&) {}
 
     MOCK_CONST_METHOD0(connected, bool());
-    MOCK_METHOD1(connect, future_t<std::error_code>&(const std::vector<endpoint_type>&));
+    MOCK_METHOD1(connect, typename task<std::error_code>::future_type&(const std::vector<endpoint_type>&));
 
-    future_t<std::error_code>& connect(const endpoint_type& endpoint) {
+    typename task<std::error_code>::future_type& connect(const endpoint_type& endpoint) {
         return connect(std::vector<endpoint_type> {{ endpoint }});
     }
 
@@ -93,7 +93,7 @@ TEST(session, ConnectWhileConnecting) {
     auto d = std::make_shared<mock::basic_session_t>();
     auto s = std::make_shared<session<mock::basic_session_t>>(d);
 
-    promise_t<std::error_code> p1;
+    typename task<std::error_code>::promise_type p1;
     auto f1 = p1.get_future();
     auto f2 = make_ready_future<std::error_code>::value(asio::error::already_started);
 
@@ -116,7 +116,7 @@ TEST(session, ConnectWhileConnectingError) {
     auto d = std::make_shared<mock::basic_session_t>();
     auto s = std::make_shared<session<mock::basic_session_t>>(d);
 
-    promise_t<std::error_code> p1;
+    typename task<std::error_code>::promise_type p1;
     auto f1 = p1.get_future();
     auto f2 = make_ready_future<std::error_code>::value(asio::error::already_started);
 

@@ -56,30 +56,30 @@ public:
     sender& operator=(sender&& other) = default;
 
     template<class... Args>
-    future_t<sender>
+    typename task<sender>::future_type
     write(Args&&... args) {
         auto d = std::move(this->d);
         auto f = d->template send<io::rpc::chunk>(std::forward<Args>(args)...);
-        return f.then([d](future_t<void>& f){
+        return f.then([d](typename task<void>::future_type& f){
             f.get();
             return sender<io::rpc_tag, Session>(d);
         });
     }
 
-    future_t<void>
+    typename task<void>::future_type
     error(int id, std::string reason) {
         auto d = std::move(this->d);
         auto f = d->template send<io::rpc::error>(id, std::move(reason));
-        return f.then([d](future_t<void>& f){
+        return f.then([d](typename task<void>::future_type& f){
             f.get();
         });
     }
 
-    future_t<void>
+    typename task<void>::future_type
     close() {
         auto d = std::move(this->d);
         auto f = d->template send<io::rpc::choke>();
-        return f.then([d](future_t<void>& f){
+        return f.then([d](typename task<void>::future_type& f){
             f.get();
         });
     }
@@ -94,10 +94,10 @@ public:
         d(d)
     {}
 
-    future_t<boost::optional<std::string>>
+    typename task<boost::optional<std::string>>::future_type
     recv() {
         auto d = this->d;
-        return d->recv().then([d](future_t<detail::decoder_t::message_type>& f) -> boost::optional<std::string> {
+        return d->recv().then([d](typename task<detail::decoder_t::message_type>::future_type& f) -> boost::optional<std::string> {
             const auto message = f.get();
             const std::uint64_t id = message.type();
             switch (id) {
@@ -231,8 +231,8 @@ public:
 
     void connect(std::string endpoint, std::string uuid);
 
-    auto push(std::uint64_t span, io::encoder_t::message_type&& message) -> future_t<void>;
-    auto push(io::encoder_t::message_type&& message) -> future_t<void>;
+    auto push(std::uint64_t span, io::encoder_t::message_type&& message) -> typename task<void>::future_type;
+    auto push(io::encoder_t::message_type&& message) -> typename task<void>::future_type;
     void revoke(std::uint64_t span);
 
 private:

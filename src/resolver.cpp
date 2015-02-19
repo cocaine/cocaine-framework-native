@@ -46,7 +46,7 @@ struct completer_t {
     }
 };
 
-auto resolver_t::resolve(std::string name) -> future_type<resolver_result_t> {
+auto resolver_t::resolve(std::string name) -> typename task<resolver_result_t>::future_type {
     CF_CTX("R");
 
     session<> locator(d->scheduler);

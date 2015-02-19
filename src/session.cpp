@@ -16,10 +16,10 @@ using namespace cocaine::framework;
 class basic_session_t::push_t : public std::enable_shared_from_this<push_t> {
     io::encoder_t::message_type message;
     std::shared_ptr<basic_session_t> connection;
-    promise_type<void> promise;
+    typename task<void>::promise_type promise;
 
 public:
-    explicit push_t(io::encoder_t::message_type&& message, std::shared_ptr<basic_session_t> connection, promise_type<void>&& promise) :
+    explicit push_t(io::encoder_t::message_type&& message, std::shared_ptr<basic_session_t> connection, typename task<void>::promise_type&& promise) :
         message(std::move(message)),
         connection(connection),
         promise(std::move(promise))
@@ -62,15 +62,15 @@ bool basic_session_t::connected() const noexcept {
     return state == state_t::connected;
 }
 
-auto basic_session_t::connect(const endpoint_type& endpoint) -> future_type<std::error_code> {
+auto basic_session_t::connect(const endpoint_type& endpoint) -> typename task<std::error_code>::future_type {
     return connect(std::vector<endpoint_type> {{ endpoint }});
 }
 
-auto basic_session_t::connect(const std::vector<endpoint_type>& endpoints) -> future_type<std::error_code> {
+auto basic_session_t::connect(const std::vector<endpoint_type>& endpoints) -> typename task<std::error_code>::future_type {
     CF_CTX("sC");
     CF_DBG(">> connecting ...");
 
-    promise_type<std::error_code> promise;
+    typename task<std::error_code>::promise_type promise;
     auto future = promise.get_future();
 
     std::lock_guard<std::mutex> lock(mutex);
@@ -116,10 +116,10 @@ void basic_session_t::disconnect() {
     scheduler(wrap(std::bind(&basic_session_t::on_disconnect, shared_from_this())));
 }
 
-auto basic_session_t::push(io::encoder_t::message_type&& message) -> future_type<void> {
+auto basic_session_t::push(io::encoder_t::message_type&& message) -> typename task<void>::future_type {
     CF_DBG(">> writing message ...");
 
-    promise_type<void> promise;
+    typename task<void>::promise_type promise;
     auto future = promise.get_future();
 
     scheduler(wrap(std::bind(&push_t::operator(),
@@ -138,7 +138,7 @@ auto basic_session_t::next() -> std::uint64_t {
 }
 
 auto
-basic_session_t::invoke(std::uint64_t span, io::encoder_t::message_type&& message) -> future_t<basic_session_t::basic_invocation_result> {
+basic_session_t::invoke(std::uint64_t span, io::encoder_t::message_type&& message) -> typename task<basic_session_t::basic_invocation_result>::future_type {
     CF_CTX("sI");
     CF_DBG("invoking span %llu event ...", span);
 
@@ -149,7 +149,7 @@ basic_session_t::invoke(std::uint64_t span, io::encoder_t::message_type&& messag
     // TODO: Do not insert mute channels.
     channels->insert(std::make_pair(span, state));
     auto f1 = push(std::move(message));
-    auto f2 = f1.then(wrap([tx, rx](future_t<void>& f){ // TODO: Executor!
+    auto f2 = f1.then(wrap([tx, rx](typename task<void>::future_type& f){ // TODO: Executor!
         f.get();
         return std::make_tuple(tx, rx);
     }));
@@ -169,7 +169,7 @@ void basic_session_t::on_revoke(std::uint64_t span) {
     channels->erase(span);
 }
 
-void basic_session_t::on_connect(const std::error_code& ec, promise_t<std::error_code>& promise, std::unique_ptr<socket_type>& s) {
+void basic_session_t::on_connect(const std::error_code& ec, typename task<std::error_code>::promise_type& promise, std::unique_ptr<socket_type>& s) {
     CF_DBG("<< connect: %s", CF_EC(ec));
 
     COCAINE_ASSERT(state_t::connecting == state);
@@ -233,14 +233,14 @@ class session<BasicSession>::impl : public std::enable_shared_from_this<session<
 public:
     scheduler_t& scheduler;
     synchronized<std::vector<endpoint_type>> endpoints;
-    std::vector<std::shared_ptr<promise_t<void>>> queue;
+    std::vector<std::shared_ptr<typename task<void>::promise_type>> queue;
 
     impl(scheduler_t& scheduler) :
         scheduler(scheduler)
     {}
 
     /// \warning call only from event loop thread, otherwise the behavior is undefined.
-    void on_connect(future_type<std::error_code>& f, std::shared_ptr<promise_type<void>> promise) {
+    void on_connect(typename task<std::error_code>::future_type& f, std::shared_ptr<typename task<void>::promise_type> promise) {
         const auto ec = f.get();
 
         CF_DBG("<< connect: %s", CF_EC(ec));
@@ -289,19 +289,19 @@ bool session<BasicSession>::connected() const {
 }
 
 template<class BasicSession>
-auto session<BasicSession>::connect(const session::endpoint_type& endpoint) -> future_t<void> {
+auto session<BasicSession>::connect(const session::endpoint_type& endpoint) -> typename task<void>::future_type {
     return connect(std::vector<endpoint_type> {{ endpoint }});
 }
 
 template<class BasicSession>
-auto session<BasicSession>::connect(const std::vector<session::endpoint_type>& endpoints) -> future_t<void> {
+auto session<BasicSession>::connect(const std::vector<session::endpoint_type>& endpoints) -> typename task<void>::future_type {
     if (endpoints == *d->endpoints.synchronize()) {
         return make_ready_future<void>::error(
             std::runtime_error("already in progress with different endpoint set")
         );
     }
 
-    auto promise = std::make_shared<promise_t<void>>();
+    auto promise = std::make_shared<typename task<void>::promise_type>();
     auto future = promise->get_future();
 
     sess->connect(endpoints).then(d->scheduler, wrap(std::bind(&impl::on_connect, d, ph::_1, promise)));
