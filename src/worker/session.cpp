@@ -207,7 +207,9 @@ void worker_session_t::process() {
         auto rx = std::make_shared<basic_receiver_t<worker_session_t>>(id, shared_from_this(), ss);
 
         channels->insert(std::make_pair(id, ss));
-        executor([handler, tx, rx](){ (*handler)(tx, rx); });
+        executor([handler, tx, rx](){
+            (*handler)(tx, rx);
+        });
         break;
     }
     case (io::event_traits<io::rpc::chunk>::id): {

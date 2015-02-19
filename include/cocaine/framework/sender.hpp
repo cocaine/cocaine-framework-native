@@ -11,8 +11,6 @@ namespace cocaine {
 
 namespace framework {
 
-class basic_session_t;
-
 template<class Session>
 class basic_sender_t {
     typedef Session session_type;

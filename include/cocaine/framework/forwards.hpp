@@ -17,6 +17,8 @@ struct event_loop_t;
 
 class scheduler_t;
 
+class basic_session_t;
+
 } // namespace framework
 
 } // namespace cocaine

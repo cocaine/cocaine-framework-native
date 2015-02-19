@@ -20,62 +20,11 @@
 #include "cocaine/framework/session.hpp"
 #include "cocaine/framework/detail/loop.hpp"
 #include "cocaine/framework/worker/options.hpp"
+#include "cocaine/framework/worker/sender.hpp"
 
 namespace cocaine {
 
 namespace framework {
-
-template<class Session>
-class sender<io::rpc_tag, Session> {
-    std::shared_ptr<basic_sender_t<Session>> d;
-
-public:
-    sender(std::shared_ptr<basic_sender_t<Session>> d) :
-        d(d)
-    {}
-
-    ~sender() {
-        // Close this stream if it wasn't explicitly closed.
-        if (d) {
-            close();
-        }
-    }
-
-    sender(const sender& other) = delete;
-    sender(sender&& other) = default;
-
-    sender& operator=(const sender& other) = delete;
-    sender& operator=(sender&& other) = default;
-
-    template<class... Args>
-    typename task<sender>::future_type
-    write(Args&&... args) {
-        auto d = std::move(this->d);
-        auto f = d->template send<io::rpc::chunk>(std::forward<Args>(args)...);
-        return f.then([d](typename task<void>::future_type& f){
-            f.get();
-            return sender<io::rpc_tag, Session>(d);
-        });
-    }
-
-    typename task<void>::future_type
-    error(int id, std::string reason) {
-        auto d = std::move(this->d);
-        auto f = d->template send<io::rpc::error>(id, std::move(reason));
-        return f.then([d](typename task<void>::future_type& f){
-            f.get();
-        });
-    }
-
-    typename task<void>::future_type
-    close() {
-        auto d = std::move(this->d);
-        auto f = d->template send<io::rpc::choke>();
-        return f.then([d](typename task<void>::future_type& f){
-            f.get();
-        });
-    }
-};
 
 template<class Session>
 class receiver<io::rpc_tag, Session> {
