@@ -43,20 +43,20 @@ on_close(typename task<void>::future_type& f) {
 auto sender_type::write(std::string message) -> typename task<sender>::future_type {
     auto session = std::move(this->session);
 
-    return session->template send<io::rpc::chunk>(std::move(message))
+    return session->send<io::rpc::chunk>(std::move(message))
         .then(std::bind(&on_write, ph::_1, session));
 }
 
 auto sender_type::error(int id, std::string reason) -> typename task<void>::future_type {
     auto session = std::move(this->session);
 
-    return session->template send<io::rpc::error>(id, std::move(reason))
+    return session->send<io::rpc::error>(id, std::move(reason))
         .then(std::bind(&on_error, ph::_1));
 }
 
 auto sender_type::close() -> typename task<void>::future_type {
     auto session = std::move(this->session);
 
-    return session->template send<io::rpc::choke>()
+    return session->send<io::rpc::choke>()
         .then(std::bind(&on_close, ph::_1));
 }
