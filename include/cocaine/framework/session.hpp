@@ -142,15 +142,22 @@ public:
 
     template<class Event>
     struct invoke_result {
-        typedef std::tuple<
-            sender  <typename io::event_traits<Event>::dispatch_type, basic_session_t>,
-            receiver<typename io::event_traits<Event>::upstream_type, basic_session_t>
-        > type;
+        typedef sender  <typename io::event_traits<Event>::dispatch_type, basic_session_t> sender_type;
+        typedef receiver<typename io::event_traits<Event>::upstream_type, basic_session_t> receiver_type;
+        typedef std::tuple<sender_type, receiver_type> type;
     };
 
 private:
+    template<class Event>
+    struct basic_invoke_result {
+        typedef std::shared_ptr<basic_sender_t  <basic_session_t>> sender_type;
+        typedef std::shared_ptr<basic_receiver_t<basic_session_t>> receiver_type;
+        typedef std::tuple<sender_type, receiver_type> type;
+    };
+
     class impl;
     std::shared_ptr<impl> d;
+    scheduler_t& scheduler;
     std::shared_ptr<basic_session_type> sess;
 
 public:
@@ -167,22 +174,22 @@ public:
     template<class Event, class... Args>
     future_type<typename invoke_result<Event>::type>
     invoke(Args&&... args) {
-        typedef future_t<
-            std::tuple<
-                std::shared_ptr<basic_sender_t<basic_session_t>>,
-                std::shared_ptr<basic_receiver_t<basic_session_t>>
-            >
-        > f_type;
-        return sess->template invoke<Event>(std::forward<Args>(args)...).then([](f_type& f){
-            auto ch = f.get();
-            auto tx = std::get<0>(ch);
-            auto rx = std::get<1>(ch);
-            typedef sender<typename io::event_traits<Event>::dispatch_type, basic_session_t> sender_type;
-            typedef receiver<typename io::event_traits<Event>::upstream_type, basic_session_t> receiver_type;
-            sender_type ttx(tx);
-            receiver_type rrx(rx);
-            return std::make_tuple(std::move(ttx), std::move(rrx));
-        });
+        return sess->template invoke<Event>(std::forward<Args>(args)...)
+            .then(scheduler, std::bind(&session::on_invoke<Event>, std::placeholders::_1));
+    }
+
+private:
+    template<class Event>
+    static
+    typename invoke_result<Event>::type
+    on_invoke(future_type<typename basic_invoke_result<Event>::type>& f) {
+        typedef typename invoke_result<Event>::sender_type sender_type;
+        typedef typename invoke_result<Event>::receiver_type receiver_type;
+
+        auto channel = f.get();
+        sender_type tx(std::get<0>(channel));
+        receiver_type rx(std::get<1>(channel));
+        return std::make_tuple(std::move(tx), std::move(rx));
     }
 };
 

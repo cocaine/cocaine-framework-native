@@ -274,6 +274,7 @@ public:
 template<class BasicSession>
 session<BasicSession>::session(scheduler_t& scheduler) :
     d(new impl(scheduler)),
+    scheduler(scheduler),
     sess(std::make_shared<basic_session_type>(scheduler))
 {}
 
