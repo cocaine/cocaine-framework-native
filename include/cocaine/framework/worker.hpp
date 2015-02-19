@@ -207,8 +207,9 @@ public:
     typedef std::function<void(sender_type, receiver_type)> handler_type;
 
 private:
-    detail::loop_t& loop;
     dispatch_t& dispatch;
+    scheduler_t& scheduler;
+    executor_t executor;
 
     detail::decoder_t::message_type message;
     std::unique_ptr<channel_type> channel;
@@ -219,7 +220,7 @@ private:
     asio::deadline_timer disown_timer;
 
 public:
-    worker_session_t(detail::loop_t& loop, dispatch_t& dispatch);
+    worker_session_t(dispatch_t& dispatch, scheduler_t& scheduler, executor_t executor);
 
     void connect(std::string endpoint, std::string uuid);
 
@@ -248,20 +249,21 @@ private:
 };
 
 class worker_t {
-public:
-    detail::loop_t loop;
+    class impl;
+    std::unique_ptr<impl> d;
 
-    options_t options;
     dispatch_t dispatch;
-    std::shared_ptr<worker_session_t> session;
 
 public:
     worker_t(options_t options);
+    ~worker_t();
 
     template<class F>
     void on(std::string event, F handler) {
         dispatch.on(event, std::move(handler));
     }
+
+    auto options() const -> const options_t&;
 
     int run();
 };

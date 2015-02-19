@@ -2,6 +2,10 @@
 
 #include <cocaine/traits/enum.hpp>
 
+#include "cocaine/framework/scheduler.hpp"
+
+#include "cocaine/framework/detail/loop.hpp"
+
 namespace ph = std::placeholders;
 
 using namespace cocaine::framework;
@@ -47,16 +51,17 @@ private:
     }
 };
 
-worker_session_t::worker_session_t(detail::loop_t& loop, dispatch_t& dispatch) :
-    loop(loop),
+worker_session_t::worker_session_t(dispatch_t& dispatch, scheduler_t& scheduler, executor_t executor) :
     dispatch(dispatch),
+    scheduler(scheduler),
+    executor(std::move(executor)),
     message(boost::none),
-    heartbeat_timer(loop),
-    disown_timer(loop)
+    heartbeat_timer(scheduler.loop().loop),
+    disown_timer(scheduler.loop().loop)
 {}
 
 void worker_session_t::connect(std::string endpoint, std::string uuid) {
-    std::unique_ptr<protocol_type::socket> socket(new protocol_type::socket(loop));
+    std::unique_ptr<protocol_type::socket> socket(new protocol_type::socket(scheduler.loop().loop));
     socket->connect(protocol_type::endpoint(endpoint));
 
     channel.reset(new channel_type(std::move(socket)));
@@ -78,7 +83,9 @@ void worker_session_t::terminate(io::rpc::terminate::code code, std::string reas
     CF_DBG("<- Terminate [%d, %s]", code, reason.c_str());
 
     push(io::encoded<io::rpc::terminate>(1, code, std::move(reason)));
-    loop.stop();
+
+    // TODO: Stop the event loop after terminate message written or terminate.
+    scheduler.loop().loop.stop();
 }
 
 void worker_session_t::inhale() {
@@ -137,7 +144,7 @@ auto worker_session_t::push(io::encoder_t::message_type&& message) -> typename t
     typename task<void>::promise_type promise;
     auto future = promise.get_future();
 
-    loop.post(std::bind(&push_t<worker_session_t>::operator(),
+    scheduler(std::bind(&push_t<worker_session_t>::operator(),
                         std::make_shared<push_t<worker_session_t>>(std::move(message), shared_from_this(), std::move(promise))));
     return future;
 }
@@ -200,7 +207,7 @@ void worker_session_t::process() {
         auto rx = std::make_shared<basic_receiver_t<worker_session_t>>(id, shared_from_this(), ss);
 
         channels->insert(std::make_pair(id, ss));
-        dispatch.post([handler, tx, rx](){ (*handler)(tx, rx); });
+        executor([handler, tx, rx](){ (*handler)(tx, rx); });
         break;
     }
     case (io::event_traits<io::rpc::chunk>::id): {
@@ -249,3 +256,9 @@ void worker_session_t::on_heartbeat() {
 
     inhale();
 }
+
+#include "../sender.cpp"
+#include "../receiver.cpp"
+
+template class cocaine::framework::basic_sender_t<worker_session_t>;
+template class cocaine::framework::basic_receiver_t<worker_session_t>;

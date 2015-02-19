@@ -10,14 +10,40 @@
 #include <cocaine/detail/service/node/messages.hpp>
 
 #include "cocaine/framework/forwards.hpp"
+#include "cocaine/framework/scheduler.hpp"
+
+#include "cocaine/framework/detail/loop.hpp"
+#include "cocaine/framework/detail/worker/executor.hpp"
 
 namespace ph = std::placeholders;
 
 using namespace cocaine;
 using namespace cocaine::framework;
 
+class worker_t::impl {
+public:
+    /// Control event loop.
+    detail::loop_t io;
+    event_loop_t loop;
+    scheduler_t scheduler;
+
+    options_t options;
+
+    /// Userland executor.
+    detail::worker::executor_t executor;
+
+    std::shared_ptr<worker_session_t> session;
+
+    impl(options_t options) :
+        loop(io),
+        scheduler(loop),
+        options(std::move(options)),
+        executor()
+    {}
+};
+
 worker_t::worker_t(options_t options) :
-    options(std::move(options))
+    d(new impl(std::move(options)))
 {
     // TODO: Set default locator endpoint.
     // service_manager_t::endpoint_t locator_endpoint("127.0.0.1", 10053);
@@ -29,20 +55,21 @@ worker_t::worker_t(options_t options) :
     ::sigprocmask(SIG_BLOCK, &sigset, nullptr);
 }
 
+worker_t::~worker_t() {}
+
+auto worker_t::options() const -> const options_t& {
+    return d->options;
+}
+
 int worker_t::run() {
-    session.reset(new worker_session_t(loop, dispatch));
-    session->connect(options.endpoint, options.uuid);
+    auto executor = std::bind(&detail::worker::executor_t::operator(), std::ref(d->executor), ph::_1);
+    d->session.reset(new worker_session_t(dispatch, d->scheduler, executor));
+    d->session->connect(d->options.endpoint, d->options.uuid);
 
     // The main thread is guaranteed to work only with cocaine socket and timers.
     // TODO: It may be a good idea to catch some typed exceptions, like disown_error etc and map
     //       it into an error code.
-    loop.run();
+    d->loop.loop.run();
 
     return 0;
 }
-
-#include "sender.cpp"
-#include "receiver.cpp"
-
-template class cocaine::framework::basic_sender_t<worker_session_t>;
-template class cocaine::framework::basic_receiver_t<worker_session_t>;
