@@ -29,8 +29,6 @@ enum level_t {
 typedef blackhole::verbose_logger_t<level_t> logger_type;
 typedef blackhole::wrapper_t<logger_type> wrapper_type;
 
-logger_type create();
-
 logger_type& logger();
 
 std::string merge_context(std::string context);

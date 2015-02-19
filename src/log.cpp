@@ -34,7 +34,7 @@ map_severity(blackhole::aux::attachable_ostringstream& stream, const level_t& le
     }
 }
 
-blackhole::verbose_logger_t<level_t> create() {
+static blackhole::verbose_logger_t<level_t> create() {
     blackhole::verbose_logger_t<level_t> logger(level_t::debug);
     auto formatter = blackhole::aux::util::make_unique<
         blackhole::formatter::string_t

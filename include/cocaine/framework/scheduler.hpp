@@ -13,13 +13,13 @@ struct context_holder {
     struct impl;
     std::unique_ptr<impl> d;
 
-    context_holder(boost::optional<std::string>);
+    context_holder(std::string);
     ~context_holder();
 };
 
 #ifdef CF_USE_INTERNAL_LOGGING
 
-boost::optional<std::string> current_context();
+std::string current_context();
 
 template<typename F>
 class callable {
@@ -27,7 +27,7 @@ public:
     typedef F function_type;
 
 private:
-    boost::optional<std::string> context;
+    std::string context;
     function_type fn;
 
 public:
@@ -47,11 +47,14 @@ template<typename F>
 callable<F> wrap(F&& f) {
     return callable<F>(std::forward<F>(f));
 }
+
 #else
+
 template<typename F>
 F wrap(F&& f) {
     return std::forward<F>(f);
 }
+
 #endif
 
 class scheduler_t {

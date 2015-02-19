@@ -12,6 +12,8 @@ void scheduler_t::operator()(closure_type fn) {
     ev.loop.post(std::move(fn));
 }
 
+#ifdef CF_USE_INTERNAL_LOGGING
+
 namespace {
 
 bool match_context(const blackhole::attribute::pair_t& pair) {
@@ -20,17 +22,21 @@ bool match_context(const blackhole::attribute::pair_t& pair) {
 
 } // namespace
 
+#endif
+
 namespace cocaine {
 
 namespace framework {
 
-boost::optional<std::string> current_context() {
+#ifdef CF_USE_INTERNAL_LOGGING
+
+std::string current_context() {
     blackhole::scoped_attributes_t scoped(detail::logger(), blackhole::attribute::set_t());
     const auto& attributes = scoped.attributes();
     auto it = std::find_if(attributes.begin(), attributes.end(), &match_context);
 
     if (it == attributes.end()) {
-        return boost::none;
+        return "";
     }
 
     return boost::get<std::string>(it->second.value);
@@ -48,7 +54,15 @@ struct context_holder::impl {
     }
 };
 
-context_holder::context_holder(boost::optional<std::string> context) : d(new impl(context.get_value_or(""))) {}
+#else
+
+struct context_holder::impl {
+    impl(std::string) {}
+};
+
+#endif
+
+context_holder::context_holder(std::string context) : d(new impl(context)) {}
 
 context_holder::~context_holder() {}
 
