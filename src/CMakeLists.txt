@@ -7,7 +7,9 @@ FIND_PACKAGE(Boost 1.40 REQUIRED COMPONENTS system thread program_options)
 
 SET(PROJECT cocaine-framework-cpp)
 
-SET(COCAINE_FRAMEWORK_INCLUDES_DIR ${CMAKE_SOURCE_DIR}/include/cocaine/framework)
+SET(COCAINE_FRAMEWORK_INCLUDES_DIR
+    ${CMAKE_SOURCE_DIR}/include/cocaine/framework
+    ${CMAKE_SOURCE_DIR}/src)
 
 SET(SOURCES
     # connection ## Currently disabled

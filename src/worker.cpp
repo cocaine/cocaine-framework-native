@@ -40,3 +40,9 @@ int worker_t::run() {
 
     return 0;
 }
+
+#include "sender.cpp"
+#include "receiver.cpp"
+
+template class cocaine::framework::basic_sender_t<worker_session_t>;
+template class cocaine::framework::basic_receiver_t<worker_session_t>;

@@ -29,6 +29,3 @@ void basic_receiver_t<Session>::revoke() {
 }
 
 template class cocaine::framework::basic_receiver_t<basic_session_t>;
-
-#include "cocaine/framework/worker.hpp"
-template class cocaine::framework::basic_receiver_t<worker_session_t>;

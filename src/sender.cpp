@@ -18,6 +18,3 @@ basic_sender_t<Session>::send(io::encoder_t::message_type&& message) {
 }
 
 template class cocaine::framework::basic_sender_t<basic_session_t>;
-
-#include "cocaine/framework/worker.hpp"
-template class cocaine::framework::basic_sender_t<worker_session_t>;
