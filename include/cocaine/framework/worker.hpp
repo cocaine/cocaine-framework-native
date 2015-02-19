@@ -18,6 +18,7 @@
 #include "cocaine/framework/sender.hpp"
 #include "cocaine/framework/receiver.hpp"
 #include "cocaine/framework/session.hpp"
+#include "cocaine/framework/detail/loop.hpp"
 
 namespace cocaine {
 
@@ -138,8 +139,8 @@ public:
     typedef std::function<void(sender_type, receiver_type)> handler_type;
 
 private:
-    loop_t loop;
-    boost::optional<loop_t::work> work;
+    detail::loop_t loop;
+    boost::optional<detail::loop_t::work> work;
     boost::thread_group pool;
 
     std::unordered_map<std::string, handler_type> handlers;
@@ -189,7 +190,7 @@ private:
     void start(unsigned int threads) {
         for (unsigned int i = 0; i < threads; ++i) {
             pool.create_thread(
-                std::bind(static_cast<std::size_t(loop_t::*)()>(&loop_t::run), std::ref(loop))
+                std::bind(static_cast<std::size_t(detail::loop_t::*)()>(&detail::loop_t::run), std::ref(loop))
             );
         }
     }
@@ -214,7 +215,7 @@ public:
     typedef std::function<void(sender_type, receiver_type)> handler_type;
 
 private:
-    loop_t& loop;
+    detail::loop_t& loop;
     dispatch_t& dispatch;
 
     detail::decoder_t::message_type message;
@@ -226,7 +227,7 @@ private:
     asio::deadline_timer disown_timer;
 
 public:
-    worker_session_t(loop_t& loop, dispatch_t& dispatch);
+    worker_session_t(detail::loop_t& loop, dispatch_t& dispatch);
 
     void connect(std::string endpoint, std::string uuid);
 
@@ -256,7 +257,7 @@ private:
 
 class worker_t {
 public:
-    loop_t loop;
+    detail::loop_t loop;
 
     options_t options;
     dispatch_t dispatch;

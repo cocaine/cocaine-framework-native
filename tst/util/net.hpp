@@ -7,7 +7,7 @@
 
 #include <asio/ip/tcp.hpp>
 
-#include <cocaine/framework/forwards.hpp>
+#include <cocaine/framework/detail/forwards.hpp>
 
 /// Alias for asyncronous i/o implementation namespace (either boost::asio or pure asio).
 namespace testing {
@@ -22,15 +22,15 @@ static const std::uint64_t TIMEOUT = 1000;
 std::uint16_t port();
 
 class server_t {
-    fw::loop_t loop;
-    std::unique_ptr<fw::loop_t::work> work;
+    fw::detail::loop_t loop;
+    std::unique_ptr<fw::detail::loop_t::work> work;
     boost::thread thread;
 
 public:
     std::vector<std::shared_ptr<asio::ip::tcp::socket>> sockets;
 
-    server_t(std::uint16_t port, std::function<void(asio::ip::tcp::acceptor&, fw::loop_t&)> fn) :
-        work(new fw::loop_t::work(loop))
+    server_t(std::uint16_t port, std::function<void(asio::ip::tcp::acceptor&, fw::detail::loop_t&)> fn) :
+        work(new fw::detail::loop_t::work(loop))
     {
         boost::barrier barrier(2);
         thread = std::move(boost::thread([this, port, fn, &barrier]{
@@ -59,14 +59,14 @@ public:
 };
 
 class client_t {
-    fw::loop_t io;
-    std::unique_ptr<fw::loop_t::work> work;
+    fw::detail::loop_t io;
+    std::unique_ptr<fw::detail::loop_t::work> work;
     boost::thread thread;
 
 public:
     client_t() :
-        work(new fw::loop_t::work(io)),
-        thread(std::bind(static_cast<std::size_t(fw::loop_t::*)()>(&fw::loop_t::run), std::ref(io)))
+        work(new fw::detail::loop_t::work(io)),
+        thread(std::bind(static_cast<std::size_t(fw::detail::loop_t::*)()>(&fw::detail::loop_t::run), std::ref(io)))
     {}
 
     ~client_t() {
@@ -74,7 +74,7 @@ public:
         thread.join();
     }
 
-    fw::loop_t& loop() {
+    fw::detail::loop_t& loop() {
         return io;
     }
 };

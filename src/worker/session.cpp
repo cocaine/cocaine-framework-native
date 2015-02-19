@@ -47,7 +47,7 @@ private:
     }
 };
 
-worker_session_t::worker_session_t(loop_t& loop, dispatch_t& dispatch) :
+worker_session_t::worker_session_t(detail::loop_t& loop, dispatch_t& dispatch) :
     loop(loop),
     dispatch(dispatch),
     message(boost::none),
