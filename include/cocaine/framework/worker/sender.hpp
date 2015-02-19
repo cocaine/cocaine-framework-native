@@ -4,7 +4,7 @@
 #include <string>
 
 #include <cocaine/forwards.hpp>
-// WTF? Detail???
+// TODO: WTF? Detail???
 #include <cocaine/detail/service/node/messages.hpp>
 
 #include "cocaine/framework/forwards.hpp"
@@ -13,8 +13,6 @@
 namespace cocaine {
 
 namespace framework {
-
-class worker_session_t;
 
 template<>
 class sender<io::rpc_tag, worker_session_t> {

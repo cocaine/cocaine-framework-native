@@ -27,6 +27,7 @@ SET(SOURCES
     worker.cpp
     worker/options
     worker/sender
+    worker/receiver
     worker/session
 
     util/future/error

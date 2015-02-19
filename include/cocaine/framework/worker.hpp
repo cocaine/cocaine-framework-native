@@ -12,55 +12,14 @@
 #include <cocaine/locked_ptr.hpp>
 
 #include "cocaine/framework/receiver.hpp"
-#include "cocaine/framework/session.hpp"
+#include "cocaine/framework/session.hpp" // TODO: Need?
 #include "cocaine/framework/worker/options.hpp"
 #include "cocaine/framework/worker/sender.hpp"
+#include "cocaine/framework/worker/receiver.hpp"
 
 namespace cocaine {
 
 namespace framework {
-
-template<class Session>
-class receiver<io::rpc_tag, Session> {
-    std::shared_ptr<basic_receiver_t<Session>> d;
-
-public:
-    receiver(std::shared_ptr<basic_receiver_t<Session>> d) :
-        d(d)
-    {}
-
-    typename task<boost::optional<std::string>>::future_type
-    recv() {
-        auto d = this->d;
-        return d->recv().then([d](typename task<detail::decoder_t::message_type>::future_type& f) -> boost::optional<std::string> {
-            const auto message = f.get();
-            const std::uint64_t id = message.type();
-            switch (id) {
-            case io::event_traits<io::rpc::chunk>::id: {
-                std::string chunk;
-                io::type_traits<
-                    typename io::event_traits<io::rpc::chunk>::argument_type
-                >::unpack(message.args(), chunk);
-                return chunk;
-            }
-            case io::event_traits<io::rpc::error>::id: {
-                int id;
-                std::string reason;
-                io::type_traits<
-                    typename io::event_traits<io::rpc::error>::argument_type
-                >::unpack(message.args(), id, reason);
-                throw std::runtime_error(reason);
-            }
-            case io::event_traits<io::rpc::choke>::id:
-                return boost::none;
-            default:
-                COCAINE_ASSERT(false);
-            }
-
-            return boost::none;
-        });
-    }
-};
 
 class worker_t;
 class worker_session_t;

@@ -17,7 +17,14 @@ struct event_loop_t;
 
 class scheduler_t;
 
+template<class Session>
+class basic_receiver_t;
+
+template<class T, class Session>
+class receiver;
+
 class basic_session_t;
+class worker_session_t;
 
 } // namespace framework
 

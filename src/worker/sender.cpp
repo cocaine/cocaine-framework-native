@@ -10,7 +10,7 @@ typedef basic_sender_t<session_type> basic_session_type;
 typedef sender<io::rpc_tag, session_type> sender_type;
 
 sender_type::sender(std::shared_ptr<basic_session_type> session) :
-    session(session)
+    session(std::move(session))
 {}
 
 sender_type::~sender() {
