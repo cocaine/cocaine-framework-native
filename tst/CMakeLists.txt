@@ -37,9 +37,9 @@ SET(PROJECT cocaine-framework-cpp-tests)
 SET(SOURCES
     util/net
 
-#    connection ## Disable for now.
-#    session
-#    session_t
+    # connection ## Disable for now.
+    # session
+    # session_t
     service
     func/real/connector
     func/real/service

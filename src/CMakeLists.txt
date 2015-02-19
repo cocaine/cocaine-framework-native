@@ -12,7 +12,7 @@ SET(PROJECT cocaine-framework-cpp)
 SET(COCAINE_FRAMEWORK_INCLUDES_DIR ${CMAKE_SOURCE_DIR}/include/cocaine/framework)
 
 SET(SOURCES
-#    connection ## Currently disable
+    # connection ## Currently disabled
     net
     decoder
     error
