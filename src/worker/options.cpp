@@ -1,4 +1,4 @@
-#include "cocaine/framework/worker.hpp"
+#include "cocaine/framework/worker/options.hpp"
 
 #include <boost/program_options.hpp>
 

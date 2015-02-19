@@ -19,19 +19,11 @@
 #include "cocaine/framework/receiver.hpp"
 #include "cocaine/framework/session.hpp"
 #include "cocaine/framework/detail/loop.hpp"
+#include "cocaine/framework/worker/options.hpp"
 
 namespace cocaine {
 
 namespace framework {
-
-struct options_t {
-    std::string name;
-    std::string uuid;
-    std::string endpoint;
-    std::string locator;
-
-    options_t(int argc, char** argv);
-};
 
 template<class Session>
 class sender<io::rpc_tag, Session> {
