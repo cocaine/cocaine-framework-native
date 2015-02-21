@@ -45,8 +45,8 @@ private:
 
     typedef std::function<void(std::error_code)> callback_type;
 
-    enum class state_t {
-        disconnected,
+    enum class state_t : std::uint8_t {
+        disconnected = 0,
         connecting,
         connected
     };
@@ -56,7 +56,7 @@ private:
     std::unique_ptr<channel_type> channel;
 
     mutable std::mutex mutex;
-    std::atomic<state_t> state;
+    std::atomic<std::uint8_t> state;
 
     std::atomic<std::uint64_t> counter;
 

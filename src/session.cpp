@@ -49,7 +49,7 @@ private:
 
 basic_session_t::basic_session_t(scheduler_t& scheduler) noexcept :
     scheduler(scheduler),
-    state(state_t::disconnected),
+    state(0),
     counter(1),
     message(boost::none)
 {}
@@ -59,7 +59,7 @@ basic_session_t::~basic_session_t() {
 }
 
 bool basic_session_t::connected() const noexcept {
-    return state == state_t::connected;
+    return state == static_cast<std::uint8_t>(state_t::connected);
 }
 
 auto basic_session_t::connect(const endpoint_type& endpoint) -> typename task<std::error_code>::future_type {
@@ -74,13 +74,13 @@ auto basic_session_t::connect(const std::vector<endpoint_type>& endpoints) -> ty
     auto future = promise.get_future();
 
     std::lock_guard<std::mutex> lock(mutex);
-    switch (state.load()) {
+    switch (static_cast<state_t>(state.load())) {
     case state_t::disconnected: {
         std::unique_ptr<socket_type> socket(new socket_type(scheduler.loop().loop));
 
         // The code above can throw std::bad_alloc, so here it is the right place to change
         // current object's state.
-        state = state_t::connecting;
+        state = static_cast<std::uint8_t>(state_t::connecting);
 
         auto converted = util::endpoints_cast<asio::ip::tcp::endpoint>(endpoints);
         socket_type* socket_ = socket.get();
@@ -172,17 +172,17 @@ void basic_session_t::on_revoke(std::uint64_t span) {
 void basic_session_t::on_connect(const std::error_code& ec, typename task<std::error_code>::promise_type& promise, std::unique_ptr<socket_type>& s) {
     CF_DBG("<< connect: %s", CF_EC(ec));
 
-    COCAINE_ASSERT(state_t::connecting == state);
+    COCAINE_ASSERT(static_cast<std::uint8_t>(state_t::connecting) == state);
 
     if (ec) {
         channel.reset();
-        state = state_t::disconnected;
+        state = static_cast<std::uint8_t>(state_t::disconnected);
     } else {
         CF_DBG(">> listening for read events ...");
 
         channel.reset(new channel_type(std::move(s)));
         channel->reader->read(message, wrap(std::bind(&basic_session_t::on_read, shared_from_this(), ph::_1)));
-        state = state_t::connected;
+        state = static_cast<std::uint8_t>(state_t::connected);
     }
 
     promise.set_value(ec);
@@ -219,7 +219,7 @@ void basic_session_t::on_read(const std::error_code& ec) {
 void basic_session_t::on_error(const std::error_code& ec) {
     COCAINE_ASSERT(ec);
 
-    state = state_t::disconnected;
+    state = static_cast<std::uint8_t>(state_t::disconnected);
 
     auto channels = this->channels.synchronize();
     for (auto channel : *channels) {
