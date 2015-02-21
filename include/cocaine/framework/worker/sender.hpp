@@ -23,10 +23,10 @@ public:
     ~sender();
 
     sender(const sender& other) = delete;
-    sender(sender&& other) = default;
+    sender(sender&&) = default;
 
     sender& operator=(const sender& other) = delete;
-    sender& operator=(sender&& other) = default;
+    sender& operator=(sender&&) = default;
 
     auto write(std::string message) -> typename task<sender>::future_type;
     auto error(int id, std::string reason) -> typename task<void>::future_type;

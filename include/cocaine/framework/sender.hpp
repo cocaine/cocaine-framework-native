@@ -64,10 +64,10 @@ public:
      * object's state and returns the new sender instead.
      */
     sender(const sender& other) = delete;
-    sender(sender&& other) = default;
+    sender(sender&&) = default;
 
     sender& operator=(const sender& other) = delete;
-    sender& operator=(sender&& other) = default;
+    sender& operator=(sender&&) = default;
 
     /*!
      * Encode arguments to the internal protocol message and push it into the session attached.

@@ -339,11 +339,11 @@ public:
     {}
 
     // Intentionally deleted.
-    receiver(const receiver& other) = default;
-    receiver(receiver&& other) = default;
+    receiver(const receiver&) = default;
+    receiver(receiver&&) = default;
 
-    receiver& operator=(const receiver& other) = default;
-    receiver& operator=(receiver&& other) = default;
+    receiver& operator=(const receiver&) = default;
+    receiver& operator=(receiver&&) = default;
 
     /*!
      * \note does auto revoke when reached a leaf.
