@@ -89,3 +89,13 @@ TEST(basic_service_t, EchoMT) {
         }
     }
 }
+
+#include <cocaine/framework/manager.hpp>
+
+TEST(service, Storage) {
+    service_manager_t manager;
+    auto storage = manager.create<cocaine::io::storage_tag>("storage");
+    auto result = storage->invoke<cocaine::io::storage::read>(std::string("collection"), std::string("key")).get();
+
+    EXPECT_EQ("le value", result);
+}

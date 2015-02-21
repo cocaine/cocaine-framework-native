@@ -90,6 +90,14 @@ private:
     }
 };
 
+template<class T>
+class service : public basic_service_t {
+public:
+    service(std::string name, scheduler_t& scheduler) :
+        basic_service_t(std::move(name), io::protocol<T>::version::value, scheduler)
+    {}
+};
+
 } // namespace framework
 
 } // namespace cocaine

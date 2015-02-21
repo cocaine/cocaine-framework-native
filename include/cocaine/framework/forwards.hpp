@@ -25,6 +25,11 @@ class receiver;
 
 class basic_session_t;
 
+template<class T>
+class service;
+
+class service_manager_t;
+
 /// Worker side.
 class worker_session_t;
 class worker_t;
