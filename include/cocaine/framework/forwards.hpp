@@ -8,7 +8,9 @@ namespace framework {
 
 template<typename T>
 struct task {
-    typedef future <T> future_type;
+    typedef future<T> future_type;
+    typedef typename std::add_lvalue_reference<future<T>>::type future_move_type;
+
     typedef promise<T> promise_type;
 };
 
