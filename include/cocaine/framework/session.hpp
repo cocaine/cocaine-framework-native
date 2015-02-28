@@ -167,7 +167,7 @@ private:
     std::shared_ptr<basic_session_type> sess;
 
 public:
-    session(scheduler_t& scheduler);
+    explicit session(scheduler_t& scheduler);
     ~session();
 
     bool connected() const;
