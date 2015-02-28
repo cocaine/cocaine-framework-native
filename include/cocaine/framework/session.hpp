@@ -77,7 +77,9 @@ public:
     ~basic_session_t();
 
     /*!
-     * \note the class does passive connection monitoring, e.g. it won't be immediately notified
+     * Checks whether the session is in connected state.
+     *
+     * \note the session does passive connection monitoring, e.g. it won't be immediately notified
      * if the real connection has been lost, but after the next send/recv attempt.
      */
     bool connected() const noexcept;
