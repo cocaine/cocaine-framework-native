@@ -43,8 +43,6 @@ public:
 private:
     typedef detail::channel<protocol_type, io::encoder_t, detail::decoder_t> channel_type;
 
-    typedef std::function<void(std::error_code)> callback_type;
-
     enum class state_t : std::uint8_t {
         disconnected = 0,
         connecting,
