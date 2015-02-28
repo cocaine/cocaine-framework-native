@@ -111,10 +111,16 @@ public:
         return invoke(span, io::encoded<Event>(span, std::forward<Args>(args)...));
     }
 
+    /// Sends an event and creates another channel.
+    // TODO: auto invoke(io::encoder_t::message_type&& message) -> typename task<std::uint64_t>::future_type;
+
+    /// Sends an event without creating channel.
     auto push(io::encoder_t::message_type&& message) -> typename task<void>::future_type;
 
     /*!
-     * Unsubscribe a span channel.
+     * Unsubscribes a channel with the given span.
+     *
+     * \todo return operation result (revoked/notfound).
      */
     void revoke(std::uint64_t span);
 
