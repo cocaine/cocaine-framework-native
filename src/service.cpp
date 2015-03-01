@@ -1,6 +1,8 @@
+#include "cocaine/framework/detail/basic_session.hpp"
 #include "cocaine/framework/service.hpp"
 
 #include "cocaine/framework/resolver.hpp"
+
 
 using namespace cocaine::framework;
 

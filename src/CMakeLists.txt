@@ -12,6 +12,7 @@ SET(COCAINE_FRAMEWORK_INCLUDES_DIR
     ${CMAKE_SOURCE_DIR}/src)
 
 SET(SOURCES
+    basic_session
     net
     decoder
     error

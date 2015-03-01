@@ -3,6 +3,8 @@
 #include "cocaine/framework/sender.hpp"
 #include "cocaine/framework/session.hpp"
 
+#include "cocaine/framework/detail/basic_session.hpp"
+
 using namespace cocaine::framework;
 
 template<class Session>
@@ -16,5 +18,3 @@ typename task<void>::future_type
 basic_sender_t<Session>::send(io::encoder_t::message_type&& message) {
     return session->push(std::move(message));
 }
-
-template class cocaine::framework::basic_sender_t<basic_session_t>;

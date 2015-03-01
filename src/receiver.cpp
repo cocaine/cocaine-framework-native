@@ -2,6 +2,8 @@
 
 #include "cocaine/framework/session.hpp"
 
+#include "cocaine/framework/detail/basic_session.hpp"
+
 using namespace cocaine::framework;
 
 template<class Session>

@@ -8,9 +8,10 @@
 
 #include "cocaine/framework/detail/log.hpp"
 #include "cocaine/framework/scheduler.hpp"
+#include "cocaine/framework/session.hpp"
 #include "cocaine/framework/util/net.hpp"
 
-#include "cocaine/framework/session.hpp"
+#include "cocaine/framework/detail/basic_session.hpp"
 
 using namespace cocaine::framework;
 
