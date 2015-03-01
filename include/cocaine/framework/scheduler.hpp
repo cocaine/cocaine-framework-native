@@ -66,7 +66,7 @@ private:
 
 public:
     /*!
-     * \note must be created inside service manager or worker.
+     * \note must be created inside a service manager or a worker.
      */
     explicit scheduler_t(event_loop_t& loop) :
         ev(loop)
