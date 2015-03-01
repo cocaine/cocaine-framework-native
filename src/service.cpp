@@ -66,3 +66,7 @@ auto basic_service_t::connect() -> typename task<void>::future_type {
         return make_ready_future<void>::error(err);
     }
 }
+
+auto basic_service_t::endpoint() const -> boost::optional<session_t::endpoint_type> {
+    return session->endpoint();
+}

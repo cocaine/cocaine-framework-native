@@ -60,6 +60,8 @@ public:
 
     auto connect() -> typename task<void>::future_type;
 
+    auto endpoint() const -> boost::optional<session_t::endpoint_type>;
+
     template<class Event, class... Args>
     typename task<typename invocation_result<Event>::type>::future_type
     invoke(Args&&... args) {
