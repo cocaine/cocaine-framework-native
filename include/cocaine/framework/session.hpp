@@ -4,9 +4,6 @@
 
 #include <boost/asio/ip/tcp.hpp>
 
-#include <cocaine/common.hpp>
-#include <cocaine/rpc/asio/channel.hpp>
-
 #include "cocaine/framework/config.hpp"
 #include "cocaine/framework/forwards.hpp"
 #include "cocaine/framework/receiver.hpp"
