@@ -8,8 +8,6 @@ namespace cocaine {
 
 namespace framework {
 
-class scheduler_t;
-
 struct resolver_result_t {
     typedef boost::asio::ip::tcp::endpoint endpoint_type;
 
