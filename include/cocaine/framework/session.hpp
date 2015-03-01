@@ -51,7 +51,7 @@ public:
     auto connect(const endpoint_type& endpoint) -> typename task<void>::future_type;
     auto connect(const std::vector<endpoint_type>& endpoints) -> typename task<void>::future_type;
 
-    void disconnect();
+    auto endpoint() const -> boost::optional<endpoint_type>;
 
     template<class Event, class... Args>
     typename task<typename invoke_result<Event>::type>::future_type

@@ -98,8 +98,8 @@ auto session<BasicSession>::connect(const std::vector<session::endpoint_type>& e
 }
 
 template<class BasicSession>
-void session<BasicSession>::disconnect() {
-    d->sess->disconnect();
+auto session<BasicSession>::endpoint() const -> boost::optional<endpoint_type> {
+    return d->sess->endpoint();
 }
 
 template<class BasicSession>
