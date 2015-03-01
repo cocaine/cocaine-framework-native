@@ -186,14 +186,8 @@ private:
     template<class Event>
     static
     typename invoke_result<Event>::type
-    on_invoke(typename task<typename basic_session_type::invoke_result>::future_move_type f) {
-        typedef typename invoke_result<Event>::sender_type sender_type;
-        typedef typename invoke_result<Event>::receiver_type receiver_type;
-
-        auto channel = f.get();
-        sender_type tx(std::get<0>(channel));
-        receiver_type rx(std::get<1>(channel));
-        return std::make_tuple(std::move(tx), std::move(rx));
+    on_invoke(typename task<typename basic_session_type::invoke_result>::future_move_type future) {
+        return typename invoke_result<Event>::type(future.get());
     }
 };
 
