@@ -19,7 +19,7 @@ namespace framework {
 /*!
  * RAII class that manages with connection queue and returns a typed sender/receiver.
  */
-template<class BasicSession = basic_session_t>
+template<class BasicSession>
 class session {
 public:
     typedef BasicSession basic_session_type;
@@ -73,6 +73,8 @@ private:
         return typename invoke_result<Event>::type(future.get());
     }
 };
+
+typedef session<basic_session_t> session_t;
 
 } // namespace framework
 

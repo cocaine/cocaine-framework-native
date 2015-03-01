@@ -24,7 +24,7 @@ public:
 
 basic_service_t::basic_service_t(std::string name, uint version, scheduler_t& scheduler) :
     d(new impl(std::move(name), version, scheduler)),
-    sess(std::make_shared<session<>>(scheduler)),
+    session(std::make_shared<session_t>(scheduler)),
     scheduler(scheduler)
 {}
 
@@ -47,7 +47,7 @@ auto basic_service_t::connect() -> typename task<void>::future_type {
 
     // Internally the session manages with connection state itself. On any network error it
     // should drop its internal state and return false.
-    if (sess->connected()) {
+    if (session->connected()) {
         CF_DBG("already connected");
         return make_ready_future<void>::value();
     }
@@ -58,7 +58,7 @@ auto basic_service_t::connect() -> typename task<void>::future_type {
             return make_ready_future<void>::error(std::runtime_error("version mismatch"));
         }
 
-        sess->connect(info.endpoints).get();
+        session->connect(info.endpoints).get();
         CF_DBG("connected");
         return make_ready_future<void>::value();
     } catch (const std::runtime_error& err) {

@@ -31,11 +31,12 @@ namespace cocaine {
         template<class T, class Session>
         class receiver;
 
-        /// \internal
         class basic_session_t;
 
         template<class BasicSession>
         class session;
+
+        typedef session<basic_session_t> session_t;
 
         class basic_service_t;
 
@@ -45,10 +46,8 @@ namespace cocaine {
         class service_manager_t;
 
         /// Worker side.
-
-        /// \internal
         class worker_session_t;
-
+        class options_t;
         class dispatch_t;
         class worker_t;
     } // namespace framework

@@ -42,7 +42,7 @@ struct completer_t {
 auto resolver_t::resolve(std::string name) -> typename task<resolver_result_t>::future_type {
     CF_CTX("R");
 
-    session<> locator(scheduler_);
+    session_t locator(scheduler_);
     try {
         locator.connect(endpoints_).get();
     } catch (const std::exception &err) {

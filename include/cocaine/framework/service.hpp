@@ -48,7 +48,7 @@ struct invocation_result<Event, io::streaming_tag<U>, io::streaming_tag<D>> {
 class basic_service_t {
     class impl;
     std::unique_ptr<impl> d;
-    std::shared_ptr<session<>> sess;
+    std::shared_ptr<session_t> session;
     scheduler_t& scheduler;
 
 public:
@@ -67,26 +67,26 @@ public:
 
         context_holder holder("`" + name() + "|SI");
         return connect()
-            .then(scheduler, wrap(std::bind(&basic_service_t::on_connect<Event, Args...>, ph::_1, sess, std::forward<Args>(args)...)))
+            .then(scheduler, wrap(std::bind(&basic_service_t::on_connect<Event, Args...>, ph::_1, session, std::forward<Args>(args)...)))
             .then(scheduler, wrap(std::bind(&basic_service_t::on_invoke<Event>, ph::_1)));
     }
 
 private:
     template<class Event, class... Args>
     static
-    typename task<typename session<>::invoke_result<Event>::type>::future_type
-    on_connect(typename task<void>::future_type& f, std::shared_ptr<session<>> sess, Args&... args) {
+    typename task<typename session_t::invoke_result<Event>::type>::future_type
+    on_connect(typename task<void>::future_type& f, std::shared_ptr<session_t> session, Args&... args) {
         f.get();
         // Between these calls no one can guarantee, that the connection won't be broken. In this
         // case you will get a system error after either write or read attempt.
-        return sess->invoke<Event>(std::forward<Args>(args)...);
+        return session->invoke<Event>(std::forward<Args>(args)...);
     }
 
     template<class Event>
     static
     typename task<typename invocation_result<Event>::type>::future_type
-    on_invoke(typename task<typename session<>::invoke_result<Event>::type>::future_type& f) {
-        return invocation_result<Event>::apply(f.get());
+    on_invoke(typename task<typename session_t::invoke_result<Event>::type>::future_move_type future) {
+        return invocation_result<Event>::apply(future.get());
     }
 };
 
