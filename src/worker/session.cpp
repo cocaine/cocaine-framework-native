@@ -1,4 +1,4 @@
-#include "cocaine/framework/worker.hpp"
+#include "cocaine/framework/detail/worker/session.hpp"
 
 #include <cocaine/traits/enum.hpp>
 

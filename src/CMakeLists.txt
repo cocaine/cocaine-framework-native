@@ -25,6 +25,7 @@ SET(SOURCES
     service
     receiver
     worker.cpp
+    worker/dispatch
     worker/options
     worker/sender
     worker/receiver

@@ -12,11 +12,13 @@
 
 #include "cocaine/framework/detail/loop.hpp"
 #include "cocaine/framework/detail/worker/executor.hpp"
+#include "cocaine/framework/detail/worker/session.hpp"
 
 namespace ph = std::placeholders;
 
 using namespace cocaine;
 using namespace cocaine::framework;
+using namespace cocaine::framework::detail;
 
 class worker_t::impl {
 public:
