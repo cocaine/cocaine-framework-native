@@ -115,6 +115,11 @@ auto basic_session_t::connect(const std::vector<endpoint_type>& endpoints) -> ty
     return future;
 }
 
+auto basic_session_t::endpoint() const -> boost::optional<endpoint_type> {
+    // TODO: Implement me.
+    return boost::none;
+}
+
 void basic_session_t::disconnect() {
     CF_DBG(">> disconnecting ...");
     scheduler(wrap(std::bind(&basic_session_t::on_disconnect, shared_from_this())));

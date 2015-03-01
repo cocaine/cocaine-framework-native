@@ -57,6 +57,7 @@ private:
     synchronized<std::unordered_map<std::uint64_t, std::shared_ptr<detail::shared_state_t>>> channels;
 
     class push_t;
+
 public:
     typedef std::tuple<
         std::shared_ptr<basic_sender_t<basic_session_t>>,
@@ -85,8 +86,13 @@ public:
     /// \threadsafe
     auto connect(const std::vector<endpoint_type>& endpoints) -> typename task<std::error_code>::future_type;
 
-    // TODO: Obtain an endpoint if is in connected state.
-    // auto endpoint() const -> boost::optional<endpoint_type>;
+    /*!
+     * Returns the endpoint of the connected peer if the session is in connected state; otherwise
+     * returns none.
+     *
+     * \threadsafe
+     */
+     auto endpoint() const -> boost::optional<endpoint_type>;
 
     /*!
      * Emits a disconnection request to the current session.
