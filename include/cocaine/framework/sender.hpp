@@ -77,16 +77,17 @@ public:
     template<class Event, class... Args>
     typename task<sender<typename io::event_traits<Event>::dispatch_type, Session>>::future_type
     send(Args&&... args) {
+        auto d = std::move(this->d);
         auto future = d->template send<Event>(std::forward<Args>(args)...);
-        return future.then(std::bind(&sender::traverse<Event>, std::placeholders::_1, d));
+        return future.then(std::bind(&sender::traverse<Event>, std::placeholders::_1, std::move(d)));
     }
 
 private:
     template<class Event>
     static
     sender<typename io::event_traits<Event>::dispatch_type, Session>
-    traverse(typename task<void>::future_type& f, std::shared_ptr<basic_sender_t<Session>> d) {
-        f.get();
+    traverse(typename task<void>::future_type& future, std::shared_ptr<basic_sender_t<Session>> d) {
+        future.get();
         return sender<typename io::event_traits<Event>::dispatch_type, Session>(std::move(d));
     }
 };
