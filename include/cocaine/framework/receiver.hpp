@@ -1,8 +1,8 @@
 #pragma once
 
+#include <functional>
 #include <string>
 #include <system_error>
-#include <functional>
 #include <queue>
 
 #include <boost/mpl/at.hpp>
@@ -29,9 +29,6 @@
 namespace cocaine {
 
 namespace framework {
-
-// Forwards.
-class basic_session_t;
 
 namespace detail {
 
@@ -198,7 +195,6 @@ class basic_session_t;
 
 template<class Session>
 class basic_receiver_t {
-//    friend class Session;
     typedef detail::decoder_t::message_type result_type;
 
     std::uint64_t id;
