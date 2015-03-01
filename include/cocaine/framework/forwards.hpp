@@ -49,9 +49,6 @@ namespace cocaine {
         /// \internal
         class worker_session_t;
 
-        namespace worker {
-        }
-
         class dispatch_t;
         class worker_t;
     } // namespace framework

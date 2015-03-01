@@ -57,6 +57,10 @@ worker_t::worker_t(options_t options) :
 
 worker_t::~worker_t() {}
 
+void worker_t::on(std::string event, handler_type handler) {
+    dispatch.on(event, std::move(handler));
+}
+
 auto worker_t::options() const -> const options_t& {
     return d->options;
 }
