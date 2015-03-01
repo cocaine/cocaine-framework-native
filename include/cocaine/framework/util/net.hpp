@@ -1,6 +1,7 @@
 #pragma once
 
 #include <asio/ip/tcp.hpp>
+
 #include <boost/asio/ip/tcp.hpp>
 
 namespace cocaine {
@@ -25,8 +26,8 @@ std::vector<To> endpoints_cast(const std::vector<From>& from) {
     return result;
 }
 
-}
+} // namespace util
 
-}
+} // namespace framework
 
-}
+} // namespace cocaine
