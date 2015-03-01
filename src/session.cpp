@@ -232,11 +232,13 @@ template<class BasicSession>
 class session<BasicSession>::impl : public std::enable_shared_from_this<session<BasicSession>::impl> {
 public:
     scheduler_t& scheduler;
+    std::shared_ptr<basic_session_type> sess;
     synchronized<std::vector<endpoint_type>> endpoints;
     std::vector<std::shared_ptr<typename task<void>::promise_type>> queue;
 
-    impl(scheduler_t& scheduler) :
-        scheduler(scheduler)
+    explicit impl(scheduler_t& scheduler) :
+        scheduler(scheduler),
+        sess(std::make_shared<basic_session_type>(scheduler))
     {}
 
     /// \warning call only from event loop thread, otherwise the behavior is undefined.
@@ -274,18 +276,17 @@ public:
 template<class BasicSession>
 session<BasicSession>::session(scheduler_t& scheduler) :
     d(new impl(scheduler)),
-    scheduler(scheduler),
-    sess(std::make_shared<basic_session_type>(scheduler))
+    scheduler(scheduler)
 {}
 
 template<class BasicSession>
 session<BasicSession>::~session() {
-    sess->disconnect();
+    d->sess->disconnect();
 }
 
 template<class BasicSession>
 bool session<BasicSession>::connected() const {
-    return sess->connected();
+    return d->sess->connected();
 }
 
 template<class BasicSession>
@@ -304,14 +305,24 @@ auto session<BasicSession>::connect(const std::vector<session::endpoint_type>& e
     auto promise = std::make_shared<typename task<void>::promise_type>();
     auto future = promise->get_future();
 
-    sess->connect(endpoints).then(d->scheduler, wrap(std::bind(&impl::on_connect, d, ph::_1, promise)));
+    d->sess->connect(endpoints).then(d->scheduler, wrap(std::bind(&impl::on_connect, d, ph::_1, promise)));
 
     return future;
 }
 
 template<class BasicSession>
 void session<BasicSession>::disconnect() {
-    sess->disconnect();
+    d->sess->disconnect();
+}
+
+template<class BasicSession>
+auto session<BasicSession>::next() -> std::uint64_t {
+    return d->sess->next();
+}
+
+template<class BasicSession>
+auto session<BasicSession>::invoke(std::uint64_t span, io::encoder_t::message_type&& message) -> typename task<typename basic_session_type::invoke_result>::future_type {
+    return d->sess->invoke(span, std::move(message));
 }
 
 namespace cocaine {

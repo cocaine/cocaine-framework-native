@@ -158,7 +158,6 @@ private:
     class impl;
     std::shared_ptr<impl> d;
     scheduler_t& scheduler;
-    std::shared_ptr<basic_session_type> sess;
 
 public:
     explicit session(scheduler_t& scheduler);
@@ -174,12 +173,16 @@ public:
     template<class Event, class... Args>
     typename task<typename invoke_result<Event>::type>::future_type
     invoke(Args&&... args) {
-        const std::uint64_t span(sess->next());
-        return sess->invoke(span, io::encoded<Event>(span, std::forward<Args>(args)...))
+        const std::uint64_t span(next());
+        return invoke(span, io::encoded<Event>(span, std::forward<Args>(args)...))
             .then(scheduler, std::bind(&session::on_invoke<Event>, std::placeholders::_1));
     }
 
 private:
+    auto next() -> std::uint64_t;
+
+    auto invoke(std::uint64_t span, io::encoder_t::message_type&& message) -> typename task<typename basic_session_type::invoke_result>::future_type;
+
     template<class Event>
     static
     typename invoke_result<Event>::type
