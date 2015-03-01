@@ -28,6 +28,7 @@ public:
     scheduler_t scheduler;
 
     options_t options;
+    dispatch_type dispatch;
 
     /// Userland executor.
     detail::worker::executor_t executor;
@@ -58,7 +59,7 @@ worker_t::worker_t(options_t options) :
 worker_t::~worker_t() {}
 
 void worker_t::on(std::string event, handler_type handler) {
-    dispatch.on(event, std::move(handler));
+    d->dispatch.on(event, std::move(handler));
 }
 
 auto worker_t::options() const -> const options_t& {
@@ -67,7 +68,7 @@ auto worker_t::options() const -> const options_t& {
 
 int worker_t::run() {
     auto executor = std::bind(&detail::worker::executor_t::operator(), std::ref(d->executor), ph::_1);
-    d->session.reset(new worker_session_t(dispatch, d->scheduler, executor));
+    d->session.reset(new worker_session_t(d->dispatch, d->scheduler, executor));
     d->session->connect(d->options.endpoint, d->options.uuid);
 
     // The main thread is guaranteed to work only with cocaine socket and timers.

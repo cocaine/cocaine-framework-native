@@ -12,10 +12,10 @@ namespace cocaine {
 
 namespace framework {
 
-template<class F>
+template<class Dispatch, class F>
 struct transform_traits {
     static
-    dispatch_t::handler_type
+    typename Dispatch::handler_type
     apply(F handler) {
         return handler;
     }
@@ -33,8 +33,6 @@ private:
     class impl;
     std::unique_ptr<impl> d;
 
-    dispatch_type dispatch;
-
 public:
     explicit worker_t(options_t options);
 
@@ -42,7 +40,7 @@ public:
 
     template<class F>
     void on(std::string event, F handler) {
-        handler_type mapped = transform_traits<F>::apply(std::move(handler));
+        handler_type mapped = transform_traits<dispatch_type, F>::apply(std::move(handler));
         on(event, std::move(mapped));
     }
 
