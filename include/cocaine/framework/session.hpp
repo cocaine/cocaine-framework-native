@@ -91,10 +91,11 @@ public:
     /// \threadsafe
     auto connect(const std::vector<endpoint_type>& endpoints) -> typename task<std::error_code>::future_type;
 
-    // TODO: boost::optional<endpoint_type> endpoint() const;
+    // TODO: Obtain an endpoint if is in connected state.
+    // auto endpoint() const -> boost::optional<endpoint_type>;
 
     /*!
-     * \brief Emits a disconnection request to the current session.
+     * Emits a disconnection request to the current session.
      *
      * All pending requests should result in operation aborted error.
      */
