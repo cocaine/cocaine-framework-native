@@ -25,12 +25,13 @@ namespace framework {
  * Thus no one can guarantee that all asynchronous operations are completed before the connection
  * instance be destroyed.
  *
+ * \internal
  * \threadsafe
  */
-// TODO: Thing, that sends/receives messages & thing, that manages with channel map.
 class basic_session_t : public std::enable_shared_from_this<basic_session_t> {
     typedef asio::ip::tcp protocol_type;
     typedef protocol_type::socket socket_type;
+
 public:
     typedef boost::asio::ip::tcp::endpoint endpoint_type;
 

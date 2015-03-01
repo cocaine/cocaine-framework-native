@@ -150,7 +150,6 @@ basic_session_t::invoke(std::uint64_t span, io::encoder_t::message_type&& messag
     auto state = std::make_shared<detail::shared_state_t>();
     auto rx = std::make_shared<basic_receiver_t<basic_session_t>>(span, shared_from_this(), state);
 
-    // TODO: Do not insert mute channels.
     channels->insert(std::make_pair(span, state));
     auto f1 = push(std::move(message));
     auto f2 = f1.then(wrap([tx, rx](typename task<void>::future_type& f){ // TODO: Executor!
@@ -171,6 +170,8 @@ void basic_session_t::on_revoke(std::uint64_t span) {
     CF_DBG("<< revoke span %llu channel", CF_US(span));
 
     channels->erase(span);
+    // TODO: If channels.empty() { channel->reader->cancel(); state = idle } ? Start listening again
+    // on any invoke event.
 }
 
 void basic_session_t::on_connect(const std::error_code& ec, typename task<std::error_code>::promise_type& promise, std::unique_ptr<socket_type>& s) {
