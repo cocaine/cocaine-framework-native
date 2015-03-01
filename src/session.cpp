@@ -116,6 +116,10 @@ void basic_session_t::disconnect() {
     scheduler(wrap(std::bind(&basic_session_t::on_disconnect, shared_from_this())));
 }
 
+auto basic_session_t::next() -> std::uint64_t {
+    return counter++;
+}
+
 auto basic_session_t::push(io::encoder_t::message_type&& message) -> typename task<void>::future_type {
     CF_DBG(">> writing message ...");
 
@@ -131,10 +135,6 @@ void basic_session_t::revoke(std::uint64_t span) {
     CF_DBG(">> revoking span %llu channel", CF_US(span));
 
     scheduler(wrap(std::bind(&basic_session_t::on_revoke, shared_from_this(), span)));
-}
-
-auto basic_session_t::next() -> std::uint64_t {
-    return counter++;
 }
 
 auto

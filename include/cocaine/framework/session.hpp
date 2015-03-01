@@ -100,6 +100,13 @@ public:
     void disconnect();
 
     /*!
+     * Obtain the next channel id number, that is guaranteed to be unique for further invocation.
+     */
+    auto next() -> std::uint64_t;
+
+    /*!
+     * Sends an invocation event and creates a new channel accociated with it.
+     *
      * \note if the future returned throws an exception that means that the data will never be
      * received, but if it doesn't - the data is not guaranteed to be received. It is possible for
      * the other end of connection to hang up immediately after the future returns ok.
@@ -107,16 +114,11 @@ public:
      * If you send a **mute** event, there is no way to obtain guarantees of successful message
      * transporting.
      */
-    template<class Event, class... Args>
-    auto invoke(Args&&... args) -> typename task<basic_invocation_result>::future_type {
-        const std::uint64_t span(next());
-        return invoke(span, io::encoded<Event>(span, std::forward<Args>(args)...));
-    }
+    auto invoke(std::uint64_t span, io::encoder_t::message_type&& message) -> typename task<basic_invocation_result>::future_type;
 
-    /// Sends an event and creates another channel.
-    // TODO: auto invoke(io::encoder_t::message_type&& message) -> typename task<std::uint64_t>::future_type;
-
-    /// Sends an event without creating channel.
+    /*!
+     * Sends an event without creating a new channel.
+     */
     auto push(io::encoder_t::message_type&& message) -> typename task<void>::future_type;
 
     /*!
@@ -127,9 +129,6 @@ public:
     void revoke(std::uint64_t span);
 
 private:
-    auto next() -> std::uint64_t;
-    auto invoke(std::uint64_t span, io::encoder_t::message_type&& message) -> typename task<basic_invocation_result>::future_type;
-
     void on_disconnect();
     void on_revoke(std::uint64_t span);
     void on_connect(const std::error_code& ec, typename task<std::error_code>::promise_type& promise, std::unique_ptr<socket_type>& s);
@@ -180,7 +179,8 @@ public:
     template<class Event, class... Args>
     typename task<typename invoke_result<Event>::type>::future_type
     invoke(Args&&... args) {
-        return sess->template invoke<Event>(std::forward<Args>(args)...)
+        const std::uint64_t span(sess->next());
+        return sess->invoke(span, io::encoded<Event>(span, std::forward<Args>(args)...))
             .then(scheduler, std::bind(&session::on_invoke<Event>, std::placeholders::_1));
     }
 
