@@ -163,7 +163,7 @@ void worker_session_t::on_read(const std::error_code& ec) {
     channel->reader->read(message, std::bind(&worker_session_t::on_read, this, ph::_1));
 }
 
-void worker_session_t::on_error(const std::error_code& ec) {
+void worker_session_t::on_error(const std::error_code&) {
     // TODO: Stop the worker on any network error.
 }
 
