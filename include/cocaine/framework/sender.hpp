@@ -24,13 +24,13 @@ public:
     /*!
      * Pack given args in the message and push it through session pointer.
      *
+     * \throw a context-specific exception if the sender is unable to properly pack the arguments
+     * given.
+     *
      * \return a future, which will be set when the message is completely sent or any network error
      * occured.
-     *
-     * This future can throw:
-     *  - \sa encoder_error if the sender is unable to properly pack given arguments.
-     *  - \sa network_error if the sender is in invalid state, for example after any network error.
-     *
+     * This future can throw std::system_error if the sender is in invalid state, for example after
+     * any network error.
      * Setting an error in the receiver doesn't work, because there can be mute events, which
      * doesn't respond ever.
      */
