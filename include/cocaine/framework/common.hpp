@@ -22,14 +22,13 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 #ifndef COCAINE_FRAMEWORK_COMMON_HPP
 #define COCAINE_FRAMEWORK_COMMON_HPP
 
-#include <assert.h>
+#include <cassert>
 #include <exception>
 #include <stdexcept>
 #include <utility>
 
-#include <cocaine/platform.hpp>
-#include <cocaine/traits.hpp>
 #include <cocaine/common.hpp>
+#include <cocaine/traits.hpp>
 
 #if defined(__clang__) || defined(HAVE_GCC46)
     #include <atomic>

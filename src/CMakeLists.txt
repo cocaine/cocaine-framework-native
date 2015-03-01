@@ -12,7 +12,6 @@ SET(COCAINE_FRAMEWORK_INCLUDES_DIR
     ${CMAKE_SOURCE_DIR}/src)
 
 SET(SOURCES
-    # connection ## Currently disabled
     net
     decoder
     error
