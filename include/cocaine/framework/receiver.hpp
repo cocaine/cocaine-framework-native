@@ -342,13 +342,16 @@ public:
     receiver& operator=(receiver&&) = default;
 
     /*!
-     * \note does auto revoke when reached a leaf.
+     * Returns a future, which contains either the next protocol message or the exception.
      *
-     * \warning this receiver will be invalidated after this call.
+     * \note this method automatically revokes the channel when reached a leaf in the dispatch graph.
+     *
+     * \warning this receiver may be invalidated after this call.
      */
     typename task<typename receiver_traits<T>::result_type>::future_type
     recv() {
-        return d->recv().then(std::bind(&receiver<T, Session>::convert, std::placeholders::_1, d));
+        return d->recv()
+            .then(std::bind(&receiver<T, Session>::convert, std::placeholders::_1, d));
     }
 
 private:
@@ -358,7 +361,7 @@ private:
         const detail::decoder_t::message_type message = f.get();
         const std::uint64_t id = message.type();
 
-        // Ancient boost::mpl versions return sized integer instead of unsized one.
+        // Some ancient boost::mpl versions return sized integer instead of unsized one.
         if (id >= static_cast<size_t>(boost::mpl::size<variant_typelist>::value)) {
             // TODO: What to do? Notify the user, I think.
             CF_DBG("dropping a %llu type message", CF_US(id));
