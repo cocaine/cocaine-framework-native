@@ -1,4 +1,4 @@
-#include "cocaine/framework/resolver.hpp"
+#include "cocaine/framework/detail/resolver.hpp"
 
 #include <cocaine/idl/locator.hpp>
 #include <cocaine/traits/graph.hpp>
@@ -13,20 +13,12 @@
 
 #include "cocaine/framework/detail/basic_session.hpp"
 
-using namespace cocaine::framework;
-
-class resolver_t::impl {
-public:
-    scheduler_t& scheduler;
-    std::vector<resolver_t::endpoint_type> endpoints;
-
-    impl(scheduler_t& scheduler) : scheduler(scheduler) {}
-};
+using namespace cocaine::framework::detail;
 
 resolver_t::resolver_t(scheduler_t& scheduler) :
-    d(new impl(scheduler))
+    scheduler_(scheduler)
 {
-    d->endpoints.emplace_back(boost::asio::ip::tcp::v6(), 10053);
+    endpoints_.emplace_back(boost::asio::ip::tcp::v6(), 10053);
 }
 
 resolver_t::~resolver_t() {}
@@ -50,9 +42,9 @@ struct completer_t {
 auto resolver_t::resolve(std::string name) -> typename task<resolver_result_t>::future_type {
     CF_CTX("R");
 
-    session<> locator(d->scheduler);
+    session<> locator(scheduler_);
     try {
-        locator.connect(d->endpoints).get();
+        locator.connect(endpoints_).get();
     } catch (const std::exception &err) {
         CF_DBG("connecting - error: %s", err.what());
         return make_ready_future<resolver_result_t>::error(err);
@@ -65,7 +57,9 @@ auto resolver_t::resolve(std::string name) -> typename task<resolver_result_t>::
         auto result = rx.recv().get();
         CF_DBG("resolving - done");
 
-        resolver_result_t res = { util::endpoints_cast<boost::asio::ip::tcp::endpoint>(std::get<0>(result)), std::get<1>(result) };
+        resolver_result_t res = {
+            util::endpoints_cast<boost::asio::ip::tcp::endpoint>(std::get<0>(result)), std::get<1>(result)
+        };
         return make_ready_future<resolver_result_t>::value(res);
     } catch (const std::exception &err) {
         CF_DBG("resolving - error: %s", err.what());

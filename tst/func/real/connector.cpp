@@ -3,11 +3,11 @@
 #include <gtest/gtest.h>
 
 #include <cocaine/framework/forwards.hpp>
-#include <cocaine/framework/detail/log.hpp>
-#include <cocaine/framework/resolver.hpp>
-
 #include <cocaine/framework/scheduler.hpp>
+
+#include <cocaine/framework/detail/log.hpp>
 #include <cocaine/framework/detail/loop.hpp>
+#include <cocaine/framework/detail/resolver.hpp>
 
 #include "../../util/net.hpp"
 
@@ -15,6 +15,7 @@ using namespace testing;
 using namespace testing::util;
 
 using namespace cocaine::framework;
+using namespace cocaine::framework::detail;
 
 TEST(Resolver, Resolve) {
     client_t client;

@@ -8,23 +8,23 @@ namespace cocaine {
 
 namespace framework {
 
-struct resolver_result_t {
-    typedef boost::asio::ip::tcp::endpoint endpoint_type;
-
-    std::vector<endpoint_type> endpoints;
-    unsigned int version;
-};
+namespace detail {
 
 /*!
  * \reentrant
  */
 class resolver_t {
 public:
-    typedef resolver_result_t::endpoint_type endpoint_type;
+    typedef boost::asio::ip::tcp::endpoint endpoint_type;
+
+    struct resolver_result_t {
+        std::vector<endpoint_type> endpoints;
+        unsigned int version;
+    };
 
 private:
-    class impl;
-    std::unique_ptr<impl> d;
+    scheduler_t& scheduler_;
+    std::vector<endpoint_type> endpoints_;
 
 public:
     /*!
@@ -41,6 +41,8 @@ public:
     auto resolve(std::string name) -> typename task<resolver_result_t>::future_type;
 };
 
-}
+} // namespace detail
 
-}
+} // namespace framework
+
+} // namespace cocaine

@@ -1,10 +1,10 @@
 #include "cocaine/framework/detail/basic_session.hpp"
 #include "cocaine/framework/service.hpp"
 
-#include "cocaine/framework/resolver.hpp"
-
+#include "cocaine/framework/detail/resolver.hpp"
 
 using namespace cocaine::framework;
+using namespace cocaine::framework::detail;
 
 class basic_service_t::impl {
 public:
