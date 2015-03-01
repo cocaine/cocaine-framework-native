@@ -47,7 +47,8 @@ namespace cocaine {
 
         /// Worker side.
         class worker_session_t;
-        class options_t;
+
+        struct options_t;
         class dispatch_t;
         class worker_t;
     } // namespace framework
