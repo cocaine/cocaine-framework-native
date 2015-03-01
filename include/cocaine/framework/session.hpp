@@ -24,6 +24,7 @@ namespace cocaine {
 
 namespace framework {
 
+// TODO: Deprecated docs.
 /*!
  * \note I can't guarantee lifetime safety in other way than by making this class living as shared
  * pointer. The reason is: in particular case the connection's event loop runs in a separate
@@ -66,7 +67,7 @@ public:
     typedef std::tuple<
         std::shared_ptr<basic_sender_t<basic_session_t>>,
         std::shared_ptr<basic_receiver_t<basic_session_t>>
-    > basic_invocation_result;
+    > invoke_result;
 
     /*!
      * \warning the scheduler reference should be valid until all asynchronous operations complete
@@ -114,7 +115,7 @@ public:
      * If you send a **mute** event, there is no way to obtain guarantees of successful message
      * transporting.
      */
-    auto invoke(std::uint64_t span, io::encoder_t::message_type&& message) -> typename task<basic_invocation_result>::future_type;
+    auto invoke(std::uint64_t span, io::encoder_t::message_type&& message) -> typename task<invoke_result>::future_type;
 
     /*!
      * Sends an event without creating a new channel.
@@ -153,13 +154,6 @@ public:
     };
 
 private:
-    template<class Event>
-    struct basic_invoke_result {
-        typedef std::shared_ptr<basic_sender_t  <basic_session_t>> sender_type;
-        typedef std::shared_ptr<basic_receiver_t<basic_session_t>> receiver_type;
-        typedef std::tuple<sender_type, receiver_type> type;
-    };
-
     class impl;
     std::shared_ptr<impl> d;
     scheduler_t& scheduler;
@@ -188,7 +182,7 @@ private:
     template<class Event>
     static
     typename invoke_result<Event>::type
-    on_invoke(typename task<typename basic_invoke_result<Event>::type>::future_type& f) {
+    on_invoke(typename task<typename basic_session_type::invoke_result>::future_move_type f) {
         typedef typename invoke_result<Event>::sender_type sender_type;
         typedef typename invoke_result<Event>::receiver_type receiver_type;
 

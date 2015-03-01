@@ -138,7 +138,7 @@ void basic_session_t::revoke(std::uint64_t span) {
 }
 
 auto
-basic_session_t::invoke(std::uint64_t span, io::encoder_t::message_type&& message) -> typename task<basic_session_t::basic_invocation_result>::future_type {
+basic_session_t::invoke(std::uint64_t span, io::encoder_t::message_type&& message) -> typename task<basic_session_t::invoke_result>::future_type {
     CF_CTX("sI");
     CF_DBG("invoking span %llu event ...", CF_US(span));
 
