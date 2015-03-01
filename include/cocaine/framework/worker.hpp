@@ -40,8 +40,7 @@ public:
 
     template<class F>
     void on(std::string event, F handler) {
-        handler_type mapped = transform_traits<dispatch_type, F>::apply(std::move(handler));
-        on(event, std::move(mapped));
+        on(event, transform_traits<dispatch_type, F>::apply(std::move(handler)));
     }
 
     void on(std::string event, handler_type handler);
