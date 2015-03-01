@@ -14,7 +14,6 @@ class cocaine_error : public std::runtime_error {
 
 public:
     explicit cocaine_error(const std::tuple<int, std::string>& err);
-    cocaine_error(int id, const std::string& reason);
 
     ~cocaine_error() throw();
 };
