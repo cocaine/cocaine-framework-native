@@ -23,7 +23,7 @@ class basic_session_t::push_t : public std::enable_shared_from_this<push_t> {
     typename task<void>::promise_type promise;
 
 public:
-    explicit push_t(io::encoder_t::message_type&& message, std::shared_ptr<basic_session_t> connection, typename task<void>::promise_type&& promise) :
+    push_t(io::encoder_t::message_type&& message, std::shared_ptr<basic_session_t> connection, typename task<void>::promise_type&& promise) :
         message(std::move(message)),
         connection(connection),
         promise(std::move(promise))
