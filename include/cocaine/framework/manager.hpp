@@ -2,9 +2,6 @@
 
 #include <memory>
 
-#include <boost/optional.hpp>
-#include <boost/thread.hpp>
-
 #include "cocaine/framework/forwards.hpp"
 
 namespace cocaine {
@@ -15,7 +12,6 @@ class execution_unit_t;
 
 class service_manager_t {
     size_t current;
-    boost::thread_group pool;
     std::vector<std::unique_ptr<execution_unit_t>> units;
 
 public:
