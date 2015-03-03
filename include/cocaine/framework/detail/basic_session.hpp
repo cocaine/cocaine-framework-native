@@ -35,6 +35,11 @@ class basic_session_t : public std::enable_shared_from_this<basic_session_t> {
 public:
     typedef boost::asio::ip::tcp::endpoint endpoint_type;
 
+    typedef std::tuple<
+        std::shared_ptr<basic_sender_t<basic_session_t>>,
+        std::shared_ptr<basic_receiver_t<basic_session_t>>
+    > invoke_result;
+
 private:
     typedef detail::channel<protocol_type, io::encoder_t, detail::decoder_t> channel_type;
 
@@ -59,11 +64,6 @@ private:
     class push_t;
 
 public:
-    typedef std::tuple<
-        std::shared_ptr<basic_sender_t<basic_session_t>>,
-        std::shared_ptr<basic_receiver_t<basic_session_t>>
-    > invoke_result;
-
     /*!
      * \warning the scheduler reference should be valid until all asynchronous operations complete
      * otherwise the behavior is undefined.
