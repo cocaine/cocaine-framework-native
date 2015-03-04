@@ -6,6 +6,7 @@
 
 #include <boost/preprocessor/slot/counter.hpp>
 
+#define BLACKHOLE_HAS_ATTRIBUTE_LWP
 #include <blackhole/logger.hpp>
 #include <blackhole/logger/wrapper.hpp>
 #include <blackhole/macro.hpp>
