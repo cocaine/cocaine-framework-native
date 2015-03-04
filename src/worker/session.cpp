@@ -5,6 +5,7 @@
 #include "cocaine/framework/scheduler.hpp"
 
 #include "cocaine/framework/detail/loop.hpp"
+#include "cocaine/framework/detail/shared_state.hpp"
 
 namespace ph = std::placeholders;
 
@@ -203,7 +204,7 @@ void worker_session_t::process() {
 
         auto id = message.span();
         auto tx = std::make_shared<basic_sender_t<worker_session_t>>(id, shared_from_this());
-        auto ss = std::make_shared<detail::shared_state_t>();
+        auto ss = std::make_shared<shared_state_t>();
         auto rx = std::make_shared<basic_receiver_t<worker_session_t>>(id, shared_from_this(), ss);
 
         channels->insert(std::make_pair(id, ss));

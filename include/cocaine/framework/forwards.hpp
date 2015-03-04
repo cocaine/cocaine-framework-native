@@ -19,6 +19,9 @@ namespace cocaine {
 
         class scheduler_t;
 
+        /// \internal
+        class shared_state_t;
+
         template<class Session>
         class basic_sender_t;
 

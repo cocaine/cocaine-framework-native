@@ -32,65 +32,6 @@ namespace framework {
 
 namespace detail {
 
-class shared_state_t {
-public:
-    typedef decoder_t::message_type value_type;
-
-    std::queue<value_type> queue;
-    std::queue<typename task<value_type>::promise_type> pending;
-
-    boost::optional<std::error_code> broken;
-
-    std::mutex mutex;
-
-public:
-    void put(value_type&& message) {
-        std::lock_guard<std::mutex> lock(mutex);
-
-        COCAINE_ASSERT(!broken);
-
-        if (pending.empty()) {
-            queue.push(std::move(message));
-        } else {
-            pending.front().set_value(std::move(message));
-            pending.pop();
-        }
-    }
-
-    void put(const std::error_code& ec) {
-        std::lock_guard<std::mutex> lock(mutex);
-
-        COCAINE_ASSERT(!broken);
-
-        broken = ec;
-        while (!pending.empty()) {
-            pending.front().set_exception(std::system_error(ec));
-            pending.pop();
-        }
-    }
-
-    auto get() -> typename task<value_type>::future_type {
-        std::lock_guard<std::mutex> lock(mutex);
-
-        if (broken) {
-            COCAINE_ASSERT(queue.empty());
-
-            return make_ready_future<value_type>::error(std::system_error(broken.get()));
-        }
-
-        if (queue.empty()) {
-            typename task<value_type>::promise_type promise;
-            auto future = promise.get_future();
-            pending.push(std::move(promise));
-            return future;
-        }
-
-        auto future = make_ready_future<value_type>::value(std::move(queue.front()));
-        queue.pop();
-        return future;
-    }
-};
-
 /*!
  * Transforms a typelist sequence into a single movable argument type.
  *
@@ -199,10 +140,10 @@ class basic_receiver_t {
 
     std::uint64_t id;
     std::shared_ptr<Session> session;
-    std::shared_ptr<detail::shared_state_t> state;
+    std::shared_ptr<shared_state_t> state;
 
 public:
-    basic_receiver_t(std::uint64_t id, std::shared_ptr<Session> session, std::shared_ptr<detail::shared_state_t> state);
+    basic_receiver_t(std::uint64_t id, std::shared_ptr<Session> session, std::shared_ptr<shared_state_t> state);
 
     ~basic_receiver_t();
 

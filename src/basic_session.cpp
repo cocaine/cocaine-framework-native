@@ -10,6 +10,7 @@
 #include "cocaine/framework/detail/log.hpp"
 #include "cocaine/framework/detail/loop.hpp"
 #include "cocaine/framework/detail/net.hpp"
+#include "cocaine/framework/detail/shared_state.hpp"
 
 namespace ph = std::placeholders;
 
@@ -153,7 +154,7 @@ basic_session_t::invoke(std::uint64_t span, io::encoder_t::message_type&& messag
     CF_DBG("invoking span %llu event ...", CF_US(span));
 
     auto tx = std::make_shared<basic_sender_t<basic_session_t>>(span, shared_from_this());
-    auto state = std::make_shared<detail::shared_state_t>();
+    auto state = std::make_shared<shared_state_t>();
     auto rx = std::make_shared<basic_receiver_t<basic_session_t>>(span, shared_from_this(), state);
 
     channels->insert(std::make_pair(span, state));

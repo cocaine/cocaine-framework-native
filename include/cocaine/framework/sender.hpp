@@ -22,7 +22,7 @@ public:
     basic_sender_t(std::uint64_t id, std::shared_ptr<session_type> session);
 
     /*!
-     * Pack given args in the message and push it through session pointer.
+     * Pack given args in the message and push it through a session pointer.
      *
      * \throw a context-specific exception if the sender is unable to properly pack the arguments
      * given.

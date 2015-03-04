@@ -22,6 +22,7 @@ set(SOURCES
     sender
     session
     service
+    shared_state
     receiver
     worker.cpp
     worker/dispatch

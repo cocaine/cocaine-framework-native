@@ -46,7 +46,7 @@ private:
 
     detail::decoder_t::message_type message;
     std::unique_ptr<channel_type> channel;
-    synchronized<std::unordered_map<std::uint64_t, std::shared_ptr<detail::shared_state_t>>> channels;
+    synchronized<std::unordered_map<std::uint64_t, std::shared_ptr<shared_state_t>>> channels;
 
     // Health.
     asio::deadline_timer heartbeat_timer;
