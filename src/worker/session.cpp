@@ -168,13 +168,13 @@ void worker_session_t::on_error(const std::error_code&) {
 }
 
 void worker_session_t::revoke(std::uint64_t span) {
-    CF_DBG("revoking span %llu channel", span);
+    CF_DBG("revoking span %llu channel", CF_US(span));
 
     channels->erase(span);
 }
 
 void worker_session_t::process() {
-    CF_DBG("event %llu, span %llu", message.type(), message.span());
+    CF_DBG("event %llu, span %llu", CF_US(message.type()), CF_US(message.span()));
 
     switch (message.type()) {
     case (io::event_traits<io::rpc::handshake>::id):
@@ -216,7 +216,7 @@ void worker_session_t::process() {
         auto channels = this->channels.synchronize();
         auto it = channels->find(message.span());
         if (it == channels->end()) {
-            CF_DBG("received an orphan span %llu type %llu message", message.span(), message.type());
+            CF_DBG("received an orphan span %llu type %llu message", CF_US(message.span()), CF_US(message.type()));
             // TODO: It's invariant at this moment.
             break;
         }
@@ -232,7 +232,7 @@ void worker_session_t::process() {
         auto channels = this->channels.synchronize();
         auto it = channels->find(message.span());
         if (it == channels->end()) {
-            CF_DBG("received an orphan span %llu type %llu message", message.span(), message.type());
+            CF_DBG("received an orphan span %llu type %llu message", CF_US(message.span()), CF_US(message.type()));
             // TODO: It's invariant at this moment.
             break;
         }
