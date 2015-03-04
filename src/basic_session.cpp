@@ -156,13 +156,11 @@ basic_session_t::invoke(std::uint64_t span, io::encoder_t::message_type&& messag
     auto rx = std::make_shared<basic_receiver_t<basic_session_t>>(span, shared_from_this(), state);
 
     channels->insert(std::make_pair(span, state));
-    auto f1 = push(std::move(message));
-    auto f2 = f1.then(wrap([tx, rx](typename task<void>::future_type& f){ // TODO: Executor!
-        f.get();
-        return std::make_tuple(tx, rx);
-    }));
-
-    return f2;
+    return push(std::move(message))
+        .then(scheduler, wrap([tx, rx](typename task<void>::future_type& future){
+            future.get();
+            return std::make_tuple(tx, rx);
+        }));
 }
 
 void basic_session_t::on_disconnect() {
