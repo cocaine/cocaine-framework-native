@@ -47,7 +47,8 @@ private:
     enum class state_t : std::uint8_t {
         disconnected = 0,
         connecting,
-        connected
+        connected,
+        dying
     };
 
     scheduler_t& scheduler;

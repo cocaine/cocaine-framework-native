@@ -166,21 +166,31 @@ basic_session_t::invoke(std::uint64_t span, io::encoder_t::message_type&& messag
 void basic_session_t::on_disconnect() {
     CF_DBG("<< disconnected");
 
-    channel.reset();
+    state = static_cast<std::uint8_t>(state_t::dying);
+    if (channels->empty()) {
+        CF_DBG("stop listening");
+        channel.reset();
+    }
 }
 
 void basic_session_t::on_revoke(std::uint64_t span) {
-    CF_DBG("<< revoke span %llu channel", CF_US(span));
+    CF_DBG("<< revoke span %llu channel (%llu left)", CF_US(span), CF_US(channels->size() - 1));
 
+    auto channels = this->channels.synchronize();
     channels->erase(span);
-    // TODO: If channels.empty() { channel->reader->cancel(); state = idle } ? Start listening again
-    // on any invoke event.
+    if (channels->empty() && state == static_cast<std::uint8_t>(state_t::dying)) {
+        // At this moment there are no references left to this session and also nobody is intrested
+        // for data reading.
+        // TODO: But there can be pending writing events.
+        CF_DBG("stop listening");
+        channel.reset();
+    }
 }
 
 void basic_session_t::on_connect(const std::error_code& ec, typename task<std::error_code>::promise_type& promise, std::unique_ptr<socket_type>& s) {
     CF_DBG("<< connect: %s", CF_EC(ec));
 
-    COCAINE_ASSERT(static_cast<std::uint8_t>(state_t::connecting) == state);
+    COCAINE_ASSERT(static_cast<std::uint8_t>(state_t::connecting) == state); // TODO: Not always true?
 
     if (ec) {
         channel.reset();
