@@ -35,13 +35,9 @@ set(SOURCES
 
 project(${PROJECT})
 
-set(COCAINE_CORE_SOURCE_DIR ${CMAKE_SOURCE_DIR}/../cocaine-core/cocaine-core/)
-
 include_directories(
     ${CMAKE_SOURCE_DIR}/include
-    SYSTEM ${COCAINE_CORE_SOURCE_DIR}/include
-    ${COCAINE_CORE_SOURCE_DIR}/foreign/blackhole/src
-    ${COCAINE_CORE_SOURCE_DIR}/foreign/asio/asio/include
+    SYSTEM ${CMAKE_SOURCE_DIR}/foreign/asio/asio/include
 )
 
 add_library(${PROJECT} SHARED ${SOURCES})

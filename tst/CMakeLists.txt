@@ -16,14 +16,10 @@ INCLUDE_DIRECTORIES(
 
 LINK_DIRECTORIES(${GTEST_BINARY_DIR} ${GMOCK_BINARY_DIR})
 
-set(COCAINE_CORE_SOURCE_DIR ${CMAKE_SOURCE_DIR}/../cocaine-core/cocaine-core)
-
 INCLUDE_DIRECTORIES(
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/include
-    ${COCAINE_CORE_SOURCE_DIR}/include
-    ${COCAINE_CORE_SOURCE_DIR}/foreign/asio/asio/include
-    ${COCAINE_CORE_SOURCE_DIR}/foreign/blackhole/src
+    SYSTEM ${CMAKE_SOURCE_DIR}/foreign/asio/asio/include
 )
 
 SET(Boost_USE_MULTITHREADED ON)
@@ -33,8 +29,6 @@ SET(PROJECT cocaine-framework-cpp-tests)
 SET(SOURCES
     util/net
 
-    # session
-    # session_t
     service
     func/real/connector
     func/real/service

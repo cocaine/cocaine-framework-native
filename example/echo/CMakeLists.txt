@@ -1,12 +1,7 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
 
-set(COCAINE_CORE_SOURCE_DIR ${CMAKE_SOURCE_DIR}/../cocaine-core/cocaine-core)
-
 INCLUDE_DIRECTORIES(
     ${CMAKE_SOURCE_DIR}/include
-    ${COCAINE_CORE_SOURCE_DIR}/include
-    ${COCAINE_CORE_SOURCE_DIR}/foreign/asio/asio/include
-    ${COCAINE_CORE_SOURCE_DIR}/foreign/blackhole/src
 )
 
 SET(Boost_USE_MULTITHREADED ON)
