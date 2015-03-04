@@ -68,7 +68,7 @@ TEST(basic_service_t, EchoMT) {
         basic_service_t echo("echo-cpp", 1, scheduler);
 
         threads.push_back(boost::thread([tid, &echo]{
-            for (size_t id = 0; id < 50; ++id) {
+            for (size_t id = 0; id < 1; ++id) {
                 auto ch = echo.invoke<cocaine::io::app::enqueue>(std::string("ping")).get();
                 auto tx = std::move(std::get<0>(ch));
                 auto rx = std::move(std::get<1>(ch));
@@ -91,6 +91,13 @@ TEST(basic_service_t, EchoMT) {
 }
 
 #include <cocaine/framework/manager.hpp>
+
+TEST(service, NotFound) {
+    service_manager_t manager;
+    auto service = manager.create<cocaine::io::app_tag>("invalid");
+
+    EXPECT_THROW(service->connect().get(), service_not_found_error);
+}
 
 TEST(service, Storage) {
     service_manager_t manager;

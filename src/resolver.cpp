@@ -34,6 +34,13 @@ on_resolve(typename task<resolve_result>::future_move_type future, std::shared_p
         };
 
         return res;
+    } catch (const cocaine_error& err) {
+        CF_DBG("resolving - resolve error: [%d] %s", err.id, err.reason.c_str());
+        if (err.id == error::locator_errors::service_not_available) {
+            throw service_not_found_error();
+        } else {
+            throw err;
+        }
     } catch (const std::exception& err) {
         CF_DBG("resolving - resolve error: %s", err.what());
         throw err;
