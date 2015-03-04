@@ -18,7 +18,9 @@ namespace cocaine {
 
 namespace framework {
 
+// TODO: Can be hidden.
 class dispatch_t {
+    // TODO: Can be hidden with transform_traits.
     typedef io::stream_of<std::string>::tag streaming_tag;
 
 public:
