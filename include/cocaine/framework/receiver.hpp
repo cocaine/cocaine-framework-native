@@ -132,8 +132,6 @@ public:
     };
 };
 
-class basic_session_t;
-
 template<class Session>
 class basic_receiver_t {
     typedef detail::decoder_t::message_type result_type;
