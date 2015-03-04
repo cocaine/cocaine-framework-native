@@ -6,15 +6,16 @@
 
 #include "cocaine/framework/sender.hpp"
 #include "cocaine/framework/scheduler.hpp"
-#include "cocaine/framework/util/net.hpp"
 
 #include "cocaine/framework/detail/log.hpp"
 #include "cocaine/framework/detail/loop.hpp"
+#include "cocaine/framework/detail/net.hpp"
 
 namespace ph = std::placeholders;
 
 using namespace cocaine;
 using namespace cocaine::framework;
+using namespace cocaine::framework::detail;
 
 //! \note single shot.
 class basic_session_t::push_t : public std::enable_shared_from_this<push_t> {
@@ -86,7 +87,7 @@ auto basic_session_t::connect(const std::vector<endpoint_type>& endpoints) -> ty
         // current object's state.
         state = static_cast<std::uint8_t>(state_t::connecting);
 
-        auto converted = util::endpoints_cast<asio::ip::tcp::endpoint>(endpoints);
+        auto converted = endpoints_cast<asio::ip::tcp::endpoint>(endpoints);
         socket_type* socket_ = socket.get();
         asio::async_connect(
             *socket_,

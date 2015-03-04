@@ -8,7 +8,7 @@ namespace cocaine {
 
 namespace framework {
 
-namespace util {
+namespace detail {
 
 boost::asio::ip::address address_cast(const asio::ip::address& address);
 asio::ip::address address_cast(const boost::asio::ip::address& address);
@@ -26,7 +26,7 @@ std::vector<To> endpoints_cast(const std::vector<From>& from) {
     return result;
 }
 
-} // namespace util
+} // namespace detail
 
 } // namespace framework
 

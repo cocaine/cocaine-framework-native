@@ -9,9 +9,9 @@
 #include "cocaine/framework/detail/log.hpp"
 #include "cocaine/framework/scheduler.hpp"
 #include "cocaine/framework/session.hpp"
-#include "cocaine/framework/util/net.hpp"
 
 #include "cocaine/framework/detail/basic_session.hpp"
+#include "cocaine/framework/detail/net.hpp"
 
 namespace ph = std::placeholders;
 
@@ -30,7 +30,7 @@ on_resolve(typename task<resolve_result>::future_move_type future, std::shared_p
         CF_DBG("resolving - done");
 
         resolver_t::result_t res = {
-            util::endpoints_cast<boost::asio::ip::tcp::endpoint>(std::get<0>(result)), std::get<1>(result)
+            endpoints_cast<boost::asio::ip::tcp::endpoint>(std::get<0>(result)), std::get<1>(result)
         };
 
         return res;

@@ -1,4 +1,4 @@
-#include "cocaine/framework/util/net.hpp"
+#include "cocaine/framework/detail/net.hpp"
 
 #include <boost/version.hpp>
 
@@ -6,7 +6,7 @@ namespace cocaine {
 
 namespace framework {
 
-namespace util {
+namespace detail {
 
 boost::asio::ip::address
 address_cast(const asio::ip::address& address) {
@@ -58,8 +58,8 @@ endpoint_cast(const boost::asio::ip::tcp::endpoint& endpoint) {
     );
 }
 
-}
+} // namespace detail
 
-}
+} // namespace framework
 
-}
+} // namespace cocaine
