@@ -21,10 +21,10 @@ using namespace cocaine::framework::detail;
 
 namespace {
 
+typedef std::tuple<std::vector<asio::ip::tcp::endpoint>, uint, io::graph_basis_t> resolve_result;
+
 resolver_t::result_t
-on_resolve(typename task<std::tuple<std::vector<asio::ip::tcp::endpoint>, uint, io::graph_basis_t>>::future_move_type future,
-           std::shared_ptr<session_t>)
-{
+on_resolve(typename task<resolve_result>::future_move_type future, std::shared_ptr<session_t>) {
     try {
         auto result = future.get();
         CF_DBG("resolving - done");
@@ -40,7 +40,7 @@ on_resolve(typename task<std::tuple<std::vector<asio::ip::tcp::endpoint>, uint, 
     }
 }
 
-task<std::tuple<std::vector<asio::ip::tcp::endpoint>, uint, io::graph_basis_t>>::future_type
+typename task<resolve_result>::future_type
 on_invoke(typename task<typename session_t::invoke_result<io::locator::resolve>::type>::future_move_type future,
           std::shared_ptr<session_t>)
 {

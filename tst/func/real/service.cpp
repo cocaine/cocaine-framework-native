@@ -68,7 +68,7 @@ TEST(basic_service_t, EchoMT) {
         basic_service_t echo("echo-cpp", 1, scheduler);
 
         threads.push_back(boost::thread([tid, &echo]{
-            for (size_t id = 0; id < 250; ++id) {
+            for (size_t id = 0; id < 50; ++id) {
                 auto ch = echo.invoke<cocaine::io::app::enqueue>(std::string("ping")).get();
                 auto tx = std::move(std::get<0>(ch));
                 auto rx = std::move(std::get<1>(ch));
