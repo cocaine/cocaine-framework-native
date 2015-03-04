@@ -1,17 +1,16 @@
-IF(APPLE)
-    SET(CMAKE_MACOSX_RPATH ON)
-ENDIF()
+if(APPLE)
+    set(CMAKE_MACOSX_RPATH ON)
+endif()
 
-SET(Boost_USE_MULTITHREADED ON)
-FIND_PACKAGE(Boost 1.40 REQUIRED COMPONENTS system thread program_options)
+set(Boost_USE_MULTITHREADED ON)
 
-SET(PROJECT cocaine-framework-cpp)
+set(PROJECT cocaine-framework-cpp)
 
-SET(COCAINE_FRAMEWORK_INCLUDES_DIR
+set(COCAINE_FRAMEWORK_INCLUDES_DIR
     ${CMAKE_SOURCE_DIR}/include/cocaine/framework
     ${CMAKE_SOURCE_DIR}/src)
 
-SET(SOURCES
+set(SOURCES
     basic_session
     net
     decoder
@@ -34,26 +33,32 @@ SET(SOURCES
     util/future/error
 )
 
-PROJECT(${PROJECT})
+project(${PROJECT})
 
-set(COCAINE_CORE_DIR ${CMAKE_SOURCE_DIR}/../cocaine-core/cocaine-core/)
+set(COCAINE_CORE_SOURCE_DIR ${CMAKE_SOURCE_DIR}/../cocaine-core/cocaine-core/)
 
-INCLUDE_DIRECTORIES(
+include_directories(
     ${CMAKE_SOURCE_DIR}/include
-    SYSTEM ${COCAINE_CORE_DIR}/include
-    ${COCAINE_CORE_DIR}/foreign/blackhole/src
-    ${COCAINE_CORE_DIR}/foreign/asio/asio/include
+    SYSTEM ${COCAINE_CORE_SOURCE_DIR}/include
+    ${COCAINE_CORE_SOURCE_DIR}/foreign/blackhole/src
+    ${COCAINE_CORE_SOURCE_DIR}/foreign/asio/asio/include
 )
 
-ADD_LIBRARY(${PROJECT} SHARED ${SOURCES})
+add_library(${PROJECT} SHARED ${SOURCES})
 
-TARGET_LINK_LIBRARIES(${PROJECT}
+target_link_libraries(${PROJECT}
     ${Boost_LIBRARIES}
     msgpack
 )
 
-SET_TARGET_PROPERTIES(${PROJECT} PROPERTIES
+set_target_properties(${PROJECT} PROPERTIES
+    VERSION 2
     COMPILE_FLAGS "-Wall -pedantic -Wextra -Winit-self -Wconversion -Wno-sign-conversion -Wold-style-cast -Woverloaded-virtual -Wctor-dtor-privacy -Wnon-virtual-dtor"
 )
 
-ADD_DEFINITIONS(-std=c++0x)
+add_definitions(-std=c++0x)
+
+install(
+    TARGETS
+        cocaine-framework-cpp
+    LIBRARY DESTINATION lib)

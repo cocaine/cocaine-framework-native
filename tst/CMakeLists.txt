@@ -27,7 +27,6 @@ INCLUDE_DIRECTORIES(
 )
 
 SET(Boost_USE_MULTITHREADED ON)
-FIND_PACKAGE(Boost 1.40 REQUIRED COMPONENTS system thread)
 
 SET(PROJECT cocaine-framework-cpp-tests)
 
