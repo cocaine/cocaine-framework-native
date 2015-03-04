@@ -29,5 +29,3 @@ template<class Session>
 void basic_receiver_t<Session>::revoke() {
 //    session->revoke(id);
 }
-
-template class cocaine::framework::basic_receiver_t<basic_session_t>;

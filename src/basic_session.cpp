@@ -240,3 +240,6 @@ void basic_session_t::on_error(const std::error_code& ec) {
 
 #include "sender.cpp"
 template class cocaine::framework::basic_sender_t<basic_session_t>;
+
+#include "receiver.cpp"
+template class cocaine::framework::basic_receiver_t<basic_session_t>;
