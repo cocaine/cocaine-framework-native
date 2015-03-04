@@ -16,12 +16,14 @@ INCLUDE_DIRECTORIES(
 
 LINK_DIRECTORIES(${GTEST_BINARY_DIR} ${GMOCK_BINARY_DIR})
 
+set(COCAINE_CORE_SOURCE_DIR ${CMAKE_SOURCE_DIR}/../cocaine-core/cocaine-core)
+
 INCLUDE_DIRECTORIES(
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/include
-    ${CMAKE_SOURCE_DIR}/../cocaine-core/cocaine-core/include
-    ${CMAKE_SOURCE_DIR}/../cocaine-core/cocaine-core/foreign/asio/asio/include
-    ${CMAKE_SOURCE_DIR}/../cocaine-core/cocaine-core/foreign/blackhole/src
+    ${COCAINE_CORE_SOURCE_DIR}/include
+    ${COCAINE_CORE_SOURCE_DIR}/foreign/asio/asio/include
+    ${COCAINE_CORE_SOURCE_DIR}/foreign/blackhole/src
 )
 
 SET(Boost_USE_MULTITHREADED ON)
