@@ -227,6 +227,22 @@ struct unwrapper<cocaine::framework::future<Args...>> {
 };
 
 template<class... Args>
+struct helper3 {
+    static void set_value(std::shared_ptr<shared_state<Args...>>& state, cocaine::framework::future<Args...>& fut) {
+        state->set_value(fut.get());
+    }
+};
+
+template<>
+struct helper3<void> {
+    template<class... Args>
+    static void set_value(std::shared_ptr<shared_state<Args...>>& state, cocaine::framework::future<Args...>& fut) {
+        fut.get();
+        state->set_value();
+    }
+};
+
+template<class... Args>
 struct unwrapper<cocaine::framework::future<cocaine::framework::future<Args...>>> {
     typedef cocaine::framework::future<Args...>
             unwrapped_type;
@@ -241,7 +257,7 @@ struct unwrapper<cocaine::framework::future<cocaine::framework::future<Args...>>
         void
         operator()(cocaine::framework::future<Args...>& fut) {
             try {
-                m_new_state->set_value(fut.get());
+                helper3<Args...>::set_value(m_new_state, fut);
             } catch (...) {
                 m_new_state->set_exception(std::current_exception());
             }
