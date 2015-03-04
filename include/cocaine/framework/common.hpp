@@ -56,5 +56,4 @@ declval();
 
 }} // namespace cocaine::framework
 
-
 #endif // COCAINE_FRAMEWORK_COMMON_HPP
