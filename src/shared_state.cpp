@@ -3,27 +3,33 @@
 using namespace cocaine::framework;
 
 void shared_state_t::put(value_type&& message) {
-    std::lock_guard<std::mutex> lock(mutex);
+    std::unique_lock<std::mutex> lock(mutex);
 
     COCAINE_ASSERT(!broken);
 
     if (pending.empty()) {
         queue.push(std::move(message));
     } else {
-        pending.front().set_value(std::move(message));
+        auto promise = pending.front();
         pending.pop();
+        lock.unlock();
+
+        promise.set_value(std::move(message));
     }
 }
 
 void shared_state_t::put(const std::error_code& ec) {
-    std::lock_guard<std::mutex> lock(mutex);
+    std::unique_lock<std::mutex> lock(mutex);
 
     COCAINE_ASSERT(!broken);
 
     broken = ec;
-    while (!pending.empty()) {
-        pending.front().set_exception(std::system_error(ec));
-        pending.pop();
+    std::queue<typename task<value_type>::promise_type> queue(std::move(pending));
+    lock.unlock();
+
+    while (!queue.empty()) {
+        queue.front().set_exception(std::system_error(ec));
+        queue.pop();
     }
 }
 
