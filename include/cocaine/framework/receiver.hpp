@@ -24,8 +24,6 @@
 #include "cocaine/framework/forwards.hpp"
 #include "cocaine/framework/message.hpp"
 
-#include "cocaine/framework/detail/log.hpp"
-
 namespace cocaine {
 
 namespace framework {
@@ -301,13 +299,12 @@ private:
         // Some ancient boost::mpl versions return sized integer instead of unsized one.
         if (id >= static_cast<size_t>(boost::mpl::size<variant_typelist>::value)) {
             // TODO: What to do? Notify the user, I think.
-            CF_DBG("dropping a %llu type message", CF_US(id));
+            throw std::runtime_error("convert message type check: not implemented yet");
         }
 
         variant_type payload = visitors[id](message.args());
         // TODO: Close the channel if it the next node is terminate leaf.
         if (terminators[id]()) {
-            CF_DBG("received the last message in the protocol graph - terminating ...");
             d->revoke();
         }
         return receiver_traits<T>::convert(payload);

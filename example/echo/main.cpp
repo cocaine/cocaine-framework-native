@@ -1,3 +1,5 @@
+#include <iostream>
+
 #include <cocaine/framework/worker.hpp>
 
 using namespace cocaine::framework;
@@ -6,11 +8,11 @@ int main(int argc, char** argv) {
     worker_t worker(options_t(argc, argv));
 
     worker.on("ping", [](worker_t::sender_type tx, worker_t::receiver_type rx){
-        CF_DBG("After invoke");
+        std::cout << "After invoke" << std::endl;
         std::string message = *rx.recv().get();
-        CF_DBG("After chunk: '%s'", message.c_str());
+        std::cout << "After chunk: '" << message << "'" << std::endl;
         tx.write(message).get();
-        CF_DBG("After write");
+        std::cout << "After write" << std::endl;
     });
 
     return worker.run();

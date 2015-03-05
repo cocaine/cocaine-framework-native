@@ -4,6 +4,7 @@
 
 #include "cocaine/framework/scheduler.hpp"
 
+#include "cocaine/framework/detail/log.hpp"
 #include "cocaine/framework/detail/loop.hpp"
 #include "cocaine/framework/detail/shared_state.hpp"
 

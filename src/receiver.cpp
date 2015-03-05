@@ -4,6 +4,7 @@
 
 #include "cocaine/framework/detail/basic_session.hpp"
 #include "cocaine/framework/detail/shared_state.hpp"
+#include "cocaine/framework/detail/log.hpp"
 
 using namespace cocaine::framework;
 
@@ -17,6 +18,7 @@ basic_receiver_t<Session>::basic_receiver_t(std::uint64_t id, std::shared_ptr<Se
 template<class Session>
 basic_receiver_t<Session>::~basic_receiver_t() {
     // TODO: Really need?
+    CF_DBG("received the last message in the protocol graph - revoking ...");
     session->revoke(id);
 }
 
@@ -28,5 +30,6 @@ basic_receiver_t<Session>::recv() {
 
 template<class Session>
 void basic_receiver_t<Session>::revoke() {
-//    session->revoke(id);
+    CF_DBG("received the last message in the protocol graph - revoking ...");
+    // session->revoke(id);
 }
