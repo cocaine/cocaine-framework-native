@@ -69,7 +69,7 @@ TEST(basic_service_t, EchoMT) {
         threads.emplace_back(boost::thread([tid, &scheduler]{
             basic_service_t echo("echo-cpp", 1, scheduler);
 
-            for (size_t id = 0; id < 10000; ++id) {
+            for (size_t id = 0; id < 10; ++id) {
                 auto ch = echo.invoke<cocaine::io::app::enqueue>(std::string("ping")).get();
                 auto tx = std::move(std::get<0>(ch));
                 auto rx = std::move(std::get<1>(ch));
@@ -106,4 +106,79 @@ TEST(service, Storage) {
     auto result = storage->invoke<cocaine::io::storage::read>(std::string("collection"), std::string("key")).get();
 
     EXPECT_EQ("le value", result);
+}
+
+namespace ph = std::placeholders;
+
+namespace {
+
+typename task<boost::optional<std::string>>::future_type
+on_send(typename task<sender<cocaine::io::app::enqueue::dispatch_type, basic_session_t>>::future_move_type future,
+        receiver<cocaine::io::app::enqueue::upstream_type, basic_session_t> rx)
+{
+    future.get();
+    return rx.recv();
+}
+
+typename task<boost::optional<std::string>>::future_type
+on_recv(typename task<boost::optional<std::string>>::future_move_type future,
+        receiver<cocaine::io::app::enqueue::upstream_type, basic_session_t> rx)
+{
+    boost::optional<std::string> result = future.get();
+    EXPECT_EQ("le message", *result);
+    return rx.recv();
+}
+
+void
+on_choke(typename task<boost::optional<std::string>>::future_move_type future)
+{
+    auto result = future.get();
+    EXPECT_FALSE(result);
+}
+
+typename task<void>::future_type
+on_invoke(typename task<typename invocation_result<cocaine::io::app::enqueue>::type>::future_move_type future,
+          scheduler_t& scheduler) {
+    typedef typename cocaine::io::protocol<cocaine::io::app::enqueue::dispatch_type>::scope upstream;
+
+    auto ch = future.get();
+    auto tx = std::move(std::get<0>(ch));
+    auto rx = std::move(std::get<1>(ch));
+    return tx.send<upstream::chunk>(std::string("le message"))
+        .then(scheduler, std::bind(&on_send, ph::_1, rx))
+        .then(scheduler, std::bind(&on_recv, ph::_1, rx))
+        .then(scheduler, std::bind(&on_choke, ph::_1));
+}
+
+} // namespace
+
+TEST(service, EchoAsynchronous) {
+    client_t client;
+    event_loop_t loop { client.loop() };
+    scheduler_t scheduler(loop);
+    basic_service_t echo("echo-cpp", 1, scheduler);
+
+    echo.invoke<cocaine::io::app::enqueue>(std::string("ping"))
+        .then(scheduler, std::bind(&on_invoke, ph::_1, std::ref(scheduler)))
+        .get();
+}
+
+TEST(service, EchoAsynchronousMultiple) {
+    client_t client;
+    event_loop_t loop { client.loop() };
+    scheduler_t scheduler(loop);
+    basic_service_t echo("echo-cpp", 1, scheduler);
+
+    std::vector<typename task<void>::future_type> futures;
+    for (int i = 0; i < 1000; ++i) {
+        futures.emplace_back(
+            echo.invoke<cocaine::io::app::enqueue>(std::string("ping"))
+                .then(scheduler, std::bind(&on_invoke, ph::_1, std::ref(scheduler)))
+        );
+    }
+
+    // Block here.
+    for (auto& future : futures) {
+        future.get();
+    }
 }
