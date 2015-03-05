@@ -16,3 +16,5 @@ target_link_libraries(${PROJECT}
     cocaine-framework-cpp)
 
 add_definitions(-std=c++0x)
+
+file(COPY manifest.json DESTINATION .)
