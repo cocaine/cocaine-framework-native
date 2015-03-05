@@ -60,15 +60,16 @@ TEST(basic_service_t, Echo) {
 TEST(basic_service_t, EchoMT) {
     typedef typename cocaine::io::protocol<cocaine::io::app::enqueue::dispatch_type>::scope upstream;
 
+    client_t client;
+    event_loop_t loop { client.loop() };
+    scheduler_t scheduler(loop);
     std::vector<boost::thread> threads;
-    for (size_t tid = 0; tid < 8; ++tid) {
-        client_t client;
-        event_loop_t loop { client.loop() };
-        scheduler_t scheduler(loop);
-        basic_service_t echo("echo-cpp", 1, scheduler);
 
-        threads.push_back(boost::thread([tid, &echo]{
-            for (size_t id = 0; id < 1; ++id) {
+    for (size_t tid = 0; tid < 8; ++tid) {
+        threads.emplace_back(boost::thread([tid, &scheduler]{
+            basic_service_t echo("echo-cpp", 1, scheduler);
+
+            for (size_t id = 0; id < 10000; ++id) {
                 auto ch = echo.invoke<cocaine::io::app::enqueue>(std::string("ping")).get();
                 auto tx = std::move(std::get<0>(ch));
                 auto rx = std::move(std::get<1>(ch));
@@ -83,10 +84,10 @@ TEST(basic_service_t, EchoMT) {
                 }
             }
         }));
+    }
 
-        for (auto& t : threads) {
-            t.join();
-        }
+    for (auto& thread : threads) {
+        thread.join();
     }
 }
 
