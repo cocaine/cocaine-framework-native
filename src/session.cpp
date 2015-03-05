@@ -40,8 +40,8 @@ public:
                 queue.push_back(promise);
                 break;
             case asio::error::already_connected:
-                // TODO: Return ready future.
-                COCAINE_ASSERT(false);
+                COCAINE_ASSERT(queue.empty());
+                promise->set_value();
                 break;
             default:
                 promise->set_exception(std::system_error(ec));
