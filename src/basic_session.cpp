@@ -176,7 +176,7 @@ void basic_session_t::on_disconnect() {
 }
 
 void basic_session_t::on_revoke(std::uint64_t span) {
-    CF_DBG("<< revoke span %llu channel (%llu left)", CF_US(span), CF_US(channels->size() - 1));
+    CF_DBG("<< revoke span %llu channel", CF_US(span));
 
     auto channels = this->channels.synchronize();
     channels->erase(span);
