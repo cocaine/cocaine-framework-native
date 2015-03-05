@@ -1,29 +1,18 @@
-CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
+cmake_minimum_required(VERSION 2.6)
 
-INCLUDE_DIRECTORIES(
-    ${CMAKE_SOURCE_DIR}/include
-)
+include_directories(
+    ${CMAKE_SOURCE_DIR}/include)
 
-SET(Boost_USE_MULTITHREADED ON)
+set(PROJECT echo)
 
-SET(PROJECT echo)
+set(SOURCES main)
 
-SET(HEADERS
-)
+project(${PROJECT})
 
-SET(SOURCES
-    main
-)
+add_executable(${PROJECT}
+    ${SOURCES})
 
-PROJECT(${PROJECT})
+target_link_libraries(${PROJECT}
+    cocaine-framework-cpp)
 
-ADD_EXECUTABLE(${PROJECT} ${SOURCES})
-ADD_DEPENDENCIES(${PROJECT} googlemock)
-
-TARGET_LINK_LIBRARIES(${PROJECT}
-    ${CMAKE_THREAD_LIBS_INIT}
-    ${Boost_LIBRARIES}
-    cocaine-framework-cpp
-)
-
-ADD_DEFINITIONS(-std=c++0x)
+add_definitions(-std=c++0x)
