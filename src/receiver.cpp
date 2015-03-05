@@ -21,7 +21,7 @@ basic_receiver_t<Session>::~basic_receiver_t() {
 }
 
 template<class Session>
-typename task<typename basic_receiver_t<Session>::result_type>::future_type
+typename task<decoded_message>::future_type
 basic_receiver_t<Session>::recv() {
     return state->get();
 }

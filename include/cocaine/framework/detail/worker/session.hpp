@@ -12,6 +12,7 @@
 #include "cocaine/framework/worker/dispatch.hpp"
 
 #include "cocaine/framework/detail/channel.hpp"
+#include "cocaine/framework/detail/decoder.hpp"
 
 namespace cocaine {
 

@@ -3,6 +3,7 @@
 #include <queue>
 
 #include "cocaine/framework/forwards.hpp"
+#include "cocaine/framework/message.hpp"
 
 #include "cocaine/framework/detail/decoder.hpp"
 
@@ -13,7 +14,7 @@ namespace framework {
 /// \internal
 class shared_state_t {
 public:
-    typedef detail::decoder_t::message_type value_type;
+    typedef decoded_message value_type;
 
     std::queue<value_type> queue;
     std::queue<typename task<value_type>::promise_type> pending;

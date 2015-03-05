@@ -22,9 +22,9 @@
 
 #include "cocaine/framework/error.hpp"
 #include "cocaine/framework/forwards.hpp"
+#include "cocaine/framework/message.hpp"
 
 #include "cocaine/framework/detail/log.hpp"
-#include "cocaine/framework/detail/decoder.hpp"
 
 namespace cocaine {
 
@@ -134,8 +134,6 @@ public:
 
 template<class Session>
 class basic_receiver_t {
-    typedef detail::decoder_t::message_type result_type;
-
     std::uint64_t id;
     std::shared_ptr<Session> session;
     std::shared_ptr<shared_state_t> state;
@@ -145,7 +143,7 @@ public:
 
     ~basic_receiver_t();
 
-    auto recv() -> typename task<result_type>::future_type;
+    auto recv() -> typename task<decoded_message>::future_type;
 
     void revoke();
 };
@@ -296,8 +294,8 @@ public:
 private:
     static
     typename receiver_traits<T>::result_type
-    convert(typename task<detail::decoder_t::message_type>::future_type& f, std::shared_ptr<basic_receiver_t<Session>> d) {
-        const detail::decoder_t::message_type message = f.get();
+    convert(typename task<decoded_message>::future_type& f, std::shared_ptr<basic_receiver_t<Session>> d) {
+        const decoded_message message = f.get();
         const std::uint64_t id = message.type();
 
         // Some ancient boost::mpl versions return sized integer instead of unsized one.

@@ -22,6 +22,8 @@ namespace cocaine {
         /// \internal
         class shared_state_t;
 
+        class decoded_message;
+
         template<class Session>
         class basic_sender_t;
 

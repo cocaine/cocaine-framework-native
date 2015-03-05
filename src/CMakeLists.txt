@@ -17,6 +17,7 @@ set(SOURCES
     error
     log
     manager
+    message
     scheduler
     resolver
     sender

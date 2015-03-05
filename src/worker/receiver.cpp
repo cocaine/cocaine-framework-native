@@ -18,7 +18,7 @@ receiver_type::receiver(std::shared_ptr<basic_receiver_type> session) :
 namespace {
 
 boost::optional<std::string>
-on_recv(typename task<detail::decoder_t::message_type>::future_type& f) {
+on_recv(typename task<decoded_message>::future_type& f) {
     const auto message = f.get();
     const std::uint64_t id = message.type();
     switch (id) {
