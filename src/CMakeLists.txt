@@ -68,7 +68,7 @@ install(
 
 install(
     DIRECTORY
-        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_SOURCE_DIR}/include/
     DESTINATION include
     COMPONENT development
     PATTERN "detail" EXCLUDE)
