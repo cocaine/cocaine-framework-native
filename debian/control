@@ -8,11 +8,11 @@ Build-Depends: cmake, cdbs, debhelper (>= 7.0.13),
  libboost-program-options-dev,
  libcocaine-dev (>= 0.12),
  blackhole4-dev
-Standards-Version: 3.8.4
+Standards-Version: 3.9.3
 Vcs-Git: git://github.com/cocaine/cocaine-framework-native.git
 Vcs-Browser: https://github.com/cocaine/cocaine-framework-native
 
-Package: cocaine-framework-cpp
+Package: cocaine-framework-cpp1
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: Cocaine - C++ Framework
@@ -22,14 +22,14 @@ Package: cocaine-framework-cpp-dev
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends},
  libcocaine-dev (>= 0.12),
- cocaine-framework-cpp (= ${binary:Version})
+ cocaine-framework-cpp1 (= ${binary:Version})
 Description: Cocaine - C++ Framework Development Headers
- Cocaine C++ Framework development headers.
+ Cocaine C++ Framework development header files.
 
 Package: cocaine-framework-cpp-dbg
 Architecture: any
 Section: debug
 Depends: ${shlibs:Depends}, ${misc:Depends},
- cocaine-framework-cpp (= ${binary:Version})
+ cocaine-framework-cpp1 (= ${binary:Version})
 Description: Cocaine - C++ Framework Debug Files
  Cocaine C++ Framework debug files and symbols.
