@@ -21,6 +21,7 @@ include_directories(
 set(PROJECT cocaine-framework-cpp-tests)
 
 set(SOURCES
+    main
     util/net
     service
     func/real/connector
@@ -34,7 +35,6 @@ add_dependencies(${PROJECT} googlemock)
 target_link_libraries(${PROJECT}
     cocaine-framework-cpp
     gmock
-    gtest
-    gmock_main)
+    gtest)
 
 add_definitions(-std=c++0x)
