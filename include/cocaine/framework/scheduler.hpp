@@ -10,10 +10,12 @@ namespace cocaine {
 namespace framework {
 
 struct context_holder {
-    struct impl;
+#ifdef CF_USE_INTERNAL_LOGGING
+    class impl;
     std::unique_ptr<impl> d;
+#endif
 
-    context_holder(std::string);
+    explicit context_holder(const std::string&);
     ~context_holder();
 };
 

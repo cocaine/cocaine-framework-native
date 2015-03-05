@@ -42,7 +42,8 @@ std::string current_context() {
     return boost::get<std::string>(it->second.value);
 }
 
-struct context_holder::impl {
+class context_holder::impl {
+public:
     blackhole::scoped_attributes_t* scoped;
 
     impl(std::string context) :
@@ -54,15 +55,13 @@ struct context_holder::impl {
     }
 };
 
-#else
-
-struct context_holder::impl {
-    impl(std::string) {}
-};
-
 #endif
 
-context_holder::context_holder(std::string context) : d(new impl(context)) {}
+#ifdef CF_USE_INTERNAL_LOGGING
+context_holder::context_holder(const std::string& context) : d(new impl(context)) {}
+#else
+context_holder::context_holder(const std::string&) {}
+#endif
 
 context_holder::~context_holder() {}
 
