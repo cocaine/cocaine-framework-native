@@ -92,7 +92,8 @@ auto session<BasicSession>::connect(const std::vector<session::endpoint_type>& e
     auto promise = std::make_shared<typename task<void>::promise_type>();
     auto future = promise->get_future();
 
-    d->sess->connect(endpoints).then(d->scheduler, wrap(std::bind(&impl::on_connect, d, ph::_1, promise)));
+    d->sess->connect(endpoints)
+        .then(d->scheduler, wrap(std::bind(&impl::on_connect, d, ph::_1, promise)));
 
     return future;
 }
