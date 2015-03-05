@@ -60,7 +60,7 @@ private:
 
     std::atomic<std::uint64_t> counter;
 
-    detail::decoder_t::message_type message;
+    decoded_message message;
     synchronized<std::unordered_map<std::uint64_t, std::shared_ptr<shared_state_t>>> channels;
 
     class push_t;
