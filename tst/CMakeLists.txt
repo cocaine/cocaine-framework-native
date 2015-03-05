@@ -1,52 +1,40 @@
-CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/tst/cmake")
 
-LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/tst/cmake")
-
-SET(CMAKE_BUILD_TYPE "Debug")
+set(CMAKE_BUILD_TYPE "Debug")
 
 # Prepare testing infrastructure.
-INCLUDE(DownloadGoogleTesting)
+include(DownloadGoogleTesting)
 
-DOWNLOAD_GOOGLE_TESTING()
+download_google_testing()
 
-INCLUDE_DIRECTORIES(
+include_directories(
     SYSTEM ${GTEST_INCLUDE_DIR}
-    SYSTEM ${GMOCK_INCLUDE_DIR}
-)
+    SYSTEM ${GMOCK_INCLUDE_DIR})
 
-LINK_DIRECTORIES(${GTEST_BINARY_DIR} ${GMOCK_BINARY_DIR})
+link_directories(${GTEST_BINARY_DIR} ${GMOCK_BINARY_DIR})
 
-INCLUDE_DIRECTORIES(
+include_directories(
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/include
-    SYSTEM ${CMAKE_SOURCE_DIR}/foreign/asio/asio/include
-)
+    SYSTEM ${CMAKE_SOURCE_DIR}/foreign/asio/asio/include)
 
-SET(Boost_USE_MULTITHREADED ON)
+set(PROJECT cocaine-framework-cpp-tests)
 
-SET(PROJECT cocaine-framework-cpp-tests)
-
-SET(SOURCES
+set(SOURCES
     util/net
-
     service
     func/real/connector
     func/real/service
-    func/stub/session
-)
+    func/stub/session)
 
-PROJECT(${PROJECT})
+project(${PROJECT})
 
-ADD_EXECUTABLE(${PROJECT} ${SOURCES})
-ADD_DEPENDENCIES(${PROJECT} googlemock)
-
-TARGET_LINK_LIBRARIES(${PROJECT}
-    ${CMAKE_THREAD_LIBS_INIT}
-    ${Boost_LIBRARIES}
+add_executable(${PROJECT} ${SOURCES})
+add_dependencies(${PROJECT} googlemock)
+target_link_libraries(${PROJECT}
     cocaine-framework-cpp
     gmock
     gtest
-    gmock_main
-)
+    gmock_main)
 
-ADD_DEFINITIONS(-std=c++0x)
+add_definitions(-std=c++0x)

@@ -2,6 +2,10 @@ if(APPLE)
     set(CMAKE_MACOSX_RPATH ON)
 endif()
 
+find_package(Boost 1.40 REQUIRED COMPONENTS system thread program_options)
+find_package(Blackhole REQUIRED)
+find_package(Cocaine 0.12 REQUIRED)
+
 set(Boost_USE_MULTITHREADED ON)
 
 set(PROJECT cocaine-framework-cpp)
@@ -56,7 +60,15 @@ set_target_properties(${PROJECT} PROPERTIES
 
 add_definitions(-std=c++0x)
 
+# Install section.
 install(
     TARGETS
         cocaine-framework-cpp
     LIBRARY DESTINATION lib)
+
+install(
+    DIRECTORY
+        ${CMAKE_SOURCE_DIR}/include
+    DESTINATION include
+    COMPONENT development
+    PATTERN "detail" EXCLUDE)
