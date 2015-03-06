@@ -53,6 +53,8 @@ class basic_service_t {
 
 public:
     basic_service_t(std::string name, uint version, scheduler_t& scheduler);
+    basic_service_t(basic_service_t&& other);
+
     ~basic_service_t();
 
     auto name() const noexcept -> const std::string&;

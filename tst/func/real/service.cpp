@@ -25,13 +25,13 @@ TEST(service, NotFound) {
     service_manager_t manager(1);
     auto service = manager.create<cocaine::io::app_tag>("invalid");
 
-    EXPECT_THROW(service->connect().get(), service_not_found_error);
+    EXPECT_THROW(service.connect().get(), service_not_found_error);
 }
 
 TEST(service, Storage) {
     service_manager_t manager(1);
     auto storage = manager.create<cocaine::io::storage_tag>("storage");
-    auto result = storage->invoke<cocaine::io::storage::read>(std::string("collection"), std::string("key")).get();
+    auto result = storage.invoke<cocaine::io::storage::read>(std::string("collection"), std::string("key")).get();
 
     EXPECT_EQ("le value", result);
 }
@@ -40,7 +40,7 @@ TEST(service, StorageError) {
     service_manager_t manager(1);
     auto storage = manager.create<cocaine::io::storage_tag>("storage");
 
-    EXPECT_THROW(storage->invoke<cocaine::io::storage::read>(std::string("i-collection"), std::string("key")).get(), cocaine_error);
+    EXPECT_THROW(storage.invoke<cocaine::io::storage::read>(std::string("i-collection"), std::string("key")).get(), cocaine_error);
 }
 
 TEST(service, Echo) {
@@ -49,7 +49,7 @@ TEST(service, Echo) {
     service_manager_t manager(1);
     auto echo = manager.create<cocaine::io::storage_tag>("echo");
 
-    channel_(tx, rx, echo->invoke<cocaine::io::app::enqueue>(std::string("ping")).get());
+    channel_(tx, rx, echo.invoke<cocaine::io::app::enqueue>(std::string("ping")).get());
 
     tx.send<upstream::chunk>(std::string("le message")).get();
     auto result = rx.recv().get();
@@ -103,7 +103,7 @@ TEST(service, EchoAsynchronous) {
     service_manager_t manager(1);
     auto echo = manager.create<cocaine::io::storage_tag>("echo-cpp");
 
-    echo->invoke<cocaine::io::app::enqueue>(std::string("ping"))
+    echo.invoke<cocaine::io::app::enqueue>(std::string("ping"))
         .then(std::bind(&on_invoke, ph::_1))
         .get();
 }

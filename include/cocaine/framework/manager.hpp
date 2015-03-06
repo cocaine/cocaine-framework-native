@@ -20,9 +20,16 @@ public:
 
     ~service_manager_t();
 
-    template<class T, class... Args>
-    std::shared_ptr<service<T>> create(std::string name) {
-        return std::make_shared<service<T>>(std::move(name), next());
+    template<class T>
+    std::shared_ptr<service<T>>
+    create_shared(std::string name) {
+        return std::make_shared<service<T>>(create<T>(std::move(name)));
+    }
+
+    template<class T>
+    service<T>
+    create(std::string name) {
+        return service<T>(std::move(name), next());
     }
 
 private:

@@ -57,6 +57,12 @@ basic_service_t::basic_service_t(std::string name, uint version, scheduler_t& sc
     scheduler(scheduler)
 {}
 
+basic_service_t::basic_service_t(basic_service_t&& other) :
+    d(std::move(other.d)),
+    session(std::move(other.session)),
+    scheduler(other.scheduler)
+{}
+
 basic_service_t::~basic_service_t() {}
 
 auto basic_service_t::name() const noexcept -> const std::string& {
