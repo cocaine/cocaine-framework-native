@@ -1,6 +1,6 @@
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/tst/cmake")
 
-set(CMAKE_BUILD_TYPE "Release")
+set(CMAKE_BUILD_TYPE "Debug")
 
 # Prepare testing infrastructure.
 include(DownloadGoogleTesting)
@@ -27,6 +27,7 @@ set(SOURCES
     func/real/connector
     func/real/service
     func/stub/session
+    load/storage
     load/service
 )
 

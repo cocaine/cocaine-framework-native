@@ -1,8 +1,10 @@
 #include <boost/thread/thread.hpp>
 
 #include <gtest/gtest.h>
+#include <gflags/gflags.h>
 
 #include <cocaine/idl/node.hpp>
+#include <cocaine/idl/storage.hpp>
 
 #include <cocaine/framework/service.hpp>
 #include <cocaine/framework/manager.hpp>
@@ -10,9 +12,21 @@
 using namespace cocaine;
 using namespace cocaine::framework;
 
-TEST(service, EchoSyncST) {
-    typedef typename io::protocol<io::app::enqueue::dispatch_type>::scope upstream;
+typedef typename io::protocol<io::app::enqueue::dispatch_type>::scope scope;
 
+namespace {
+
+struct inline_executor {
+    void operator()(std::function<void()> closure) {
+        closure();
+    }
+};
+
+} // namespace
+
+static const inline_executor executor = inline_executor();
+
+TEST(load, EchoSyncST) {
     service_manager_t manager(1);
     auto echo = manager.create<cocaine::io::app_tag>("echo-cpp");
 
@@ -21,14 +35,87 @@ TEST(service, EchoSyncST) {
         auto tx = std::move(std::get<0>(channel));
         auto rx = std::move(std::get<1>(channel));
 
-        tx.send<upstream::chunk>(std::string("le message")).get();
+        tx.send<scope::chunk>(std::string("le message")).get();
 
-        auto chunk = rx.recv().get();
-        EXPECT_EQ("le message", *chunk);
+        auto result = rx.recv().get();
+        EXPECT_EQ("le message", *result);
 
         auto choke = rx.recv().get();
         EXPECT_FALSE(choke);
     }
+}
+
+namespace ph = std::placeholders;
+
+namespace {
+
+typename task<boost::optional<std::string>>::future_type
+on_send(typename task<sender<io::app::enqueue::dispatch_type, basic_session_t>>::future_move_type future,
+        receiver<io::app::enqueue::upstream_type, basic_session_t> rx)
+{
+    future.get();
+    return rx.recv();
+}
+
+typename task<boost::optional<std::string>>::future_type
+on_chunk(typename task<boost::optional<std::string>>::future_move_type future,
+        receiver<io::app::enqueue::upstream_type, basic_session_t> rx)
+{
+    auto result = future.get();
+    EXPECT_EQ("le message", *result);
+
+    return rx.recv();
+}
+
+void
+on_choke(typename task<boost::optional<std::string>>::future_move_type future,
+         std::atomic<int>& counter)
+{
+    auto result = future.get();
+    EXPECT_FALSE(result);
+
+    counter++;
+}
+
+typename task<void>::future_type
+on_invoke(typename task<typename invocation_result<io::app::enqueue>::type>::future_move_type future,
+          std::atomic<int>& counter)
+{
+    auto channel = future.get();
+    auto tx = std::move(std::get<0>(channel));
+    auto rx = std::move(std::get<1>(channel));
+    return tx.send<scope::chunk>(std::string("le message"))
+        .then(std::bind(&on_send, ph::_1, rx))
+        .then(std::bind(&on_chunk, ph::_1, rx))
+        .then(std::bind(&on_choke, ph::_1, std::ref(counter)));
+}
+
+} // namespace
+
+TEST(load, EchoAsyncST) {
+    const int ITERS = 1000;
+
+    std::atomic<int> counter(0);
+
+    service_manager_t manager(1);
+    auto echo = manager.create<cocaine::io::app_tag>("echo-cpp");
+
+    std::vector<typename task<void>::future_type> futures;
+    futures.reserve(ITERS);
+
+    for (int i = 0; i < ITERS; ++i) {
+        futures.emplace_back(
+            echo.invoke<io::app::enqueue>(std::string("ping"))
+                .then(std::bind(&on_invoke, ph::_1, std::ref(counter)))
+        );
+    }
+
+    // Block here.
+    for (auto& future : futures) {
+        future.get();
+    }
+
+    EXPECT_EQ(ITERS, counter);
 }
 
 TEST(basic_service_t, EchoMT) {
@@ -61,25 +148,5 @@ TEST(basic_service_t, EchoMT) {
 
 //    for (auto& thread : threads) {
 //        thread.join();
-//    }
-}
-
-TEST(service, EchoAsyncST) {
-//    client_t client;
-//    event_loop_t loop { client.loop() };
-//    scheduler_t scheduler(loop);
-//    basic_service_t echo("echo-cpp", 1, scheduler);
-
-//    std::vector<typename task<void>::future_type> futures;
-//    for (int i = 0; i < 10000; ++i) {
-//        futures.emplace_back(
-//            echo.invoke<cocaine::io::app::enqueue>(std::string("ping"))
-//                .then(scheduler, std::bind(&on_invoke, ph::_1, std::ref(scheduler)))
-//        );
-//    }
-
-//    // Block here.
-//    for (auto& future : futures) {
-//        future.get();
 //    }
 }
