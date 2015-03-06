@@ -40,14 +40,14 @@ public:
     std::string name;
     uint version;
     scheduler_t& scheduler;
-    resolver_t resolver;
+    std::shared_ptr<serialized_resolver_t> resolver;
     std::mutex mutex;
 
     impl(std::string name, uint version, scheduler_t& scheduler) :
         name(std::move(name)),
         version(version),
         scheduler(scheduler),
-        resolver(scheduler)
+        resolver(std::make_shared<serialized_resolver_t>(scheduler))
     {}
 };
 
@@ -86,7 +86,7 @@ auto basic_service_t::connect() -> typename task<void>::future_type {
         return make_ready_future<void>::value();
     }
 
-    return d->resolver.resolve(d->name)
+    return d->resolver->resolve(d->name)
         .then(wrap(std::bind(&::on_resolve, ph::_1, d->version, session)))
         .then(wrap(std::bind(&::on_connect, ph::_1)));
 }

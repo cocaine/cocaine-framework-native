@@ -111,3 +111,52 @@ auto resolver_t::resolve(std::string name) -> typename task<resolver_t::result_t
         .then(scheduler, wrap(std::bind(&on_invoke, ph::_1, locator)))
         .then(scheduler, wrap(std::bind(&on_resolve, ph::_1, locator)));
 }
+
+
+serialized_resolver_t::serialized_resolver_t(scheduler_t& scheduler) :
+    resolver(scheduler),
+    scheduler(scheduler)
+{}
+
+auto serialized_resolver_t::resolve(std::string name) -> typename task<result_type>::future_type {
+    std::lock_guard<std::mutex> lock(mutex);
+
+    auto it = inprogress.find(name);
+    if (it == inprogress.end()) {
+        std::deque<typename task<result_type>::promise_type> queue;
+        inprogress.insert(it, std::make_pair(name, queue));
+        // Use scheduler to avoid deadlock.
+        return resolver.resolve(name)
+            .then(scheduler, std::bind(&serialized_resolver_t::notify_all, shared_from_this(), ph::_1, name));
+    } else {
+        typename task<result_type>::promise_type promise;
+        auto future = promise.get_future();
+        it->second.push_back(std::move(promise));
+        return future;
+    }
+}
+
+serialized_resolver_t::result_type
+serialized_resolver_t::notify_all(typename task<result_type>::future_move_type future, std::string name) {
+    std::lock_guard<std::mutex> lock(mutex);
+
+    auto it = inprogress.find(name);
+    if (it == inprogress.end()) {
+        return future.get();
+    }
+
+    try {
+        auto result = future.get();
+        for (auto& promise : it->second) {
+            promise.set_value(result);
+        }
+        inprogress.erase(it);
+        return result;
+    } catch (const std::system_error& err) {
+        for (auto& promise : it->second) {
+            promise.set_exception(err);
+        }
+        inprogress.erase(it);
+        throw;
+    }
+}
