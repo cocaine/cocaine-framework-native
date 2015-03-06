@@ -1,7 +1,9 @@
 #include "cocaine/framework/scheduler.hpp"
 
+#ifdef CF_USE_INTERNAL_LOGGING
 #include <blackhole/attribute/set.hpp>
 #include <blackhole/scoped_attributes.hpp>
+#endif
 
 #include "cocaine/framework/detail/log.hpp"
 #include "cocaine/framework/detail/loop.hpp"

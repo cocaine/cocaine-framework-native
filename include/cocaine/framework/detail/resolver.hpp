@@ -1,5 +1,7 @@
 #pragma once
 
+#include <unordered_map>
+
 #include <boost/asio/ip/tcp.hpp>
 
 #include "cocaine/framework/forwards.hpp"

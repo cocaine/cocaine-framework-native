@@ -1,10 +1,8 @@
 #include <boost/thread/thread.hpp>
 
 #include <gtest/gtest.h>
-#include <gflags/gflags.h>
 
 #include <cocaine/idl/node.hpp>
-#include <cocaine/idl/storage.hpp>
 
 #include <cocaine/framework/service.hpp>
 #include <cocaine/framework/manager.hpp>
