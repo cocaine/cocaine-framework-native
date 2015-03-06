@@ -60,9 +60,7 @@ basic_session_t::basic_session_t(scheduler_t& scheduler) noexcept :
     message(boost::none)
 {}
 
-basic_session_t::~basic_session_t() {
-    CF_DBG("destroying basic session (%lu active) ...", channels->size());
-}
+basic_session_t::~basic_session_t() {}
 
 bool basic_session_t::connected() const noexcept {
     return state == static_cast<std::uint8_t>(state_t::connected);
@@ -73,7 +71,7 @@ auto basic_session_t::connect(const endpoint_type& endpoint) -> typename task<st
 }
 
 auto basic_session_t::connect(const std::vector<endpoint_type>& endpoints) -> typename task<std::error_code>::future_type {
-    CF_CTX("sC");
+    CF_CTX("bC");
     CF_DBG(">> connecting ...");
 
     typename task<std::error_code>::promise_type promise;
@@ -132,6 +130,7 @@ auto basic_session_t::next() -> std::uint64_t {
 }
 
 auto basic_session_t::push(io::encoder_t::message_type&& message) -> typename task<void>::future_type {
+    CF_CTX("bP");
     CF_DBG(">> writing message ...");
 
     typename task<void>::promise_type promise;
@@ -150,7 +149,7 @@ void basic_session_t::revoke(std::uint64_t span) {
 
 auto
 basic_session_t::invoke(std::uint64_t span, io::encoder_t::message_type&& message) -> typename task<basic_session_t::invoke_result>::future_type {
-    CF_CTX("sI");
+    CF_CTX("bI");
     CF_DBG("invoking span %llu event ...", CF_US(span));
 
     auto tx = std::make_shared<basic_sender_t<basic_session_t>>(span, shared_from_this());
@@ -170,7 +169,7 @@ void basic_session_t::on_disconnect() {
 
     state = static_cast<std::uint8_t>(state_t::dying);
     if (channels->empty()) {
-        CF_DBG("stop listening");
+        CF_DBG("<< stop listening");
         channel.reset();
     }
 }
@@ -184,7 +183,7 @@ void basic_session_t::on_revoke(std::uint64_t span) {
         // At this moment there are no references left to this session and also nobody is intrested
         // for data reading.
         // TODO: But there can be pending writing events.
-        CF_DBG("stop listening");
+        CF_DBG("<< stop listening");
         channel.reset();
     }
 }
@@ -198,6 +197,8 @@ void basic_session_t::on_connect(const std::error_code& ec, typename task<std::e
         channel.reset();
         state = static_cast<std::uint8_t>(state_t::disconnected);
     } else {
+        CF_CTX_POP();
+        CF_CTX("bR");
         CF_DBG(">> listening for read events ...");
 
         channel.reset(new channel_type(std::move(s)));
@@ -221,7 +222,7 @@ void basic_session_t::on_read(const std::error_code& ec) {
         return;
     }
 
-    CF_DBG("received message [%llu, %llu]", CF_US(message.span()), CF_US(message.type()));
+    CF_DBG("received message [%llu, %llu, %s]", CF_US(message.span()), CF_US(message.type()), CF_MSG(message.args()).c_str());
     auto channels = this->channels.synchronize();
     auto it = channels->find(message.span());
     if (it == channels->end()) {

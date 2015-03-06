@@ -26,9 +26,9 @@ void
 on_connect(typename task<void>::future_move_type future) {
     try {
         future.get();
-        CF_DBG("connected");
+        CF_DBG("<< connected");
     } catch (const std::exception& err) {
-        CF_DBG("failed to connect: %s", err.what());
+        CF_DBG("<< failed to connect: %s", err.what());
         throw;
     }
 }
@@ -69,7 +69,7 @@ uint basic_service_t::version() const noexcept {
 
 auto basic_service_t::connect() -> typename task<void>::future_type {
     CF_CTX("SC");
-    CF_DBG("connecting ...");
+    CF_DBG(">> connecting ...");
 
     std::lock_guard<std::mutex> lock(d->mutex);
 

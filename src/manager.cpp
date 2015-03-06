@@ -27,7 +27,6 @@ public:
 
     ~execution_unit_t() {
         work.reset();
-        io.stop();
         thread.join();
     }
 };

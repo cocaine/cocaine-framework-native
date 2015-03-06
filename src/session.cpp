@@ -32,8 +32,6 @@ public:
     void on_connect(typename task<std::error_code>::future_type& f, std::shared_ptr<typename task<void>::promise_type> promise) {
         const auto ec = f.get();
 
-        CF_DBG("<< connect: %s", CF_EC(ec));
-
         if (ec) {
             switch (ec.value()) {
             case asio::error::already_started:

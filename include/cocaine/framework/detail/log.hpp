@@ -33,12 +33,22 @@ typedef blackhole::wrapper_t<logger_type> wrapper_type;
 logger_type& logger();
 
 std::string merge_context(std::string context);
+std::string pop_context();
 
 } // namespace detail
 
 } // namespace framework
 
 } // namespace cocaine
+
+#include <msgpack.hpp>
+inline std::string ser_msg(const msgpack::object& o) {
+    std::ostringstream s;
+    s << o;
+    return s.str();
+}
+
+#define CF_MSG(message) ser_msg(message)
 
 /// Silently cast std::uint64_t to unsigned long long to suppress logger format warnings
 /// in cross-platform manner.
@@ -53,6 +63,14 @@ std::string merge_context(std::string context);
         ::cocaine::framework::detail::logger(), \
         ::blackhole::attribute::set_t({ \
             { "context", ::cocaine::framework::detail::merge_context(::blackhole::utils::format(__VA_ARGS__)) } \
+        }) \
+    );
+
+#define CF_CTX_POP() \
+    ::blackhole::scoped_attributes_t BOOST_PP_CAT(__context__, __COUNTER__)( \
+        ::cocaine::framework::detail::logger(), \
+        ::blackhole::attribute::set_t({ \
+            { "context", ::cocaine::framework::detail::pop_context() } \
         }) \
     );
 

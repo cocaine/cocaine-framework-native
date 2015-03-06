@@ -27,7 +27,7 @@ resolver_t::result_t
 on_resolve(typename task<resolve_result>::future_move_type future, std::shared_ptr<session_t>) {
     try {
         auto result = future.get();
-        CF_DBG("resolving - done");
+        CF_DBG("<< resolving - done");
 
         resolver_t::result_t res = {
             endpoints_cast<boost::asio::ip::tcp::endpoint>(std::get<0>(result)), std::get<1>(result)
@@ -35,14 +35,14 @@ on_resolve(typename task<resolve_result>::future_move_type future, std::shared_p
 
         return res;
     } catch (const cocaine_error& err) {
-        CF_DBG("resolving - resolve error: [%d] %s", err.id, err.reason.c_str());
+        CF_DBG("<< resolving - resolve error: [%d] %s", err.id, err.reason.c_str());
         if (err.id == error::locator_errors::service_not_available) {
             throw service_not_found_error();
         } else {
             throw err;
         }
     } catch (const std::exception& err) {
-        CF_DBG("resolving - resolve error: %s", err.what());
+        CF_DBG("<< resolving - resolve error: %s", err.what());
         throw err;
     }
 }
@@ -56,7 +56,7 @@ on_invoke(typename task<typename session_t::invoke_result<io::locator::resolve>:
         auto rx = std::move(std::get<1>(ch));
         return rx.recv();
     } catch (const std::exception &err) {
-        CF_DBG("resolving - invocation error: %s", err.what());
+        CF_DBG("<< resolving - invocation error: %s", err.what());
         throw err;
     }
 }
@@ -69,10 +69,11 @@ on_connect(typename task<void>::future_move_type future,
     try {
         future.get();
 
-        CF_DBG("resolving ...");
+        CF_DBG("<< connect to the locator: ok");
+        CF_DBG(">> resolving ...");
         return locator->invoke<io::locator::resolve>(name);
     } catch (const std::system_error& err) {
-        CF_DBG("connecting - error: %s", err.what());
+        CF_DBG("<< connecting - error: %s", err.what());
         throw err;
     }
 }
@@ -104,7 +105,7 @@ auto resolver_t::resolve(std::string name) -> typename task<resolver_t::result_t
 
     auto locator = std::make_shared<session_t>(scheduler);
 
-    CF_DBG("connecting to the locator ...");
+    CF_DBG(">> connecting to the locator ...");
     return locator->connect(endpoints())
         .then(scheduler, wrap(std::bind(&on_connect, ph::_1, locator, std::move(name))))
         .then(scheduler, wrap(std::bind(&on_invoke, ph::_1, locator)))

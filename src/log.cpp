@@ -11,11 +11,14 @@ namespace framework {
 
 namespace detail {
 
+// R - resolver
 // S - service
 // s - session
-// C - connect
-// I - invoke
-// R - resolve with locator
+// b - basic session
+// [Ssb]C - connect
+//      I - invoke
+//      P - push
+//      R - recv
 // >> op - start asynchronous operation
 // << op - finished asynchronous operation
 
@@ -83,6 +86,21 @@ std::string merge_context(std::string context) {
     }
 
     return blackhole::utils::format("%s|%s", boost::get<std::string>(it->second.value), context);
+}
+
+std::string pop_context() {
+    blackhole::scoped_attributes_t scoped(logger(), blackhole::attribute::set_t());
+    const auto& attributes = scoped.attributes();
+    auto it = std::find_if(attributes.begin(), attributes.end(), &match_context);
+
+    if (it == attributes.end()) {
+        return "";
+    }
+
+    std::string current = boost::get<std::string>(it->second.value);
+    size_t pos = current.find_last_of("|");
+
+    return current.substr(0, pos);
 }
 
 }
