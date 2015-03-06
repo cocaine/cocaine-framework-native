@@ -277,7 +277,7 @@ public:
         } else {
             for (size_t i = 0; i < m_futures.size(); ++i) {
                 m_futures[i].when_ready(executor_t(),
-                                        std::bind(&when_all_vector_state<T>::make_ready,
+                                        std::bind(&when_all_vector_state<T>::make_ready<T>,
                                                   this->shared_from_this(),
                                                   std::placeholders::_1));
             }
