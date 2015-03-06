@@ -75,10 +75,11 @@ inline std::string ser_msg(const msgpack::object& o) {
     );
 
 #else
-
-#define CF_US(...)
+#   define CF_MSG(...)
+#   define CF_US(...)
 #   define CF_EC(...)
 #   define CF_LOG(...)
 #   define CF_DBG(...)
 #   define CF_CTX(...)
+#   define CF_CTX_POP()
 #endif
