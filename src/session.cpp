@@ -5,10 +5,10 @@
 #include <cocaine/locked_ptr.hpp>
 
 #include "cocaine/framework/scheduler.hpp"
-#include "cocaine/framework/util/net.hpp"
 
 #include "cocaine/framework/detail/log.hpp"
 #include "cocaine/framework/detail/loop.hpp"
+#include "cocaine/framework/detail/net.hpp"
 
 namespace ph = std::placeholders;
 
