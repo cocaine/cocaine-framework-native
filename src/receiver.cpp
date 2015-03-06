@@ -30,6 +30,6 @@ basic_receiver_t<Session>::recv() {
 
 template<class Session>
 void basic_receiver_t<Session>::revoke() {
-    CF_DBG("received the last message in the protocol graph - revoking ...");
+    // CF_DBG("received the last message in the protocol graph - revoking ...");
     // session->revoke(id);
 }
