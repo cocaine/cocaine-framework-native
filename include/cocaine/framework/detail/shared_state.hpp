@@ -16,8 +16,9 @@ class shared_state_t {
 public:
     typedef decoded_message value_type;
 
+private:
     std::queue<value_type> queue;
-    std::queue<typename task<value_type>::promise_type> pending;
+    std::queue<typename task<value_type>::promise_type> await;
 
     boost::optional<std::error_code> broken;
 
