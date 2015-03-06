@@ -27,7 +27,7 @@ set(SOURCES
     func/real/connector
     func/real/service
     func/stub/session
-#    load/service
+    load/service
 )
 
 project(${PROJECT})
