@@ -2,6 +2,11 @@
 
 #include <boost/version.hpp>
 
+#if BOOST_VERSION < 105000
+#include <array>
+#include <boost/array.hpp>
+#endif
+
 namespace cocaine {
 
 namespace framework {
@@ -13,7 +18,7 @@ address_cast(const asio::ip::address& address) {
     if (address.is_v4()) {
         return boost::asio::ip::address_v4(address.to_v4().to_ulong());
     } else if (address.is_v6()) {
-#if BOOST_VERSION >= 105600
+#if BOOST_VERSION >= 105000
         return boost::asio::ip::address_v6(address.to_v6().to_bytes());
 #else
         auto from = address.to_v6().to_bytes();
@@ -31,7 +36,7 @@ address_cast(const boost::asio::ip::address& address) {
     if (address.is_v4()) {
         return asio::ip::address_v4(address.to_v4().to_ulong());
     } else if (address.is_v6()) {
-#if BOOST_VERSION >= 105600
+#if BOOST_VERSION >= 105000
         return asio::ip::address_v6(address.to_v6().to_bytes());
 #else
         auto from = address.to_v6().to_bytes();
