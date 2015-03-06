@@ -13,16 +13,16 @@ using namespace cocaine::framework::detail;
 class cocaine::framework::execution_unit_t {
 public:
     loop_t io;
+    boost::optional<loop_t::work> work;
     event_loop_t event_loop;
     scheduler_t scheduler;
     boost::thread thread;
-    boost::optional<loop_t::work> work;
 
     execution_unit_t() :
+        work(boost::optional<loop_t::work>(loop_t::work(io))),
         event_loop(io),
         scheduler(event_loop),
-        thread(std::bind(static_cast<std::size_t(loop_t::*)()>(&loop_t::run), std::ref(io))),
-        work(boost::optional<loop_t::work>(loop_t::work(io)))
+        thread(std::bind(static_cast<std::size_t(loop_t::*)()>(&loop_t::run), std::ref(io)))
     {}
 
     ~execution_unit_t() {
