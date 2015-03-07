@@ -104,11 +104,6 @@ public:
     void disconnect();
 
     /*!
-     * Obtain the next channel id number, that is guaranteed to be unique for further invocation.
-     */
-    auto next() -> std::uint64_t;
-
-    /*!
      * Sends an invocation event and creates a new channel accociated with it.
      *
      * \note if the future returned throws an exception that means that the data will never be
@@ -117,8 +112,16 @@ public:
      *
      * If you send a **mute** event, there is no way to obtain guarantees of successful message
      * transporting.
+     *
+     * \threadsafe
      */
     auto invoke(std::uint64_t span, io::encoder_t::message_type&& message) -> typename task<invoke_result>::future_type;
+
+    /// \overload
+    auto invoke(std::function<io::encoder_t::message_type(std::uint64_t)> encoder) -> typename task<invoke_result>::future_type;
+
+    async<invoke_result>::future
+    invoke_deferred(std::function<io::encoder_t::message_type(std::uint64_t)> encoder);
 
     /*!
      * Sends an event without creating a new channel.

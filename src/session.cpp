@@ -102,13 +102,10 @@ auto session<BasicSession>::endpoint() const -> boost::optional<endpoint_type> {
 }
 
 template<class BasicSession>
-auto session<BasicSession>::next() -> std::uint64_t {
-    return d->sess->next();
-}
-
-template<class BasicSession>
-auto session<BasicSession>::invoke(std::uint64_t span, io::encoder_t::message_type&& message) -> typename task<basic_invoke_result>::future_type {
-    return d->sess->invoke(span, std::move(message));
+auto session<BasicSession>::invoke(std::function<io::encoder_t::message_type(std::uint64_t)> encoder)
+    -> typename task<basic_invoke_result>::future_type
+{
+    return d->sess->invoke(std::move(encoder));
 }
 
 #include "cocaine/framework/detail/basic_session.hpp"

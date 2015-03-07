@@ -31,8 +31,13 @@ public:
         promise(std::move(promise))
     {}
 
+    /*!
+     * \warning guaranteed to be called from the event loop thread, otherwise the behavior is
+     * undefined.
+     */
     void operator()() {
         if (connection->channel) {
+            CF_DBG("writing %lu bytes ...", message.size());
             connection->channel->writer->write(message, wrap(std::bind(&push_t::on_write, shared_from_this(), ph::_1)));
         } else {
             CF_DBG("<< write aborted: not connected");
@@ -125,8 +130,42 @@ void basic_session_t::disconnect() {
     scheduler(wrap(std::bind(&basic_session_t::on_disconnect, shared_from_this())));
 }
 
-auto basic_session_t::next() -> std::uint64_t {
-    return counter++;
+auto basic_session_t::invoke(std::function<io::encoder_t::message_type(std::uint64_t)> encoder)
+    -> typename task<invoke_result>::future_type
+{
+    packaged_task<async<basic_session_t::invoke_result>::future()> task(
+        std::bind(&basic_session_t::invoke_deferred, shared_from_this(), std::move(encoder))
+    );
+
+    scheduler(task);
+    return task.get_future();
+//    const std::uint64_t span = counter++;
+//    return invoke(span, encoder(span));
+}
+
+async<basic_session_t::invoke_result>::future
+basic_session_t::invoke_deferred(std::function<io::encoder_t::message_type(std::uint64_t)> encoder) {
+    // Guaranteed to be invoked from the event loop thread.
+    // TODO: COCAINE_ASSERT(std::this_thread::get_id() == scheduler.thread_id());
+    const auto span = counter++;
+    return invoke(span, encoder(span));
+}
+
+auto
+basic_session_t::invoke(std::uint64_t span, io::encoder_t::message_type&& message) -> typename task<invoke_result>::future_type {
+    CF_CTX("bI" + std::to_string(span));
+    CF_DBG("invoking span %llu event ...", CF_US(span));
+
+    auto tx = std::make_shared<basic_sender_t<basic_session_t>>(span, shared_from_this());
+    auto state = std::make_shared<shared_state_t>();
+    auto rx = std::make_shared<basic_receiver_t<basic_session_t>>(span, shared_from_this(), state);
+
+    channels->insert(std::make_pair(span, state));
+    return push(std::move(message))
+        .then(scheduler, wrap([tx, rx](typename task<void>::future_move_type future){
+            future.get();
+            return std::make_tuple(tx, rx);
+        }));
 }
 
 auto basic_session_t::push(io::encoder_t::message_type&& message) -> typename task<void>::future_type {
@@ -145,23 +184,6 @@ void basic_session_t::revoke(std::uint64_t span) {
     CF_DBG(">> revoking span %llu channel", CF_US(span));
 
     scheduler(wrap(std::bind(&basic_session_t::on_revoke, shared_from_this(), span)));
-}
-
-auto
-basic_session_t::invoke(std::uint64_t span, io::encoder_t::message_type&& message) -> typename task<basic_session_t::invoke_result>::future_type {
-    CF_CTX("bI");
-    CF_DBG("invoking span %llu event ...", CF_US(span));
-
-    auto tx = std::make_shared<basic_sender_t<basic_session_t>>(span, shared_from_this());
-    auto state = std::make_shared<shared_state_t>();
-    auto rx = std::make_shared<basic_receiver_t<basic_session_t>>(span, shared_from_this(), state);
-
-    channels->insert(std::make_pair(span, state));
-    return push(std::move(message))
-        .then(scheduler, wrap([tx, rx](typename task<void>::future_move_type future){
-            future.get();
-            return std::make_tuple(tx, rx);
-        }));
 }
 
 void basic_session_t::on_disconnect() {
@@ -218,6 +240,7 @@ void basic_session_t::on_read(const std::error_code& ec) {
     }
 
     if (!channel) {
+        CF_DBG("received message from disconnected channel");
         on_error(asio::error::operation_aborted);
         return;
     }

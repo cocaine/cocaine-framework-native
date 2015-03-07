@@ -53,15 +53,22 @@ public:
     template<class Event, class... Args>
     typename task<typename invoke_result<Event>::type>::future_type
     invoke(Args&&... args) {
-        const std::uint64_t span(next());
-        return invoke(span, io::encoded<Event>(span, std::forward<Args>(args)...))
-            .then(scheduler, std::bind(&session::on_invoke<Event>, std::placeholders::_1));
+        namespace ph = std::placeholders;
+
+        return invoke(std::bind(&session::encode<Event, Args...>, ph::_1, std::forward<Args>(args)...))
+            .then(scheduler, std::bind(&session::on_invoke<Event>, ph::_1));
     }
 
 private:
-    auto next() -> std::uint64_t;
+    auto invoke(std::function<io::encoder_t::message_type(std::uint64_t)> encoder)
+        -> typename task<basic_invoke_result>::future_type;
 
-    auto invoke(std::uint64_t span, io::encoder_t::message_type&& message) -> typename task<basic_invoke_result>::future_type;
+    template<class Event, class... Args>
+    static
+    io::encoder_t::message_type
+    encode(std::uint64_t span, Args&... args) {
+        return io::encoded<Event>(span, std::forward<Args>(args)...);
+    }
 
     template<class Event>
     static
