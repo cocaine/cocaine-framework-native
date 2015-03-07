@@ -9,7 +9,7 @@ using namespace cocaine;
 using namespace cocaine::framework;
 
 TEST(load, StorageAsyncST) {
-    const int ITERS = 10;
+    const int ITERS = 10000;
 
     service_manager_t manager(1);
     auto storage = manager.create<cocaine::io::storage_tag>("storage");
