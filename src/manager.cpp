@@ -63,5 +63,5 @@ scheduler_t& service_manager_t::next() {
         current = 0;
     }
 
-    return units[current]->scheduler;
+    return units[current++]->scheduler;
 }
