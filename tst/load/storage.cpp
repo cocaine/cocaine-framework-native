@@ -34,15 +34,14 @@ TEST(load, StorageAsyncST) {
 TEST(load, StorageAsyncMT) {
     const int ITERS = 10000;
 
-    service_manager_t manager(1);
-    auto storage = manager.create<cocaine::io::storage_tag>("storage");
-
+    service_manager_t manager(4);
     std::vector<boost::thread> threads;
 
-    for (int tid = 0; tid < 8; ++tid) {
-        threads.emplace_back([&storage]{
+    for (int tid = 0; tid < 4; ++tid) {
+        threads.emplace_back([&manager]{
+            auto storage = manager.create<cocaine::io::storage_tag>("storage");
             std::vector<typename task<std::string>::future_type> futures;
-            futures.reserve(8 * ITERS);
+            futures.reserve(ITERS);
 
             for (int i = 0; i < ITERS; ++i) {
                 futures.emplace_back(
@@ -51,7 +50,7 @@ TEST(load, StorageAsyncMT) {
             }
 
             // Block here.
-            for (auto& future : futures) {
+            for (auto& future : when_all(futures).get()) {
                 EXPECT_EQ("le value", future.get());
             }
         });

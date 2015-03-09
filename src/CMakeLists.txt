@@ -8,7 +8,7 @@ find_package(Cocaine 0.12 REQUIRED)
 
 set(Boost_USE_MULTITHREADED ON)
 
-set(PROJECT cocaine-framework-cpp)
+set(PROJECT cocaine-framework-native)
 
 set(COCAINE_FRAMEWORK_INCLUDES_DIR
     ${CMAKE_SOURCE_DIR}/include/cocaine/framework
@@ -63,7 +63,7 @@ add_definitions(-std=c++0x)
 # Install section.
 install(
     TARGETS
-        cocaine-framework-cpp
+        cocaine-framework-native
     LIBRARY DESTINATION lib)
 
 install(

@@ -1,5 +1,223 @@
-cocaine-framework-cpp (0.12.0-rc0) unstable; urgency=low
+cocaine-framework-native (0.12.0-rc0) unstable; urgency=low
 
   * Initial release.
 
  -- Evgeny Safronov <division494@gmail.com>  Thu, 05 Mar 2015 12:30:00 +0300
+
+cocaine-framework-native (0.11.1.2) unstable; urgency=low
+
+  * Fix deadlock in service client.
+
+ -- Andrey Goryachev <bugsbunny@yandex-team.ru>  Tue, 06 May 2014 18:25:07 +0400
+
+cocaine-framework-native (0.11.1.1) unstable; urgency=low
+
+  * Fix segmentation fault in service manager destructor.
+
+ -- Andrey Goryachev <bugsbunny@yandex-team.ru>  Fri, 04 Apr 2014 17:17:03 +0400
+
+cocaine-framework-native (0.11.1.0) unstable; urgency=low
+
+  * Fixed race in service destructor.
+  * Fixed building on Max OS X.
+  * Warning: binary compatibility is broken.
+
+ -- Andrey Goryachev <bugsbunny@yandex-team.ru>  Wed, 19 Mar 2014 18:08:48 +0400
+
+cocaine-framework-native (0.11.0.3) unstable; urgency=low
+
+  * Fixed segmentation fault.
+
+ -- Andrey Goryachev <bugsbunny@yandex-team.ru>  Tue, 17 Dec 2013 15:31:46 +0400
+
+cocaine-framework-native (0.11.0.2) unstable; urgency=low
+
+  * Fix bug with wait* methods of future.
+
+ -- Andrey Goryachev <bugsbunny@yandex-team.ru>  Thu, 12 Dec 2013 13:32:52 +0400
+
+cocaine-framework-native (0.11.0.1) unstable; urgency=low
+
+  * Remove unused code.
+
+ -- Andrey Goryachev <bugsbunny@yandex-team.ru>  Wed, 13 Nov 2013 19:49:10 +0400
+
+cocaine-framework-native (0.11.0.0) unstable; urgency=low
+
+  * Support of timeouts.
+  * Support of multiple locators in service manager.
+  * Support of multiple threads in service manager.
+  * Several bugfixes.
+
+ -- Andrey Goryachev <bugsbunny@yandex-team.ru>  Tue, 15 Oct 2013 11:00:45 +0400
+
+cocaine-framework-native (0.10.6.2) unstable; urgency=low
+
+  * Fixed building with g++ 4.7.
+  * Minor API improvements.
+
+ -- Andrey Goryachev <bugsbunny@yandex-team.ru>  Wed, 25 Sep 2013 20:02:55 +0400
+
+cocaine-framework-native (0.10.6.1) unstable; urgency=low
+
+  * Bump version to build native framework with last libcocaine-dev.
+
+ -- Andrey Goryachev <bugsbunny@yandex-team.ru>  Mon, 05 Aug 2013 11:37:19 +0400
+
+cocaine-framework-native (0.10.6.0) unstable; urgency=low
+
+  * Support of IPv6 in services.
+  * Several bugfixes.
+
+ -- Andrey Goryachev <bugsbunny@yandex-team.ru>  Mon, 29 Jul 2013 18:05:31 +0400
+
+cocaine-framework-native (0.10.5-5) unstable; urgency=low
+
+  * It's possible to create service manager even if cocaine runtime is down. When the locator appears, service manager will be able to create services and write logs.
+  * Disconnected services automaticaly reconnects before each call. If reconnect fails then exception will be pushed in future returned by 'call'.
+  * Some bugs fixed.
+
+ -- Andrey Goryachev <bugsbunny@yandex-team.ru>  Wed, 24 Jul 2013 22:21:46 +0400
+
+cocaine-framework-native (0.10.5-4) unstable; urgency=low
+
+  * Fixed dependencies of cocaine-framework-native-dev.
+
+ -- Andrey Goryachev <bugsbunny@yandex-team.ru>  Mon, 22 Jul 2013 22:19:30 +0400
+
+cocaine-framework-native (0.10.5-3) unstable; urgency=low
+
+  * New HTTP handler. Format of response and request has changed.
+  * Some fixes in stream/generator and services.
+
+ -- Andrey Goryachev <bugsbunny@yandex-team.ru>  Mon, 22 Jul 2013 21:34:35 +0400
+
+cocaine-framework-native (0.10.5-2) unstable; urgency=low
+
+  * Always pack App Service chunks.
+
+ -- Andrey Sibiryov <kobolog@yandex-team.ru>  Thu, 11 Jul 2013 21:07:55 +0400
+
+cocaine-framework-native (0.10.5-1) unstable; urgency=low
+
+  * Constructor of application is now used instead of 'initialize' method.
+  * Application class no longer can be derived from enable_shared_from_this.
+  * Some objects are now passed to user by reference, not a pointer.
+  * 'map' method of generator unwraps argument of a callback. For example, for generator<future<int>> 'map' passes future<int> to a callback.
+
+ -- Andrey Goryachev <bugsbunny@yandex-team.ru>  Wed, 10 Jul 2013 19:17:09 +0400
+
+cocaine-framework-native (0.10.5-0) unstable; urgency=low
+
+  * Release 10.5.
+  * New API for Services - based on streams and futures.
+  * Workerless Client API - you can now use services from any C++ code.
+  * All the base classes for apps are gone, just pass whatever class type you
+    want, the only requirement is the initialize() method.
+  * Services are now handled in a separate thread, allowing blocking calls.
+
+ -- Andrey Sibiryov <kobolog@yandex-team.ru>  Mon, 08 Jul 2013 23:17:59 +0400
+
+cocaine-framework-native (0.10.4-2) unstable; urgency=low
+
+  * Compatibility release.
+
+ -- Andrey Sibiryov <kobolog@yandex-team.ru>  Fri, 28 Jun 2013 18:15:33 +0400
+
+cocaine-framework-native (0.10.4-1) unstable; urgency=low
+
+  * Compatibility release.
+
+ -- Andrey Sibiryov <kobolog@yandex-team.ru>  Mon, 24 Jun 2013 01:42:56 +0400
+
+cocaine-framework-native (0.10.4-0) unstable; urgency=low
+
+  * Release 10.4.
+  * Support for service remoting.
+  * Support for the named queues.
+  * Support for locator port forwarding.
+  * Bugfix: block SIGPIPE.
+  * Bugfix: defer first heartbeat until the application is ready to handle
+    user requests instead of heartbeating right on the start.
+
+ -- Andrey Sibiryov <kobolog@yandex-team.ru>  Sun, 19 May 2013 22:05:50 +0400
+
+cocaine-framework-native (0.10.3-1) unstable; urgency=low
+
+  * Improved HTTP handler.
+
+ -- Andrey Goryachev <bugsbunny@yandex-team.ru>  Wed, 22 May 2013 19:00:45 +0400
+
+cocaine-framework-native (0.10.3-0) unstable; urgency=low
+
+  * Release 10.3.
+  * Support for Storage API v2.
+  * Bugfix: the disown timer now has the lowest priority, so it won't fire
+    when there's a heartbeat in the I/O queue, but the timeout has already
+    expired.
+  * Bugfix: don't crash on local socket errors.
+
+ -- Andrey Goryachev <bugsbunny@yandex-team.ru>  Tue, 21 May 2013 17:46:09 +0400
+
+cocaine-framework-native (0.10.2-1) unstable; urgency=low
+
+  * Backward compatibility now actually works.
+
+ -- Andrey Sibiryov <kobolog@yandex-team.ru>  Thu, 02 May 2013 16:51:00 +0400
+
+cocaine-framework-native (0.10.2-0) unstable; urgency=low
+
+  * Release 10.2.
+  * New basic logger interface. Global logger is represented with this interface.
+  * Improved functional handler and associated minor changes of api.
+  * New HTTP handler.
+  * Several bugfixes.
+
+ -- Andrey Goryachev <bugsbunny@yandex-team.ru>  Sat, 27 Apr 2013 15:02:32 +0400
+
+cocaine-framework-native (0.10.1-0) unstable; urgency=low
+
+  * Release 10.1.
+  * Complete support of services.
+  * New global logger.
+  * Correct handling of exceptions and errors.
+  * New base class for applications.
+  * A lot of changes related to code style.
+  * Cleaned API.
+
+ -- Andrey Goryachev <bugsbunny@yandex-team.ru>  Fri, 12 Apr 2013 14:25:43 +0400
+
+cocaine-framework-native (0.10.0-rc4) unstable; urgency=low
+
+  * Release candidate 4.
+  * Enum serialization fixes.
+
+ -- Andrey Sibiryov <kobolog@yandex-team.ru>  Wed, 03 Apr 2013 21:55:39 +0400
+
+cocaine-framework-native (0.10.0-rc3) unstable; urgency=low
+
+  * Release candidate 3.
+  * Logging fixes.
+
+ -- Andrey Sibiryov <kobolog@yandex-team.ru>  Wed, 03 Apr 2013 19:32:05 +0400
+
+cocaine-framework-native (0.10.0-rc2) unstable; urgency=low
+
+  * Release candidate 2.
+  * Now using native logging interfaces.
+  * Added a stupid storage service stub.
+
+ -- Andrey Sibiryov <kobolog@yandex-team.ru>  Wed, 03 Apr 2013 15:58:38 +0400
+
+cocaine-framework-native (0.10.0-rc1) unstable; urgency=low
+
+  * Release candidate 1.
+  * Support tuple service mechanics.
+
+ -- Andrey Sibiryov <kobolog@yandex-team.ru>  Mon, 01 Apr 2013 18:02:07 +0400
+
+cocaine-framework-native (0.10.0-rc0) unstable; urgency=low
+
+  * Initial release.
+
+ -- Andrey Sibiryov <kobolog@yandex-team.ru>  Wed, 27 Mar 2013 22:35:10 +0400

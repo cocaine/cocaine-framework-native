@@ -120,7 +120,7 @@ public:
     /// \overload
     auto invoke(std::function<io::encoder_t::message_type(std::uint64_t)> encoder) -> typename task<invoke_result>::future_type;
 
-    async<invoke_result>::future
+    task<invoke_result>::future_type
     invoke_deferred(std::function<io::encoder_t::message_type(std::uint64_t)> encoder);
 
     /*!

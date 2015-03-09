@@ -18,7 +18,7 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/include
     SYSTEM ${CMAKE_SOURCE_DIR}/foreign/asio/asio/include)
 
-set(PROJECT cocaine-framework-cpp-tests)
+set(PROJECT cocaine-framework-tests)
 
 set(SOURCES
     main
@@ -36,7 +36,7 @@ project(${PROJECT})
 add_executable(${PROJECT} ${SOURCES})
 add_dependencies(${PROJECT} googlemock)
 target_link_libraries(${PROJECT}
-    cocaine-framework-cpp
+    cocaine-framework-native
     gmock
     gtest)
 

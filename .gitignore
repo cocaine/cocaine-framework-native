@@ -1,9 +1,9 @@
-# Other trash.
+# Build directory.
 build
 
 # IDE specific.
 *.user
-cocaine-framework-cpp.config
-cocaine-framework-cpp.creator
-cocaine-framework-cpp.files
-cocaine-framework-cpp.includes
+cocaine-framework-*.config
+cocaine-framework-*.creator
+cocaine-framework-*.files
+cocaine-framework-*.includes

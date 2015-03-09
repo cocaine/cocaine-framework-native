@@ -1,6 +1,6 @@
 {
     "slave": "echo",
     "environment": {
-        "LD_LIBRARY_PATH": "/Users/esafronov/sandbox/cocaine-framework-cpp/build/src/"
+        "LD_LIBRARY_PATH": "/Users/esafronov/sandbox/cocaine-framework-native/build/src/"
     }
 }

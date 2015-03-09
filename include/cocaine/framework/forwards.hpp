@@ -14,11 +14,6 @@ namespace cocaine {
             typedef promise<T> promise_type;
         };
 
-        template<typename T>
-        struct async {
-            typedef future<T> future;
-        };
-
         /// \internal
         struct event_loop_t;
 

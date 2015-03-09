@@ -133,7 +133,7 @@ void basic_session_t::disconnect() {
 auto basic_session_t::invoke(std::function<io::encoder_t::message_type(std::uint64_t)> encoder)
     -> typename task<invoke_result>::future_type
 {
-    packaged_task<async<basic_session_t::invoke_result>::future()> task(
+    packaged_task<task<basic_session_t::invoke_result>::future_type()> task(
         std::bind(&basic_session_t::invoke_deferred, shared_from_this(), std::move(encoder))
     );
 
@@ -143,7 +143,7 @@ auto basic_session_t::invoke(std::function<io::encoder_t::message_type(std::uint
 //    return invoke(span, encoder(span));
 }
 
-async<basic_session_t::invoke_result>::future
+task<basic_session_t::invoke_result>::future_type
 basic_session_t::invoke_deferred(std::function<io::encoder_t::message_type(std::uint64_t)> encoder) {
     // Guaranteed to be invoked from the event loop thread.
     // TODO: COCAINE_ASSERT(std::this_thread::get_id() == scheduler.thread_id());
