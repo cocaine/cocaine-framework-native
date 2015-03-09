@@ -7,3 +7,18 @@ cocaine-framework-*.config
 cocaine-framework-*.creator
 cocaine-framework-*.files
 cocaine-framework-*.includes
+
+# Compiled Object files.
+*.slo
+*.lo
+*.o
+
+# Compiled Dynamic libraries.
+*.so
+*.dylib
+
+# Compiled Static libraries.
+*.lai
+*.la
+*.a
+
