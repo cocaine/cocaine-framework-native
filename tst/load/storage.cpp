@@ -7,11 +7,17 @@
 #include <cocaine/framework/manager.hpp>
 #include <cocaine/framework/service.hpp>
 
+#include "../util/env.hpp"
+
 using namespace cocaine;
 using namespace cocaine::framework;
 
+using namespace testing;
+
+static const uint DEFAULT_ITERS = 100;
+
 TEST(load, StorageAsyncST) {
-    const int ITERS = 10000;
+    const uint ITERS = util::get_option<uint>("load.StorageAsyncST", DEFAULT_ITERS);
 
     service_manager_t manager(1);
     auto storage = manager.create<cocaine::io::storage_tag>("storage");
@@ -32,13 +38,13 @@ TEST(load, StorageAsyncST) {
 }
 
 TEST(load, StorageAsyncMT) {
-    const int ITERS = 10000;
+    const uint ITERS = util::get_option<uint>("load.StorageAsyncMT", DEFAULT_ITERS);
 
     service_manager_t manager(4);
     std::vector<boost::thread> threads;
 
     for (int tid = 0; tid < 4; ++tid) {
-        threads.emplace_back([&manager]{
+        threads.emplace_back([&manager, ITERS]{
             auto storage = manager.create<cocaine::io::storage_tag>("storage");
             std::vector<typename task<std::string>::future_type> futures;
             futures.reserve(ITERS);

@@ -7,31 +7,21 @@
 #include <cocaine/framework/service.hpp>
 #include <cocaine/framework/manager.hpp>
 
+#include "../util/env.hpp"
+
 using namespace cocaine;
 using namespace cocaine::framework;
 
+using namespace testing;
+
 typedef typename io::protocol<io::app::enqueue::dispatch_type>::scope scope;
 
-namespace testing {
-
-template<typename T>
-static
-T get_option(const char* name, T def) {
-    if (char* value = ::getenv(name)) {
-        return boost::lexical_cast<T>(value);
-    }
-
-    return def;
-}
-
-} // namespace testing
-
 static const char DEFAULT_APP[] = "echo-cpp";
-static const uint DEFAULT_ITERS = 10000;
+static const uint DEFAULT_ITERS = 100;
 
 TEST(load, EchoSyncST) {
-    const std::string APP = testing::get_option<std::string>("load.EchoSyncST.app", DEFAULT_APP);
-    const uint ITERS = testing::get_option<uint>("load.EchoSyncST.iters", DEFAULT_ITERS);
+    const std::string APP = util::get_option<std::string>("load.EchoSyncST.app", DEFAULT_APP);
+    const uint ITERS = util::get_option<uint>("load.EchoSyncST.iters", DEFAULT_ITERS);
 
     service_manager_t manager(1);
     auto echo = manager.create<cocaine::io::app_tag>(APP);
@@ -99,8 +89,8 @@ on_invoke(typename task<typename invocation_result<io::app::enqueue>::type>::fut
 } // namespace
 
 TEST(load, EchoAsyncST) {
-    const std::string APP = testing::get_option<std::string>("load.EchoAsyncST.app", DEFAULT_APP);
-    const uint ITERS = testing::get_option<uint>("load.EchoAsyncST.iters", DEFAULT_ITERS);
+    const std::string APP = util::get_option<std::string>("load.EchoAsyncST.app", DEFAULT_APP);
+    const uint ITERS = util::get_option<uint>("load.EchoAsyncST.iters", DEFAULT_ITERS);
 
     std::atomic<int> counter(0);
 
