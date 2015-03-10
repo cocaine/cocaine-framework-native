@@ -23,7 +23,7 @@ TEST(Resolver, Resolve) {
     scheduler_t scheduler(loop);
 
     resolver_t resolver(scheduler);
-    auto result = resolver.resolve("echo").get();
+    auto result = resolver.resolve("storage").get();
 
     EXPECT_FALSE(result.endpoints.empty());
     EXPECT_EQ(1, result.version);

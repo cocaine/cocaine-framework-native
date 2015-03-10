@@ -47,7 +47,7 @@ TEST(service, Echo) {
     typedef typename cocaine::io::protocol<cocaine::io::app::enqueue::dispatch_type>::scope upstream;
 
     service_manager_t manager(1);
-    auto echo = manager.create<cocaine::io::storage_tag>("echo");
+    auto echo = manager.create<cocaine::io::storage_tag>("echo-cpp");
 
     channel_(tx, rx, echo.invoke<cocaine::io::app::enqueue>(std::string("ping")).get());
 
