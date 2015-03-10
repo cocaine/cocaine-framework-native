@@ -44,7 +44,7 @@ TEST(load, EchoSyncST) {
         tx.send<scope::chunk>(std::string("le message")).get();
 
         auto result = rx.recv().get();
-        EXPECT_EQ("\xAAle message", *result);
+        EXPECT_EQ("le message", *result);
 
         auto choke = rx.recv().get();
         EXPECT_FALSE(choke);
