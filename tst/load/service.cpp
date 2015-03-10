@@ -12,16 +12,28 @@ using namespace cocaine::framework;
 
 typedef typename io::protocol<io::app::enqueue::dispatch_type>::scope scope;
 
+namespace testing {
 
+template<typename T>
+static
+T get_option(const char* name, T def) {
+    if (char* value = ::getenv(name)) {
+        return boost::lexical_cast<T>(value);
     }
 
+    return def;
+}
 
+} // namespace testing
 
 TEST(load, EchoSyncST) {
-    service_manager_t manager(1);
-    auto echo = manager.create<cocaine::io::app_tag>("echo-cpp");
+    const std::string APP = testing::get_option<std::string>("load.EchoSyncST.app", "echo-cpp");
+    const uint ITERS = testing::get_option<uint>("load.EchoSyncST.iters", 10000);
 
-    for (size_t id = 0; id < 10000; ++id) {
+    service_manager_t manager(1);
+    auto echo = manager.create<cocaine::io::app_tag>(APP);
+
+    for (size_t id = 0; id < ITERS; ++id) {
         auto channel = echo.invoke<io::app::enqueue>(std::string("ping")).get();
         auto tx = std::move(std::get<0>(channel));
         auto rx = std::move(std::get<1>(channel));
@@ -29,7 +41,7 @@ TEST(load, EchoSyncST) {
         tx.send<scope::chunk>(std::string("le message")).get();
 
         auto result = rx.recv().get();
-        EXPECT_EQ("le message", *result);
+        EXPECT_EQ("\xAAle message", *result);
 
         auto choke = rx.recv().get();
         EXPECT_FALSE(choke);
