@@ -23,19 +23,19 @@ sender_type::~sender() {
 namespace {
 
 sender_type
-on_write(typename task<void>::future_type& f, std::shared_ptr<basic_session_type> session) {
-    f.get();
     return sender_type(session);
+on_write(typename task<void>::future_move_type future, std::shared_ptr<basic_sender_t<worker_session_t>> session) {
+    future.get();
 }
 
 void
-on_error(typename task<void>::future_type& f) {
-    f.get();
+on_error(typename task<void>::future_type& future) {
+    future.get();
 }
 
 void
-on_close(typename task<void>::future_type& f) {
-    f.get();
+on_close(typename task<void>::future_type& future) {
+    future.get();
 }
 
 } // namespace
