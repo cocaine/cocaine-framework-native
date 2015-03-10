@@ -4,21 +4,22 @@
 #include <string>
 
 #include <cocaine/forwards.hpp>
-// TODO: WTF? Detail???
-#include <cocaine/detail/service/node/messages.hpp>
 
 #include "cocaine/framework/forwards.hpp"
-#include "cocaine/framework/sender.hpp"
 
 namespace cocaine {
 
 namespace framework {
 
-template<>
-class sender<io::rpc_tag, worker_session_t> {
+namespace worker {
+
+class sender {
     std::shared_ptr<basic_sender_t<worker_session_t>> session;
 
 public:
+    /*!
+     * \note this constructor is intentionally left implicit.
+     */
     sender(std::shared_ptr<basic_sender_t<worker_session_t>> session);
     ~sender();
 
@@ -32,6 +33,8 @@ public:
     auto error(int id, std::string reason) -> typename task<void>::future_type;
     auto close() -> typename task<void>::future_type;
 };
+
+} // namespace worker
 
 } // namespace framework
 

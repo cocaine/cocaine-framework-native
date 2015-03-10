@@ -7,8 +7,12 @@
 
 #include <asio/local/stream_protocol.hpp>
 
+#include <cocaine/forwards.hpp>
 #include <cocaine/locked_ptr.hpp>
 
+#include <cocaine/detail/service/node/messages.hpp>
+
+#include "cocaine/framework/message.hpp"
 #include "cocaine/framework/worker/dispatch.hpp"
 
 #include "cocaine/framework/detail/channel.hpp"
@@ -32,13 +36,10 @@ class worker_session_t : public std::enable_shared_from_this<worker_session_t> {
     class push_t;
 
 public:
-    typedef dispatch_t::sender_type sender_type;
-    typedef dispatch_t::receiver_type receiver_type;
-
     typedef asio::local::stream_protocol protocol_type;
     typedef detail::channel<protocol_type, io::encoder_t, detail::decoder_t> channel_type;
 
-    typedef std::function<void(sender_type, receiver_type)> handler_type;
+    typedef std::function<void(worker::sender, worker::receiver)> handler_type;
 
 private:
     dispatch_t& dispatch;

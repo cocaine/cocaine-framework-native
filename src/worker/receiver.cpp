@@ -2,22 +2,21 @@
 
 #include <cocaine/traits/tuple.hpp>
 
+#include <cocaine/detail/service/node/messages.hpp>
+
+#include "cocaine/framework/message.hpp"
+#include "cocaine/framework/receiver.hpp"
+
 namespace ph = std::placeholders;
 
 using namespace cocaine;
 using namespace cocaine::framework;
-
-typedef worker_session_t session_type;
-typedef basic_receiver_t<worker_session_t> basic_receiver_type;
-typedef receiver<io::rpc_tag, worker_session_t> receiver_type;
-
-receiver_type::receiver(std::shared_ptr<basic_receiver_type> session) :
-    session(std::move(session))
-{}
+using namespace cocaine::framework::worker;
 
 namespace {
 
 boost::optional<std::string>
+// TODO: CC typedefs and naming. Review this file.
 on_recv(typename task<decoded_message>::future_type& f) {
     const auto message = f.get();
     const std::uint64_t id = message.type();
@@ -48,7 +47,11 @@ on_recv(typename task<decoded_message>::future_type& f) {
 
 } // namespace
 
-auto receiver_type::recv() -> typename task<boost::optional<std::string>>::future_type {
+worker::receiver::receiver(std::shared_ptr<basic_receiver_t<worker_session_t>> session) :
+    session(std::move(session))
+{}
+
+auto worker::receiver::recv() -> typename task<boost::optional<std::string>>::future_type {
     return session->recv()
         .then(std::bind(&on_recv, ph::_1));
 }

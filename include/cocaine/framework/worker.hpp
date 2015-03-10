@@ -25,8 +25,6 @@ class worker_t {
 public:
     typedef dispatch_t dispatch_type;
 
-    typedef dispatch_type::sender_type   sender_type;
-    typedef dispatch_type::receiver_type receiver_type;
     typedef dispatch_type::handler_type  handler_type;
 
 private:
