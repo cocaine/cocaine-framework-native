@@ -227,8 +227,7 @@ void worker_session_t::process() {
         break;
     }
     case (io::event_traits<io::rpc::error>::id):
-        // TODO: Not implemented yet.
-        COCAINE_ASSERT(false);
+        throw std::runtime_error("worker session error handler: not implemented yet");
         break;
     case (io::event_traits<io::rpc::choke>::id): {
         auto channels = this->channels.synchronize();
