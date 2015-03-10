@@ -12,14 +12,20 @@ namespace cocaine {
 
 namespace framework {
 
+namespace worker {
+
 template<class Dispatch, class F>
 struct transform_traits {
+    typedef typename Dispatch::handler_type input_type;
+
     static
     typename Dispatch::handler_type
-    apply(F handler) {
+    apply(input_type handler) {
         return handler;
     }
 };
+
+}
 
 class worker_t {
 public:
@@ -37,8 +43,8 @@ public:
     ~worker_t();
 
     template<class F>
-    void on(std::string event, F handler) {
-        on(event, transform_traits<dispatch_type, F>::apply(std::move(handler)));
+    void on(std::string event, typename worker::transform_traits<dispatch_type, F>::input_type handler) {
+        on(event, worker::transform_traits<dispatch_type, F>::apply(std::move(handler)));
     }
 
     void on(std::string event, handler_type handler);

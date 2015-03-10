@@ -4,4 +4,5 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
 add_subdirectory(src)
 add_subdirectory(example/echo)
+add_subdirectory(example/http)
 add_subdirectory(tst)
