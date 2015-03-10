@@ -12,17 +12,10 @@ using namespace cocaine::framework;
 
 typedef typename io::protocol<io::app::enqueue::dispatch_type>::scope scope;
 
-namespace {
 
-struct inline_executor {
-    void operator()(std::function<void()> closure) {
-        closure();
     }
-};
 
-} // namespace
 
-static const inline_executor executor = inline_executor();
 
 TEST(load, EchoSyncST) {
     service_manager_t manager(1);
