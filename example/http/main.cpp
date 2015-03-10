@@ -5,11 +5,33 @@
 #include <cocaine/framework/worker.hpp>
 
 // #include <cocaine/framework/worker/http.inl>
+
 #include <cocaine/traits/tuple.hpp>
+#include <cocaine/traits/vector.hpp>
+
 #include <swarm/http_request.hpp>
 #include <swarm/http_response.hpp>
 
 namespace cocaine {
+
+namespace io {
+
+template<>
+struct type_traits<ioremap::swarm::http_response> {
+    template<class Stream>
+    static inline
+    void
+    pack(msgpack::packer<Stream>& packer, const ioremap::swarm::http_response& source) {
+        io::type_traits<
+            boost::mpl::list<
+                int,
+                std::vector<std::pair<std::string, std::string>>
+            >
+        >::pack(packer, source.code(), source.headers().all());
+    }
+};
+
+}
 
 namespace framework {
 
@@ -31,6 +53,23 @@ public:
     http_sender(sender tx) :
         tx(std::move(tx))
     {}
+
+    // Movable, noncopyable.
+
+    typename task<http_sender>::future_type
+    send(std::string data) {
+        auto tx = std::move(this->tx);
+        auto future = tx.write(std::move(data));
+        return future
+            .then(std::bind(&http_sender::unwrap, std::placeholders::_1));
+    }
+
+private:
+    static
+    http_sender
+    unwrap(typename task<sender>::future_move_type future) {
+        return future.get();
+    }
 };
 
 template<>
@@ -47,13 +86,10 @@ public:
     typename task<http_sender<http::streaming>>::future_type
     send(ioremap::swarm::http_response rs) {
         msgpack::sbuffer buffer;
-        msgpack::packer<msgpack::sbuffer> packer(&buffer);
+        msgpack::packer<msgpack::sbuffer> packer(buffer);
         io::type_traits<
-            boost::mpl::list<
-                int,
-                std::vector<std::pair<std::string, std::string>>
-            >
-        >::pack(packer, rs.code(), rs.headers().all());
+            ioremap::swarm::http_response
+        >::pack(packer, rs);
 
         auto tx = std::move(this->tx);
         auto future = tx.write(std::string(buffer.data(), buffer.size()));
@@ -196,7 +232,8 @@ int main(int argc, char** argv) {
     worker.on<http>("http", [](http_sender<http::fresh> tx, http_receiver<http::fresh>){
         swarm::http_response rs;
         rs.set_code(200);
-        tx.send(rs).get();
+        tx.send(std::move(rs)).get()
+            .send("Hello from C++").get();
     });
 
     return worker.run();
