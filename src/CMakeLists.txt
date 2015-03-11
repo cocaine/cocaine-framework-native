@@ -55,7 +55,7 @@ target_link_libraries(${PROJECT}
 
 set_target_properties(${PROJECT} PROPERTIES
     VERSION 1
-    COMPILE_FLAGS "-Wall -pedantic -Wextra -Winit-self -Wconversion -Wno-sign-conversion -Wold-style-cast -Woverloaded-virtual -Wctor-dtor-privacy -Wnon-virtual-dtor"
+    COMPILE_FLAGS "-Wall -pedantic -Wextra -Winit-self -Wconversion -Wno-sign-conversion -Wold-style-cast -Woverloaded-virtual -Wctor-dtor-privacy -Wnon-virtual-dtor -Wunreachable-code"
 )
 
 add_definitions(-std=c++0x)
