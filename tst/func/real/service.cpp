@@ -9,11 +9,6 @@
 
 #include "../../util/net.hpp"
 
-#define channel_(__tx__, __rx__, __expr__) \
-    auto ch = __expr__; \
-    auto __tx__ = std::move(std::get<0>(ch)); \
-    auto __rx__ = std::move(std::get<1>(ch))
-
 using namespace cocaine::framework;
 
 using namespace testing;
@@ -49,7 +44,9 @@ TEST(service, Echo) {
     service_manager_t manager(1);
     auto echo = manager.create<cocaine::io::storage_tag>("echo-cpp");
 
-    channel_(tx, rx, echo.invoke<cocaine::io::app::enqueue>(std::string("ping")).get());
+    auto channel = echo.invoke<cocaine::io::app::enqueue>(std::string("ping")).get();
+    auto tx = std::move(std::get<0>(channel));
+    auto rx = std::move(std::get<1>(channel));
 
     tx.send<upstream::chunk>(std::string("le message")).get();
     auto result = rx.recv().get();
