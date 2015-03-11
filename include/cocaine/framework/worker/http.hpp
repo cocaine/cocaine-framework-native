@@ -2,6 +2,8 @@
 
 #include "cocaine/framework/worker/http/request.hpp"
 #include "cocaine/framework/worker/http/response.hpp"
+#include "cocaine/framework/worker/sender.hpp"
+#include "cocaine/framework/worker/receiver.hpp"
 
 namespace cocaine {
 
