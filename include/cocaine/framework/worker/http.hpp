@@ -289,7 +289,9 @@ private:
  */
 template<class Dispatch, class Middleware>
 struct transform_traits<Dispatch, http::event<Middleware>> {
-    typedef std::function<void(http_sender<http::fresh, Middleware>, http_receiver<http::fresh, Middleware>)> input_type;
+    typedef http_sender<http::fresh, Middleware> sender_type;
+    typedef http_receiver<http::fresh, Middleware> receiver_type;
+    typedef std::function<void(sender_type, receiver_type)> input_type;
 
     static
     typename Dispatch::handler_type
