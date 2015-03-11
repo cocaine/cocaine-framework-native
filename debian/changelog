@@ -1,3 +1,9 @@
+cocaine-framework-native (0.12.0-rc1) unstable; urgency=low
+
+  * [API] now it's possible to write HTTP handlers.
+
+ -- Evgeny Safronov <division494@gmail.com>  Wed, 11 Mar 2015 20:51:26 +0300
+
 cocaine-framework-native (0.12.0-rc0) unstable; urgency=low
 
   * Initial release.
