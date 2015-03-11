@@ -277,10 +277,14 @@ private:
         msgpack::unpacked msg;
         msgpack::unpack(&msg, unpacked->data(), unpacked->size());
 
-        http_request_t rq;
-        io::type_traits<http_request_t>::unpack(msg.get(), rq);
+        http_request_t request;
+        std::string body;
+        io::type_traits<http_request_t>::unpack(msg.get(), request, body);
 
-        return std::make_tuple(M::map_request(std::move(rq)), http_receiver<http::streaming, M>(std::move(rx), std::move(rq.body)));
+        return std::make_tuple(
+            M::map_request(std::move(request)),
+            http_receiver<http::streaming, M>(std::move(rx), std::move(body))
+        );
     }
 };
 

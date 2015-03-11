@@ -16,7 +16,6 @@ struct http_request_t {
     std::string uri;
     std::string version;
     std::vector<std::pair<std::string, std::string>> headers;
-    std::string body;
 };
 
 } // namespace worker
@@ -38,18 +37,18 @@ struct type_traits<framework::worker::http_request_t> {
     template<class Stream>
     static inline
     void
-    pack(msgpack::packer<Stream>& packer, const framework::worker::http_request_t& source) {
+    pack(msgpack::packer<Stream>& packer, const framework::worker::http_request_t& source, const std::string& body) {
         io::type_traits<
             tuple_type
-        >::pack(packer, source.method, source.uri, source.version, source.headers, source.body);
+        >::pack(packer, source.method, source.uri, source.version, source.headers, body);
     }
 
     static inline
     void
-    unpack(const msgpack::object& unpacked, framework::worker::http_request_t& target) {
+    unpack(const msgpack::object& unpacked, framework::worker::http_request_t& target, std::string& body) {
         io::type_traits<
             tuple_type
-        >::unpack(unpacked, target.method, target.uri, target.version, target.headers, target.body);
+        >::unpack(unpacked, target.method, target.uri, target.version, target.headers, body);
     }
 };
 
