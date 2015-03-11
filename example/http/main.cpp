@@ -12,41 +12,171 @@
 #include <swarm/http_request.hpp>
 #include <swarm/http_response.hpp>
 
+/// #include <cocaine/framework/worker/http/request.hpp>
+#include <string>
+#include <vector>
+
 namespace cocaine {
-
-namespace io {
-
-template<>
-struct type_traits<ioremap::swarm::http_response> {
-    template<class Stream>
-    static inline
-    void
-    pack(msgpack::packer<Stream>& packer, const ioremap::swarm::http_response& source) {
-        io::type_traits<
-            boost::mpl::list<
-                int,
-                std::vector<std::pair<std::string, std::string>>
-            >
-        >::pack(packer, source.code(), source.headers().all());
-    }
-};
-
-}
 
 namespace framework {
 
 namespace worker {
 
+struct http_request_t {
+    std::string method;
+    std::string uri;
+    std::string version;
+    std::vector<std::pair<std::string, std::string>> headers;
+    std::string body;
+};
+
+} // namespace worker
+
+} // namespace framework
+
+namespace io {
+
+template<>
+struct type_traits<framework::worker::http_request_t> {
+    typedef boost::mpl::list<
+        std::string,
+        std::string,
+        std::string,
+        std::vector<std::pair<std::string, std::string>>,
+        std::string
+    > tuple_type;
+
+    template<class Stream>
+    static inline
+    void
+    pack(msgpack::packer<Stream>& packer, const framework::worker::http_request_t& source) {
+        io::type_traits<
+            tuple_type
+        >::pack(packer, source.method, source.uri, source.version, source.headers, source.body);
+    }
+
+    static inline
+    void
+    unpack(const msgpack::object& unpacked, framework::worker::http_request_t& target) {
+        io::type_traits<
+            tuple_type
+        >::unpack(unpacked, target.method, target.uri, target.version, target.headers, target.body);
+    }
+};
+
+} // namespace io
+
+} // namespace cocaine
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// #include <cocaine/framework/worker/http/response.hpp>
+#include <string>
+#include <vector>
+
+namespace cocaine {
+
+namespace framework {
+
+namespace worker {
+
+struct http_response_t {
+    int code;
+    std::vector<std::pair<std::string, std::string>> headers;
+};
+
+} // namespace worker
+
+} // namespace framework
+
+namespace io {
+
+template<>
+struct type_traits<framework::worker::http_response_t> {
+    typedef boost::mpl::list<
+        int,
+        std::vector<std::pair<std::string, std::string>>
+    > tuple_type;
+
+    template<class Stream>
+    static inline
+    void
+    pack(msgpack::packer<Stream>& packer, const framework::worker::http_response_t& source) {
+        io::type_traits<
+            tuple_type
+        >::pack(packer, source.code, source.headers);
+    }
+
+    static inline
+    void
+    unpack(const msgpack::object& unpacked, framework::worker::http_response_t& target) {
+        io::type_traits<
+            tuple_type
+        >::unpack(unpacked, target.code, target.headers);
+    }
+};
+
+} // namespace io
+
+} // namespace cocaine
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// #include <cocaine/framework/worker/http/swarm.inl>
+
+namespace cocaine {
+
+} // namespace cocaine
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// #include <cocaine/framework/worker/http.hpp>
+
+namespace cocaine {
+
+namespace framework {
+
+namespace worker {
+
+struct basic_middleware {
+    typedef http_request_t request_type;
+    typedef http_response_t response_type;
+
+    static
+    request_type
+    map_request(http_request_t&& rq) {
+        return rq;
+    }
+
+    static
+    http_response_t
+    map_response(response_type&& rs) {
+        return rs;
+    }
+};
+
+template<class State, class Middleware>
+class http_sender;
+
+template<class State, class Middleware>
+class http_receiver;
+
 struct http {
     class fresh;
     class streaming;
+
+    template<class Middleware = basic_middleware>
+    struct event {
+        typedef http_sender<fresh, Middleware> fresh_sender;
+        typedef http_sender<streaming, Middleware> streaming_sender;
+
+        typedef http_receiver<fresh, Middleware> fresh_receiver;
+        typedef http_receiver<streaming, Middleware> streaming_receiver;
+    };
 };
 
-template<class T>
-class http_sender;
-
-template<>
-class http_sender<http::streaming> {
+template<class M>
+class http_sender<http::streaming, M> {
     sender tx;
 
 public:
@@ -72,49 +202,54 @@ private:
     }
 };
 
-template<>
-class http_sender<http::fresh> {
+template<class M>
+class http_sender<http::fresh, M> {
     sender tx;
 
 public:
+    /// Implicit.
     http_sender(sender tx) :
         tx(std::move(tx))
     {}
 
     // TODO: Movable, noncopyable.
 
-    typename task<http_sender<http::streaming>>::future_type
-    send(ioremap::swarm::http_response rs) {
+    typename task<http_sender<http::streaming, M>>::future_type
+    send(typename M::response_type rs) {
         msgpack::sbuffer buffer;
         msgpack::packer<msgpack::sbuffer> packer(buffer);
         io::type_traits<
-            ioremap::swarm::http_response
-        >::pack(packer, rs);
+            http_response_t
+        >::pack(packer, M::map_response(std::move(rs)));
 
         auto tx = std::move(this->tx);
         auto future = tx.write(std::string(buffer.data(), buffer.size()));
-        return future.then(std::bind(&http_sender::transform, std::placeholders::_1));
+        return future
+            .then(std::bind(&http_sender::transform, std::placeholders::_1));
     }
 
 private:
     static
-    http_sender<http::streaming>
+    http_sender<http::streaming, M>
     transform(typename task<sender>::future_move_type future) {
         auto tx = future.get();
-        return http_sender<http::streaming>(std::move(tx));
+        return http_sender<http::streaming, M>(std::move(tx));
     }
 };
 
-template<class T>
-class http_receiver;
-
-template<>
-class http_receiver<http::streaming> {
+template<class M>
+class http_receiver<http::streaming, M> {
     receiver rx;
     bool cached;
     std::string body;
 
 public:
+    /// Implicit
+    http_receiver(receiver rx) :
+        rx(std::move(rx)),
+        cached(false)
+    {}
+
     http_receiver(receiver rx, std::string body) :
         rx(std::move(rx)),
         cached(true),
@@ -134,11 +269,15 @@ public:
     }
 };
 
-template<>
-class http_receiver<http::fresh> {
+template<class M>
+class http_receiver<http::fresh, M> {
+    typedef M middleware_type;
+    typedef typename middleware_type::request_type request_type;
+
     receiver rx;
 
 public:
+    /// Implicit
     http_receiver(receiver rx) :
         rx(std::move(rx))
     {}
@@ -148,12 +287,7 @@ public:
     /*!
      * \warning the object will be invalidated after this call.
      */
-    typename task<
-        std::tuple<
-            ioremap::swarm::http_request,
-            http_receiver<http::streaming>
-        >
-    >::future_type
+    typename task<std::tuple<request_type, http_receiver<http::streaming, M>>>::future_type
     recv() {
         auto rx = std::move(this->rx);
         return rx.recv()
@@ -162,49 +296,28 @@ public:
 
 private:
     static
-    std::tuple<
-        ioremap::swarm::http_request,
-        http_receiver<http::streaming>
-    >
+    std::tuple<typename M::request_type, http_receiver<http::streaming, M>>
     transform(typename task<boost::optional<std::string>>::future_move_type future, receiver rx) {
         auto unpacked = future.get();
 
         if (!unpacked) {
             // TODO: Throw more typed exceptions.
-            throw std::runtime_error("received unexpected choke");
+            throw std::runtime_error("the runtime has unexpectedly closed the channel");
         }
 
         msgpack::unpacked msg;
         msgpack::unpack(&msg, unpacked->data(), unpacked->size());
 
-        std::string method;
-        std::string uri;
-        std::string version;
-        std::vector<std::pair<std::string, std::string>> headers;
-        std::string body;
+        http_request_t rq;
+        io::type_traits<http_request_t>::unpack(msg.get(), rq);
 
-        io::type_traits<
-            boost::mpl::list<
-                std::string,
-                std::string,
-                std::string,
-                std::vector<std::pair<std::string, std::string>>,
-                std::string
-            >
-        >::unpack(msg.get(), method, uri, version, headers, body);
-
-        ioremap::swarm::http_request rq;
-        rq.set_method(method);
-        rq.set_url(uri);
-        rq.headers().assign(std::move(headers));
-
-        return std::make_tuple(std::move(rq), http_receiver<http::streaming>(std::move(rx), std::move(body)));
+        return std::make_tuple(M::map_request(std::move(rq)), http_receiver<http::streaming, M>(std::move(rx), std::move(rq.body)));
     }
 };
 
-template<class Dispatch>
-struct transform_traits<Dispatch, http> {
-    typedef std::function<void(http_sender<http::fresh>, http_receiver<http::fresh>)> input_type;
+template<class Dispatch, class Middleware>
+struct transform_traits<Dispatch, http::event<Middleware>> {
+    typedef std::function<void(http_sender<http::fresh, Middleware>, http_receiver<http::fresh, Middleware>)> input_type;
 
     static
     typename Dispatch::handler_type
@@ -226,14 +339,47 @@ using namespace cocaine::framework::worker;
 
 using namespace ioremap;
 
+struct swarm_middleware {
+    typedef swarm::http_request request_type;
+    typedef swarm::http_response response_type;
+
+    static
+    request_type
+    map_request(http_request_t&& rq) {
+        request_type result;
+        result.set_method(rq.method);
+        result.set_url(rq.uri);
+        result.headers().assign(std::move(rq.headers));
+        return result;
+    }
+
+    static
+    http_response_t
+    map_response(response_type&& rs) {
+        http_response_t result;
+        result.code = rs.code();
+        result.headers = std::move(rs.headers().all());
+        return result;
+    }
+};
+
 int main(int argc, char** argv) {
     worker_t worker(options_t(argc, argv));
 
-    worker.on<http>("http", [](http_sender<http::fresh> tx, http_receiver<http::fresh>){
+    typedef http::event<> http_t;
+    worker.on<http_t>("http", [](http_t::fresh_sender tx, http_t::fresh_receiver){
+        http_response_t rs;
+        rs.code = 200;
+        tx.send(std::move(rs)).get()
+            .send("Hello from C++").get();
+    });
+
+    typedef http::event<swarm_middleware> http_swarm;
+    worker.on<http_swarm>("http_swarm", [](http_swarm::fresh_sender tx, http_swarm::fresh_receiver){
         swarm::http_response rs;
         rs.set_code(200);
         tx.send(std::move(rs)).get()
-            .send("Hello from C++").get();
+            .send("Hello from C++ and Swarm").get();
     });
 
     return worker.run();
