@@ -9,6 +9,16 @@ namespace framework {
 
 namespace worker {
 
+/*!
+ * The basic middleware trait.
+ *
+ * This middleware defines request/response types and pair of mapping functions working with them.
+ *
+ * This trait provides basic functionality for handling HTTP events.
+ *
+ * If you want to work with your own HTTP request/response classes, you should define yown own
+ * middleware and provide mapping functions and typedefs in it.
+ */
 struct basic_middleware {
     typedef http_request_t request_type;
     typedef http_response_t response_type;
@@ -33,7 +43,10 @@ template<class State, class Middleware>
 class http_receiver;
 
 struct http {
+    /// The status indicating headers have not been read (for receiver) or written (for sender).
     class fresh;
+
+    /// The status indicating headers have been read (for receiver) or written (for sender).
     class streaming;
 
     template<class Middleware = basic_middleware>
