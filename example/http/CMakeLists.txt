@@ -13,8 +13,7 @@ add_executable(${PROJECT}
     ${SOURCES})
 
 target_link_libraries(${PROJECT}
-    cocaine-framework-native
-    swarm)
+    cocaine-framework-native)
 
 add_definitions(-std=c++0x)
 

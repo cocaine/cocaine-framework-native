@@ -1,7 +1,3 @@
-#include <iostream>
-
-#include <boost/optional.hpp>
-
 #include <cocaine/framework/worker.hpp>
 #include <cocaine/framework/worker/http.hpp>
 
