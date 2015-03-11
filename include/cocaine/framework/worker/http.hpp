@@ -61,17 +61,38 @@ struct http {
     };
 };
 
+/*!
+ * The HTTP streaming sender provides API for sequential writing body chunks to the stream.
+ *
+ * \note the stream will be automatically closed when an object of this class has run out of the
+ * scope.
+ */
 template<class M>
 class http_sender<http::streaming, M> {
     sender tx;
 
 public:
+    /*!
+     * \note this constructor is intentionally left implicit.
+     */
     http_sender(sender tx) :
         tx(std::move(tx))
     {}
 
-    // Movable, noncopyable.
+    http_sender(const http_sender&) = delete;
+    http_sender(http_sender&& other) = default;
 
+    http_sender& operator=(const http_sender&) = delete;
+    http_sender& operator=(http_sender&& other) = default;
+
+    /*!
+     * Sends another portion of data (mostly body) to the stream.
+     *
+     * \return a future, which will be set with the following HTTP sender when the data is
+     * completely sent to the underlying buffer of an OS or any network error occured.
+     *
+     * \warning the current object will be invalidated after this call.
+     */
     typename task<http_sender>::future_type
     send(std::string data) {
         auto tx = std::move(this->tx);
@@ -88,25 +109,44 @@ private:
     }
 };
 
+/*!
+ * The HTTP fresh sender provides API for writing the first response information, like status code
+ * and headers.
+ *
+ * It provides a streaming HTTP sender object after first send invocation and is considered
+ * descructed after this.
+ */
 template<class M>
 class http_sender<http::fresh, M> {
     sender tx;
 
 public:
-    /// Implicit.
+    /*!
+     * \note this constructor is intentionally left implicit.
+     */
     http_sender(sender tx) :
         tx(std::move(tx))
     {}
 
-    // TODO: Movable, noncopyable.
+    http_sender(const http_sender&) = delete;
+    http_sender(http_sender&& other) = default;
 
+    http_sender& operator=(const http_sender&) = delete;
+    http_sender& operator=(http_sender&& other) = default;
+
+    /*!
+     * Encodes the response object with the underlying protocol and writes generated message to the
+     * stream.
+     *
+     * \warning the current object will be invalidated after this call.
+     */
     typename task<http_sender<http::streaming, M>>::future_type
-    send(typename M::response_type rs) {
+    send(typename M::response_type response) {
         msgpack::sbuffer buffer;
         msgpack::packer<msgpack::sbuffer> packer(buffer);
         io::type_traits<
             http_response_t
-        >::pack(packer, M::map_response(std::move(rs)));
+        >::pack(packer, M::map_response(std::move(response)));
 
         auto tx = std::move(this->tx);
         auto future = tx.write(std::string(buffer.data(), buffer.size()));
@@ -123,27 +163,54 @@ private:
     }
 };
 
+/*!
+ * The streaming HTTP receiver provides a streaming-like API to receive body chunks from the stream.
+ *
+ * Unlike other receivers it can be both copyed and moved.
+ */
 template<class M>
 class http_receiver<http::streaming, M> {
     receiver rx;
+
+    // I do not use boost::optional here, because of its late move-semantics support.
     bool cached;
     std::string body;
 
 public:
-    /// Implicit
+    /*!
+     * Constructs a streaming HTTP receiver using the underlying string receiver.
+     *
+     * The body field is left uninitialized.
+     *
+     * \note this constructor is intentionally left implicit.
+     */
     http_receiver(receiver rx) :
         rx(std::move(rx)),
         cached(false)
     {}
 
+    /*!
+     * Constructs a streaming HTTP receiver using the underlying string receiver and the body
+     * string.
+     */
     http_receiver(receiver rx, std::string body) :
         rx(std::move(rx)),
         cached(true),
         body(std::move(body))
     {}
 
-    // TODO: Movable, copyable.
+    http_receiver(const http_receiver& other) = default;
+    http_receiver(http_receiver&& other) = default;
 
+    http_receiver& operator=(const http_receiver& other) = default;
+    http_receiver& operator=(http_receiver&& other) = default;
+
+    /*!
+     * Tries to receive another chunk of data from the stream.
+     *
+     * \return a future, which will be set after receiving the next message from the stream. It may
+     * contain none value, indicating that the other side has closed the stream for writing.
+     */
     typename task<boost::optional<std::string>>::future_type
     recv() {
         if (cached) {
@@ -155,6 +222,10 @@ public:
     }
 };
 
+/*!
+ * The fresh HTTP receiver provides an ability to receive the first HTTP request information, like
+ * method, uri or headers.
+ */
 template<class M>
 class http_receiver<http::fresh, M> {
     typedef M middleware_type;
@@ -163,14 +234,26 @@ class http_receiver<http::fresh, M> {
     receiver rx;
 
 public:
-    /// Implicit
+    /*!
+     * Constructs a fresh HTTP receiver using the underlying string receiver.
+     *
+     * \note this constructor is intentionally left implicit.
+     */
     http_receiver(receiver rx) :
         rx(std::move(rx))
     {}
 
-    // TODO: Movable, noncopyable.
+    http_receiver(const http_receiver&) = delete;
+    http_receiver(http_receiver&& other) = default;
+
+    http_receiver& operator=(const http_receiver&) = delete;
+    http_receiver& operator=(http_receiver&& other) = default;
 
     /*!
+     * Tries to receive the first HTTP request information object.
+     *
+     * If succeed it also returns a streaming HTTP receiver, which can be used to fetch body chunks.
+     *
      * \warning the object will be invalidated after this call.
      */
     typename task<std::tuple<request_type, http_receiver<http::streaming, M>>>::future_type
@@ -201,6 +284,9 @@ private:
     }
 };
 
+/*!
+ * The transform traits specialization for HTTP events.
+ */
 template<class Dispatch, class Middleware>
 struct transform_traits<Dispatch, http::event<Middleware>> {
     typedef std::function<void(http_sender<http::fresh, Middleware>, http_receiver<http::fresh, Middleware>)> input_type;
