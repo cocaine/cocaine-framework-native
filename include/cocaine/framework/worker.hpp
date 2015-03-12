@@ -25,7 +25,7 @@ struct transform_traits {
     }
 };
 
-}
+} // namespace worker
 
 class worker_t {
 public:
