@@ -39,11 +39,11 @@ on_resolve(typename task<resolve_result>::future_move_type future, std::shared_p
         if (err.id == error::locator_errors::service_not_available) {
             throw service_not_found_error();
         } else {
-            throw err;
+            throw;
         }
     } catch (const std::exception& err) {
         CF_DBG("<< resolving - resolve error: %s", err.what());
-        throw err;
+        throw;
     }
 }
 
@@ -55,9 +55,9 @@ on_invoke(typename task<typename session_t::invoke_result<io::locator::resolve>:
         auto ch = future.get();
         auto rx = std::move(std::get<1>(ch));
         return rx.recv();
-    } catch (const std::exception &err) {
+    } catch (const std::exception& err) {
         CF_DBG("<< resolving - invocation error: %s", err.what());
-        throw err;
+        throw;
     }
 }
 
@@ -74,7 +74,7 @@ on_connect(typename task<void>::future_move_type future,
         return locator->invoke<io::locator::resolve>(name);
     } catch (const std::system_error& err) {
         CF_DBG("<< connecting - error: %s", err.what());
-        throw err;
+        throw;
     }
 }
 
