@@ -1,3 +1,6 @@
+#include <future>
+#include <thread>
+
 #include <boost/thread/thread.hpp>
 
 #include <gtest/gtest.h>
@@ -42,9 +45,10 @@ TEST(load, StorageAsyncMT) {
 
     service_manager_t manager(4);
     std::vector<boost::thread> threads;
+    std::vector<std::future<void>> futures;
 
     for (int tid = 0; tid < 4; ++tid) {
-        threads.emplace_back([&manager, ITERS]{
+        std::packaged_task<void()> work([&manager, ITERS]{
             auto storage = manager.create<cocaine::io::storage_tag>("storage");
             std::vector<typename task<std::string>::future_type> futures;
             futures.reserve(ITERS);
@@ -60,9 +64,16 @@ TEST(load, StorageAsyncMT) {
                 EXPECT_EQ("le value", future.get());
             }
         });
+
+        futures.emplace_back(work.get_future());
+        threads.emplace_back(std::move(work));
     }
 
     for (auto& thread : threads) {
         thread.join();
+    }
+
+    for (auto& future : futures) {
+        future.get();
     }
 }
