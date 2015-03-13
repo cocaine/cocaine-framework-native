@@ -16,10 +16,9 @@ using namespace cocaine::framework::worker;
 namespace {
 
 boost::optional<std::string>
-// TODO: CC typedefs and naming. Review this file.
-on_recv(typename task<decoded_message>::future_type& f) {
-    const auto message = f.get();
-    const std::uint64_t id = message.type();
+on_recv(typename task<decoded_message>::future_move_type future) {
+    const auto message = future.get();
+    const auto id = message.type();
     switch (id) {
     case io::event_traits<io::rpc::chunk>::id: {
         std::string chunk;
