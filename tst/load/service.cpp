@@ -17,7 +17,7 @@ using namespace testing;
 typedef typename io::protocol<io::app::enqueue::dispatch_type>::scope scope;
 
 static const char DEFAULT_APP[] = "echo-cpp";
-static const uint DEFAULT_ITERS = 100;
+static const uint DEFAULT_ITERS = 10;
 
 TEST(load, EchoSyncST) {
     const std::string APP = util::get_option<std::string>("load.EchoSyncST.app", DEFAULT_APP);

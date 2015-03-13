@@ -17,7 +17,7 @@ using namespace cocaine::framework;
 
 using namespace testing;
 
-static const uint DEFAULT_ITERS = 100;
+static const uint DEFAULT_ITERS = 10;
 
 TEST(load, StorageAsyncST) {
     const uint ITERS = util::get_option<uint>("load.StorageAsyncST", DEFAULT_ITERS);
