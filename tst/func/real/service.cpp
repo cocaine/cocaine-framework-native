@@ -23,6 +23,36 @@ TEST(service, NotFound) {
     EXPECT_THROW(service.connect().get(), service_not_found_error);
 }
 
+namespace testing {
+
+namespace mock {
+
+struct storage_tag;
+
+} // namespace mock
+
+} // namespace testing
+
+namespace cocaine { namespace io {
+
+template<>
+struct protocol<testing::mock::storage_tag> {
+    typedef boost::mpl::int_<
+        0
+    >::type version;
+
+    typedef boost::mpl::list<> messages;
+};
+
+}} // namespace cocaine::io
+
+TEST(service, VersionMismatch) {
+    service_manager_t manager(1);
+    auto service = manager.create<mock::storage_tag>("storage");
+
+    EXPECT_THROW(service.connect().get(), version_mismatch_error);
+}
+
 TEST(service, Storage) {
     service_manager_t manager(1);
     auto storage = manager.create<cocaine::io::storage_tag>("storage");
