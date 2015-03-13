@@ -29,6 +29,7 @@ set(SOURCES
     func/stub/session
     load/storage
     load/service
+    func/manual/service
 )
 
 project(${PROJECT})
