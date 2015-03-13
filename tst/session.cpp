@@ -18,7 +18,6 @@
 #include <cocaine/traits/graph.hpp>
 #include <cocaine/traits/vector.hpp>
 
-#include <cocaine/framework/connection.hpp>
 #include <cocaine/framework/session.hpp>
 
 #include "mock/event.hpp"
