@@ -2,10 +2,10 @@
 
 using namespace cocaine::framework;
 
-cocaine_error::cocaine_error(const std::tuple<int, std::string>& err) :
+error_t::error_t(const std::tuple<int, std::string>& err) :
     std::runtime_error(std::get<1>(err)),
     id(std::get<0>(err)),
     reason(std::get<1>(err))
 {}
 
-cocaine_error::~cocaine_error() throw() {}
+error_t::~error_t() throw() {}

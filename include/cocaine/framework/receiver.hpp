@@ -178,7 +178,7 @@ private:
         }
 
         result_type operator()(error_type& error) const {
-            throw cocaine_error(error);
+            throw error_t(error);
         }
     };
 };
@@ -208,7 +208,7 @@ private:
         }
 
         result_type operator()(error_type& error) const {
-            throw cocaine_error(error);
+            throw error_t(error);
         }
 
         result_type operator()(choke_type&) const {
