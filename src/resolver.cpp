@@ -24,7 +24,10 @@ namespace {
 typedef std::tuple<std::vector<asio::ip::tcp::endpoint>, uint, io::graph_basis_t> resolve_result;
 
 resolver_t::result_t
-on_resolve(typename task<resolve_result>::future_move_type future, std::shared_ptr<session_t>) {
+on_resolve(typename task<resolve_result>::future_move_type future,
+           std::shared_ptr<session_t>,
+           std::string name)
+{
     try {
         auto result = future.get();
         CF_DBG("<< resolving - done");
@@ -34,10 +37,10 @@ on_resolve(typename task<resolve_result>::future_move_type future, std::shared_p
         };
 
         return res;
-    } catch (const framework::error_t& err) {
-        CF_DBG("<< resolving - resolve error: [%d] %s", err.id, err.reason.c_str());
-        if (err.id == error::locator_errors::service_not_available) {
-            throw service_not_found_error();
+    } catch (const response_error& err) {
+        CF_DBG("<< resolving - resolve error: %s", err.what());
+        if (err.id() == cocaine::error::locator_errors::service_not_available) {
+            throw service_not_found(std::move(name));
         } else {
             throw;
         }
@@ -107,9 +110,9 @@ auto resolver_t::resolve(std::string name) -> typename task<resolver_t::result_t
 
     CF_DBG(">> connecting to the locator ...");
     return locator->connect(endpoints())
-        .then(scheduler, wrap(std::bind(&on_connect, ph::_1, locator, std::move(name))))
+        .then(scheduler, wrap(std::bind(&on_connect, ph::_1, locator, name)))
         .then(scheduler, wrap(std::bind(&on_invoke, ph::_1, locator)))
-        .then(scheduler, wrap(std::bind(&on_resolve, ph::_1, locator)));
+        .then(scheduler, wrap(std::bind(&on_resolve, ph::_1, locator, name)));
 }
 
 

@@ -15,7 +15,7 @@ typename task<void>::future_type
 on_resolve(typename task<resolver_t::result_t>::future_move_type future, uint version, std::shared_ptr<session_t> session) {
     auto info = future.get();
     if (version != info.version) {
-        return make_ready_future<void>::error(version_mismatch_error(version, info.version));
+        return make_ready_future<void>::error(version_mismatch(version, info.version));
     }
 
     return session->connect(info.endpoints);

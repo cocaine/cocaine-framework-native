@@ -20,7 +20,7 @@ TEST(service, NotFound) {
     service_manager_t manager(1);
     auto service = manager.create<cocaine::io::app_tag>("invalid");
 
-    EXPECT_THROW(service.connect().get(), service_not_found_error);
+    EXPECT_THROW(service.connect().get(), service_not_found);
 }
 
 namespace testing {
@@ -50,7 +50,7 @@ TEST(service, VersionMismatch) {
     service_manager_t manager(1);
     auto service = manager.create<mock::storage_tag>("storage");
 
-    EXPECT_THROW(service.connect().get(), version_mismatch_error);
+    EXPECT_THROW(service.connect().get(), version_mismatch);
 }
 
 TEST(service, Storage) {

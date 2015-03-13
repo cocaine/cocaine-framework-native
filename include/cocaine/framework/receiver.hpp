@@ -176,7 +176,7 @@ private:
         }
 
         result_type operator()(error_type& error) const {
-            throw error_t(error);
+            throw response_error(error);
         }
     };
 };
@@ -206,7 +206,7 @@ private:
         }
 
         result_type operator()(error_type& error) const {
-            throw error_t(error);
+            throw response_error(error);
         }
 
         result_type operator()(choke_type&) const {
