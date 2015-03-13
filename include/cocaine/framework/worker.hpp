@@ -42,8 +42,9 @@ public:
     ~worker_t();
 
     template<class F>
-    void on(std::string event, typename worker::transform_traits<dispatch_type, F>::input_type handler) {
-        on(event, worker::transform_traits<dispatch_type, F>::apply(std::move(handler)));
+    void
+    on(std::string event, typename worker::transform_traits<dispatch_type, F>::input_type handler) {
+        on(std::move(event), worker::transform_traits<dispatch_type, F>::apply(std::move(handler)));
     }
 
     void on(std::string event, handler_type handler);
