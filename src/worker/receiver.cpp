@@ -33,12 +33,14 @@ on_recv(typename task<decoded_message>::future_move_type future) {
         io::type_traits<
             typename io::event_traits<io::rpc::error>::argument_type
         >::unpack(message.args(), id, reason);
+        // TODO: Throw request_error.
         throw std::runtime_error(reason);
     }
     case io::event_traits<io::rpc::choke>::id:
         return boost::none;
     default:
-        COCAINE_ASSERT(false);
+        // TODO: Throw protocol_error.
+        throw std::runtime_error("received message with unexpected type");
     }
 
     return boost::none;
