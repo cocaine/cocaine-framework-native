@@ -17,8 +17,7 @@ basic_receiver_t<Session>::basic_receiver_t(std::uint64_t id, std::shared_ptr<Se
 
 template<class Session>
 basic_receiver_t<Session>::~basic_receiver_t() {
-    // TODO: Really need?
-    CF_DBG("received the last message in the protocol graph - revoking ...");
+    CF_DBG("revoking ...");
     session->revoke(id);
 }
 
@@ -26,10 +25,4 @@ template<class Session>
 typename task<decoded_message>::future_type
 basic_receiver_t<Session>::recv() {
     return state->get();
-}
-
-template<class Session>
-void basic_receiver_t<Session>::revoke() {
-    // CF_DBG("received the last message in the protocol graph - revoking ...");
-    // session->revoke(id);
 }

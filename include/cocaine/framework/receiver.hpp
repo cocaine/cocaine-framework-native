@@ -142,8 +142,6 @@ public:
     ~basic_receiver_t();
 
     auto recv() -> typename task<decoded_message>::future_type;
-
-    void revoke();
 };
 
 /*!
@@ -217,40 +215,6 @@ private:
     };
 };
 
-template<class T>
-class terminator {
-    typedef std::function<bool()> function_type;
-
-public:
-    static std::vector<function_type> generate() {
-        std::vector<function_type> result;
-        boost::mpl::for_each<typename io::protocol<T>::messages>(terminator<T>(result));
-        return result;
-    }
-
-    template<class U>
-    void operator()(const U&) {
-        unpackers.emplace_back(&terminator::unpacker<U>::unpack);
-    }
-
-private:
-    std::vector<function_type>& unpackers;
-
-    terminator(std::vector<function_type>& unpackers) :
-        unpackers(unpackers)
-    {}
-
-public:
-    template<typename U>
-    struct unpacker {
-        static
-        bool
-        unpack() {
-            return std::is_same<typename io::event_traits<U>::dispatch_type, void>::value;
-        }
-    };
-};
-
 template<class T, class Session>
 class receiver {
     typedef typename variant_of<T>::type variant_type;
@@ -260,7 +224,6 @@ class receiver {
     typedef std::function<bool()> terminator_type;
 
     static const std::vector<unpacker_type> visitors;
-    static const std::vector<terminator_type> terminators;
 
     std::shared_ptr<basic_receiver_t<Session>> d;
 
@@ -292,7 +255,8 @@ public:
 private:
     static
     typename receiver_traits<T>::result_type
-    convert(typename task<decoded_message>::future_type& f, std::shared_ptr<basic_receiver_t<Session>> d) {
+    // TODO: Return variant of pairs of the next receiver and the result of previous recv.
+    convert(typename task<decoded_message>::future_type& f, std::shared_ptr<basic_receiver_t<Session>>) {
         const decoded_message message = f.get();
         const std::uint64_t id = message.type();
 
@@ -303,10 +267,7 @@ private:
         }
 
         variant_type payload = visitors[id](message.args());
-        // TODO: Close the channel if it the next node is terminate leaf.
-        if (terminators[id]()) {
-            d->revoke();
-        }
+
         return receiver_traits<T>::convert(payload);
     }
 };
@@ -314,10 +275,6 @@ private:
 template<class T, class Session>
 const std::vector<typename receiver<T, Session>::unpacker_type>
 receiver<T, Session>::visitors = slot_unpacker<T>::generate();
-
-template<class T, class Session>
-const std::vector<typename receiver<T, Session>::terminator_type>
-receiver<T, Session>::terminators = terminator<T>::generate();
 
 } // namespace framework
 
