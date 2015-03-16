@@ -41,10 +41,10 @@ std::string pop_context();
 
 } // namespace cocaine
 
-#include <msgpack.hpp>
-inline std::string ser_msg(const msgpack::object& o) {
+template<typename T>
+inline std::string ser_msg(const T& from) {
     std::ostringstream s;
-    s << o;
+    s << from;
     return s.str();
 }
 
