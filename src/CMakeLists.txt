@@ -31,10 +31,11 @@ set(SOURCES
     receiver
     worker.cpp
     worker/dispatch
+    worker/error
     worker/options
     worker/sender
-    worker/receiver
     worker/session
+    worker/receiver
 
     util/future/error
 )

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "cocaine/framework/worker/error.hpp"
 #include "cocaine/framework/worker/http/request.hpp"
 #include "cocaine/framework/worker/http/response.hpp"
 #include "cocaine/framework/worker/sender.hpp"
@@ -270,8 +271,7 @@ private:
         auto unpacked = future.get();
 
         if (!unpacked) {
-            // TODO: Throw more typed exceptions.
-            throw std::runtime_error("the runtime has unexpectedly closed the channel");
+            throw unexpected_eof();
         }
 
         msgpack::unpacked msg;

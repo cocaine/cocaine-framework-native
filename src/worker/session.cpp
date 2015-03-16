@@ -3,6 +3,7 @@
 #include <cocaine/traits/enum.hpp>
 
 #include "cocaine/framework/scheduler.hpp"
+#include "cocaine/framework/worker/error.hpp"
 
 #include "cocaine/framework/detail/log.hpp"
 #include "cocaine/framework/detail/loop.hpp"
@@ -11,6 +12,7 @@
 namespace ph = std::placeholders;
 
 using namespace cocaine::framework;
+using namespace cocaine::framework::worker;
 
 const std::uint64_t CONTROL_CHANNEL_ID = 1;
 
@@ -127,16 +129,17 @@ void worker_session_t::on_disown(const std::error_code& ec) {
 
     on_error(asio::error::make_error_code(asio::error::timed_out));
 
-    // TODO: Throw a typed exception.
-    throw std::runtime_error("disowned");
+    throw disowned_error(DISOWN_TIMEOUT.seconds());
 }
 
 auto worker_session_t::push(std::uint64_t span, io::encoder_t::message_type&& message) -> typename task<void>::future_type {
     auto channels = this->channels.synchronize();
     auto it = channels->find(span);
     if (it == channels->end()) {
-        // TODO: Throw a typed exception.
-        throw std::runtime_error("trying to send message through non-registered channel");
+        // TODO: Consider is it ever possible?
+        return make_ready_future<void>::error(
+            std::runtime_error("trying to send message through non-registered channel")
+        );
     }
 
     return push(std::move(message));
@@ -165,8 +168,8 @@ void worker_session_t::on_read(const std::error_code& ec) {
     channel->reader->read(message, std::bind(&worker_session_t::on_read, this, ph::_1));
 }
 
-void worker_session_t::on_error(const std::error_code&) {
-    // TODO: Stop the worker on any network error.
+void worker_session_t::on_error(const std::error_code& ec) {
+    throw termination_error(ec);
 }
 
 void worker_session_t::revoke(std::uint64_t span) {
