@@ -79,8 +79,8 @@ private:
     void exhale(const std::error_code& ec = std::error_code());
 
     void process();
-    void on_handshake();
-    void on_heartbeat();
+    void process_handshake();
+    void process_heartbeat();
 };
 
 //}

@@ -183,10 +183,10 @@ void worker_session_t::process() {
 
     switch (message.type()) {
     case (io::event_traits<io::rpc::handshake>::id):
-        on_handshake();
+        process_handshake();
         break;
     case (io::event_traits<io::rpc::heartbeat>::id):
-        on_heartbeat();
+        process_heartbeat();
         break;
     case (io::event_traits<io::rpc::terminate>::id):
         CF_DBG("-> Terminate");
@@ -250,13 +250,13 @@ void worker_session_t::process() {
     }
 }
 
-void worker_session_t::on_handshake() {
+void worker_session_t::process_handshake() {
     CF_DBG("-> Handshake");
 
     throw std::logic_error("invalid protocol: the runtime should never send handshake event");
 }
 
-void worker_session_t::on_heartbeat() {
+void worker_session_t::process_heartbeat() {
     // We received a heartbeat message from the runtime. Reset the disown timer.
     CF_DBG("-> ♥");
 
