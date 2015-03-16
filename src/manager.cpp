@@ -52,6 +52,16 @@ service_manager_t::~service_manager_t() {
     units.clear();
 }
 
+std::vector<session_t::endpoint_type> service_manager_t::endpoints() const {
+    // TODO: Implement.
+    throw std::runtime_error("service_manager_t::endpoints: not implemented yet");
+}
+
+void service_manager_t::endpoints(std::vector<session_t::endpoint_type>) {
+    // TODO: Implement.
+    throw std::runtime_error("service_manager_t::endpoints: not implemented yet");
+}
+
 void service_manager_t::start(unsigned int threads) {
     for (unsigned int i = 0; i < threads; ++i) {
         units.emplace_back(new execution_unit_t);

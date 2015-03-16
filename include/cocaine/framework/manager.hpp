@@ -3,6 +3,7 @@
 #include <memory>
 
 #include "cocaine/framework/forwards.hpp"
+#include "cocaine/framework/session.hpp"
 
 namespace cocaine {
 
@@ -19,6 +20,9 @@ public:
     explicit service_manager_t(unsigned int threads);
 
     ~service_manager_t();
+
+    std::vector<session_t::endpoint_type> endpoints() const;
+    void endpoints(std::vector<session_t::endpoint_type> endpoints);
 
     template<class T>
     service<T>
