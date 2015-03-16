@@ -159,7 +159,7 @@ basic_session_t::invoke(std::uint64_t span, io::encoder_t::message_type&& messag
 
     channels->insert(std::make_pair(span, state));
     return push(std::move(message))
-        .then(scheduler, wrap([tx, rx](typename task<void>::future_move_type future){
+        .then(scheduler, wrap([tx, rx](task<void>::future_move_type future) -> invoke_result {
             future.get();
             return std::make_tuple(tx, rx);
         }));
