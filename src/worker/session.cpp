@@ -86,10 +86,12 @@ void worker_session_t::handshake(const std::string& uuid) {
 void worker_session_t::terminate(io::rpc::terminate::code code, std::string reason) {
     CF_DBG("<- Terminate [%d, %s]", code, reason.c_str());
 
-    push(io::encoded<io::rpc::terminate>(1, code, std::move(reason)));
+    push(io::encoded<io::rpc::terminate>(CONTROL_CHANNEL_ID, code, std::move(reason)))
+        .then(std::bind(&worker_session_t::on_terminate, shared_from_this(), ph::_1));
+}
 
-    // TODO: Stop the event loop after terminate message has been written.
-    scheduler.loop().loop.stop();
+void worker_session_t::on_terminate(task<void>::future_move_type) {
+    throw termination_error();
 }
 
 void worker_session_t::inhale() {
@@ -184,32 +186,10 @@ void worker_session_t::process() {
         process_heartbeat();
         break;
     case (io::event_traits<io::rpc::terminate>::id):
-        CF_DBG("-> Terminate");
-        terminate(io::rpc::terminate::normal, "per request");
+        process_terminate();
         break;
     case (io::event_traits<io::rpc::invoke>::id): {
-        std::string event;
-        io::type_traits<
-            typename io::event_traits<io::rpc::invoke>::argument_type
-        >::unpack(message.args(), event);
-        CF_DBG("-> Invoke '%s'", event.c_str());
-
-        auto handler = dispatch.get(event);
-        if (!handler) {
-            CF_DBG("event '%s' not found", event.c_str());
-            push(io::encoded<io::rpc::error>(message.span(), 1, std::string("event not found")));
-            return;
-        }
-
-        auto id = message.span();
-        auto tx = std::make_shared<basic_sender_t<worker_session_t>>(id, shared_from_this());
-        auto ss = std::make_shared<shared_state_t>();
-        auto rx = std::make_shared<basic_receiver_t<worker_session_t>>(id, shared_from_this(), ss);
-
-        channels->insert(std::make_pair(id, ss));
-        executor([handler, tx, rx](){
-            (*handler)(tx, rx);
-        });
+        process_invoke();
         break;
     }
     case (io::event_traits<io::rpc::chunk>::id): {
@@ -255,6 +235,36 @@ void worker_session_t::process_heartbeat() {
     CF_DBG("-> ♥");
 
     inhale();
+}
+
+void worker_session_t::process_terminate() {
+    CF_DBG("-> Terminate");
+    terminate(io::rpc::terminate::normal, "confirmed");
+}
+
+void worker_session_t::process_invoke() {
+    std::string event;
+    io::type_traits<
+        typename io::event_traits<io::rpc::invoke>::argument_type
+    >::unpack(message.args(), event);
+    CF_DBG("-> Invoke '%s'", event.c_str());
+
+    auto handler = dispatch.get(event);
+    if (!handler) {
+        CF_DBG("event '%s' not found", event.c_str());
+        push(io::encoded<io::rpc::error>(message.span(), 1, "event '" + event + "' not found"));
+        return;
+    }
+
+    auto id = message.span();
+    auto tx = std::make_shared<basic_sender_t<worker_session_t>>(id, shared_from_this());
+    auto state = std::make_shared<shared_state_t>();
+    auto rx = std::make_shared<basic_receiver_t<worker_session_t>>(id, shared_from_this(), state);
+
+    channels->insert(std::make_pair(id, state));
+    executor([handler, tx, rx](){
+        (*handler)(tx, rx);
+    });
 }
 
 #include "../sender.cpp"

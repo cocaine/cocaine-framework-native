@@ -100,13 +100,8 @@ public:
  * runtime.
  */
 class termination_error : public error_t {
-    std::error_code ec;
-
 public:
-    explicit termination_error(const std::error_code& ec);
-
-    /// Returns the actual reason for termination, which is set by the runtime.
-    std::error_code error_code() const noexcept;
+    termination_error();
 };
 
 /*!

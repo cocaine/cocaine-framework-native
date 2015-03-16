@@ -65,18 +65,27 @@ private:
 
     void on_disown(const std::error_code& ec);
 
+    /// Sends a handshake protocol message to the runtime.
     void handshake(const std::string& uuid);
+
+    /// Sends a terminate protocol message to the runtime, then stops the event loop.
     void terminate(io::rpc::terminate::code code, std::string reason);
 
-    // Called after receiving a heartbeat event from the runtime. Reset disown timer.
+    /// Handles terminate event completion (i.e performs graceful shutdown).
+    void on_terminate(task<void>::future_move_type);
+
+    /// Resets the disown timer. Usually called after receiving a heartbeat event from the runtime.
     void inhale();
 
-    // Called on timer, send heartbeat to the runtime, restart the heartbeat timer.
+    /// Sends a heartbeat message to the runtime, then restarts the heartbeat timer.
+    /// Usually called via timer, except the first heartbeat, which is send manually.
     void exhale(const std::error_code& ec = std::error_code());
 
     void process();
     void process_handshake();
     void process_heartbeat();
+    void process_terminate();
+    void process_invoke();
 };
 
 }

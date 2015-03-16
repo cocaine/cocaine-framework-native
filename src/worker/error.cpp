@@ -4,7 +4,7 @@
 
 /// Extended description formatting patterns.
 static const char ERROR_DISOWNED[]       = "disowning due to timeout expiration (%d s)";
-static const char ERROR_TERMINATED[]     = "terminating due to: %s";
+static const char ERROR_TERMINATED[]     = "explicitly terminated by the runtime";
 static const char ERROR_INVALID_TYPE[]   = "received a message with invalid type (%d)";
 static const char ERROR_UNEXPECTED_EOF[] = "the runtime has unexpectedly closed the clannel";
 
@@ -86,14 +86,9 @@ int disowned_error::timeout() const noexcept {
     return timeout_;
 }
 
-termination_error::termination_error(const std::error_code& ec) :
-    error_t(error::terminated, cocaine::format(ERROR_TERMINATED, ec.message())),
-    ec(ec)
+termination_error::termination_error() :
+    error_t(error::terminated, ERROR_TERMINATED)
 {}
-
-std::error_code termination_error::error_code() const noexcept {
-    return ec;
-}
 
 invalid_protocol_type::invalid_protocol_type(std::uint64_t type) :
     error_t(error::invalid_protocol_type, cocaine::format(ERROR_INVALID_TYPE, type)),
