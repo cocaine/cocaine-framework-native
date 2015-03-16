@@ -99,8 +99,8 @@ std::vector<resolver_t::endpoint_type> resolver_t::endpoints() const {
     return endpoints_;
 }
 
-void resolver_t::endpoints(std::vector<resolver_t::endpoint_type>) {
-    throw std::runtime_error("resolver_t::endpoints: not implemented yet");
+void resolver_t::endpoints(std::vector<resolver_t::endpoint_type> endpoints) {
+    endpoints_ = std::move(endpoints);
 }
 
 auto resolver_t::resolve(std::string name) -> typename task<resolver_t::result_t>::future_type {
@@ -116,10 +116,12 @@ auto resolver_t::resolve(std::string name) -> typename task<resolver_t::result_t
 }
 
 
-serialized_resolver_t::serialized_resolver_t(scheduler_t& scheduler) :
+serialized_resolver_t::serialized_resolver_t(std::vector<endpoint_type> endpoints, scheduler_t& scheduler) :
     resolver(scheduler),
     scheduler(scheduler)
-{}
+{
+    resolver.endpoints(std::move(endpoints));
+}
 
 auto serialized_resolver_t::resolve(std::string name) -> typename task<result_type>::future_type {
     std::lock_guard<std::mutex> lock(mutex);

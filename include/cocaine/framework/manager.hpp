@@ -13,6 +13,7 @@ class execution_unit_t;
 
 class service_manager_t {
     size_t current;
+    std::vector<session_t::endpoint_type> locations;
     std::vector<std::unique_ptr<execution_unit_t>> units;
 
 public:
@@ -27,7 +28,7 @@ public:
     template<class T>
     service<T>
     create(std::string name) {
-        return service<T>(std::move(name), next());
+        return service<T>(std::move(name), endpoints(), next());
     }
 
 private:

@@ -23,6 +23,14 @@ TEST(service, NotFound) {
     EXPECT_THROW(service.connect().get(), service_not_found);
 }
 
+TEST(service, ConnectionRefusedOnWrongLocator) {
+    service_manager_t manager(1);
+    manager.endpoints({{ boost::asio::ip::tcp::v6(), 10052 }});
+    auto service = manager.create<cocaine::io::app_tag>("node");
+
+    EXPECT_THROW(service.connect().get(), std::system_error);
+}
+
 namespace testing {
 
 namespace mock {

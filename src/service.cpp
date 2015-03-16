@@ -42,16 +42,16 @@ public:
     std::shared_ptr<serialized_resolver_t> resolver;
     std::mutex mutex;
 
-    impl(std::string name, uint version, scheduler_t& scheduler) :
+    impl(std::string name, uint version, endpoints_t locations, scheduler_t& scheduler) :
         name(std::move(name)),
         version(version),
         scheduler(scheduler),
-        resolver(std::make_shared<serialized_resolver_t>(scheduler))
+        resolver(std::make_shared<serialized_resolver_t>(std::move(locations), scheduler))
     {}
 };
 
-basic_service_t::basic_service_t(std::string name, uint version, scheduler_t& scheduler) :
-    d(new impl(std::move(name), version, scheduler)),
+basic_service_t::basic_service_t(std::string name, uint version, endpoints_t locations, scheduler_t& scheduler) :
+    d(new impl(std::move(name), version, std::move(locations), scheduler)),
     session(std::make_shared<session_t>(scheduler)),
     scheduler(scheduler)
 {}

@@ -46,13 +46,17 @@ struct invocation_result<Event, io::streaming_tag<U>, io::streaming_tag<D>> {
 };
 
 class basic_service_t {
+public:
+    typedef std::vector<session_t::endpoint_type> endpoints_t;
+
+private:
     class impl;
     std::unique_ptr<impl> d;
     std::shared_ptr<session_t> session;
     scheduler_t& scheduler;
 
 public:
-    basic_service_t(std::string name, uint version, scheduler_t& scheduler);
+    basic_service_t(std::string name, uint version, endpoints_t locations, scheduler_t& scheduler);
     basic_service_t(basic_service_t&& other);
 
     ~basic_service_t();
@@ -97,8 +101,8 @@ private:
 template<class T>
 class service : public basic_service_t {
 public:
-    service(std::string name, scheduler_t& scheduler) :
-        basic_service_t(std::move(name), io::protocol<T>::version::value, scheduler)
+    service(std::string name, endpoints_t locations, scheduler_t& scheduler) :
+        basic_service_t(std::move(name), io::protocol<T>::version::value, std::move(locations), scheduler)
     {}
 };
 

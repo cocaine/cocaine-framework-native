@@ -31,15 +31,21 @@ public:
     }
 };
 
+static const std::vector<session_t::endpoint_type> DEFAULT_LOCATIONS = {
+    { boost::asio::ip::tcp::v6(), 10053 }
+};
+
 service_manager_t::service_manager_t() :
-    current(0)
+    current(0),
+    locations(DEFAULT_LOCATIONS)
 {
     auto threads = boost::thread::hardware_concurrency();
     start(threads != 0 ? threads : 1);
 }
 
 service_manager_t::service_manager_t(unsigned int threads) :
-    current(0)
+    current(0),
+    locations(DEFAULT_LOCATIONS)
 {
     if (threads == 0) {
         throw std::invalid_argument("thread count must be a positive number");
@@ -53,13 +59,11 @@ service_manager_t::~service_manager_t() {
 }
 
 std::vector<session_t::endpoint_type> service_manager_t::endpoints() const {
-    // TODO: Implement.
-    throw std::runtime_error("service_manager_t::endpoints: not implemented yet");
+    return locations;
 }
 
-void service_manager_t::endpoints(std::vector<session_t::endpoint_type>) {
-    // TODO: Implement.
-    throw std::runtime_error("service_manager_t::endpoints: not implemented yet");
+void service_manager_t::endpoints(std::vector<session_t::endpoint_type> endpoints) {
+    locations = std::move(endpoints);
 }
 
 void service_manager_t::start(unsigned int threads) {
