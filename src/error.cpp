@@ -4,6 +4,7 @@
 
 using namespace cocaine::framework;
 
+/// Extended description formatting patterns.
 static const char ERROR_SERVICE_NOT_FOUND[] = "the service '%s' is not available";
 static const char ERROR_VERSION_MISMATCH[]  = "version mismatch (%d expected, but %d actual)";
 
