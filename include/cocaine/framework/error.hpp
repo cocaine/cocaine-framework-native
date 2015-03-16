@@ -17,7 +17,7 @@ namespace error {
 /// Service specific error codes.
 enum service_errors {
     /// The specified service is not available.
-    service_not_found,
+    service_not_found = 1,
     /// The service provides API with version different than required.
     version_mismatch
 };
@@ -25,7 +25,7 @@ enum service_errors {
 /// Response specific error codes.
 enum response_errors {
     /// Unspecified error from the service with its own error code and description.
-    unspecified
+    unspecified = 1
 };
 
 /// Identifies the service error category by returning an const lvalue reference to it.

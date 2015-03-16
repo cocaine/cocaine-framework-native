@@ -21,7 +21,7 @@ namespace error {
 /// Worker specific error codes.
 enum worker_errors {
     /// The worker was timeouted to hear from the runtime a heartbeat message.
-    disowned,
+    disowned = 1,
     /// The worker has been explicitly terminated by the runtime.
     terminated,
     /// The worker receives a message with unknown type.
@@ -33,7 +33,7 @@ enum worker_errors {
 /// Request specific error codes.
 enum request_errors {
     /// Unspecified error from the client with its own error code and description.
-    unspecified
+    unspecified = 1
 };
 
 /// Identifies the worker error category by returning an const lvalue reference to it.
