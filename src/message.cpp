@@ -16,7 +16,10 @@ public:
 
         size_t offset = 0;
         msgpack::object object;
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
         std::auto_ptr<msgpack::zone> zone(new msgpack::zone);
+#pragma GCC diagnostic pop
         msgpack::unpack(storage.data(), storage.size(), &offset, zone.get(), &object);
 
         unpacked.zone() = zone;

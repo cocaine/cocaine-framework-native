@@ -15,7 +15,10 @@ size_t decoder_t::decode(const char* data, size_t size, message_type& message, s
     size_t offset = 0;
 
     msgpack::object object;
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
     std::auto_ptr<msgpack::zone> zone(new msgpack::zone);
+#pragma GCC diagnostic pop
     msgpack::unpack_return rv = msgpack::unpack(data, size, &offset, zone.get(), &object);
 
     if(rv == msgpack::UNPACK_SUCCESS || rv == msgpack::UNPACK_EXTRA_BYTES) {
