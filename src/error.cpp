@@ -86,6 +86,8 @@ service_not_found::service_not_found(const std::string& name) :
     name_(name)
 {}
 
+service_not_found::~service_not_found() noexcept {}
+
 const std::string& service_not_found::name() const noexcept {
     return name_;
 }

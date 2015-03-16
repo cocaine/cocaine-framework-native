@@ -92,6 +92,8 @@ class service_not_found : public error_t {
 public:
     explicit service_not_found(const std::string& name);
 
+    ~service_not_found() noexcept;
+
     /// Returns service's name, which was failed to locate.
     const std::string& name() const noexcept;
 };
