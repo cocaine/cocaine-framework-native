@@ -57,6 +57,7 @@ inline std::string ser_msg(const msgpack::object& o) {
 #   define CF_EC(ec) ec ? ec.message().c_str() : "ok"
 #   define CF_LOG BH_LOG
 #   define CF_DBG(...) CF_LOG(::cocaine::framework::detail::logger(), ::cocaine::framework::detail::debug, __VA_ARGS__)
+#   define CF_WRN(...) CF_LOG(::cocaine::framework::detail::logger(), ::cocaine::framework::detail::warn, __VA_ARGS__)
 
 #define CF_CTX(...) \
     ::blackhole::scoped_attributes_t BOOST_PP_CAT(__context__, __COUNTER__)( \
@@ -80,6 +81,7 @@ inline std::string ser_msg(const msgpack::object& o) {
 #   define CF_EC(...)
 #   define CF_LOG(...)
 #   define CF_DBG(...)
+#   define CF_WRN(...)
 #   define CF_CTX(...)
 #   define CF_CTX_POP()
 #endif
