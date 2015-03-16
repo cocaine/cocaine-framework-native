@@ -178,7 +178,8 @@ void worker_session_t::revoke(std::uint64_t span) {
 void worker_session_t::process() {
     CF_DBG("event %llu, span %llu", CF_US(message.type()), CF_US(message.span()));
 
-    switch (message.type()) {
+    const auto id = message.type();
+    switch (id) {
     case (io::event_traits<io::rpc::handshake>::id):
         process_handshake();
         break;
@@ -188,40 +189,20 @@ void worker_session_t::process() {
     case (io::event_traits<io::rpc::terminate>::id):
         process_terminate();
         break;
-    case (io::event_traits<io::rpc::invoke>::id): {
+    case (io::event_traits<io::rpc::invoke>::id):
         process_invoke();
         break;
-    }
-    case (io::event_traits<io::rpc::chunk>::id): {
-        auto channels = this->channels.synchronize();
-        auto it = channels->find(message.span());
-        if (it == channels->end()) {
-            CF_DBG("received an orphan span %llu type %llu message", CF_US(message.span()), CF_US(message.type()));
-            // TODO: It's invariant at this moment.
-            break;
-        }
-
-        it->second->put(std::move(message));
+    case (io::event_traits<io::rpc::chunk>::id):
+        process_chunk();
         break;
-    }
     case (io::event_traits<io::rpc::error>::id):
-        throw std::runtime_error("worker session error handler: not implemented yet");
+        process_error();
         break;
-    case (io::event_traits<io::rpc::choke>::id): {
-        auto channels = this->channels.synchronize();
-        auto it = channels->find(message.span());
-        if (it == channels->end()) {
-            CF_DBG("received an orphan span %llu type %llu message", CF_US(message.span()), CF_US(message.type()));
-            // TODO: It's invariant at this moment.
-            break;
-        }
-
-        it->second->put(std::move(message));
-        channels->erase(it);
+    case (io::event_traits<io::rpc::choke>::id):
+        process_choke();
         break;
-    }
     default:
-        break;
+        throw invalid_protocol_type(id);
     }
 }
 
@@ -265,6 +246,33 @@ void worker_session_t::process_invoke() {
     executor([handler, tx, rx](){
         (*handler)(tx, rx);
     });
+}
+
+void worker_session_t::process_chunk() {
+    auto channels = this->channels.synchronize();
+    auto it = channels->find(message.span());
+    if (it == channels->end()) {
+        CF_DBG("received an orphan span %llu type %llu message", CF_US(message.span()), CF_US(message.type()));
+        return;
+    }
+
+    it->second->put(std::move(message));
+}
+
+void worker_session_t::process_error() {
+    auto channels = this->channels.synchronize();
+    auto it = channels->find(message.span());
+    if (it == channels->end()) {
+        CF_DBG("received an orphan span %llu type %llu message", CF_US(message.span()), CF_US(message.type()));
+        return;
+    }
+
+    it->second->put(std::move(message));
+    channels->erase(it);
+}
+
+void worker_session_t::process_choke() {
+    process_error();
 }
 
 #include "../sender.cpp"

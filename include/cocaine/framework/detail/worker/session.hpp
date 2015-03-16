@@ -86,6 +86,9 @@ private:
     void process_heartbeat();
     void process_terminate();
     void process_invoke();
+    void process_chunk();
+    void process_error();
+    void process_choke();
 };
 
 }
