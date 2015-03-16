@@ -37,8 +37,6 @@ auto shared_state_t::get() -> typename task<value_type>::future_type {
     std::lock_guard<std::mutex> lock(mutex);
 
     if (broken) {
-        COCAINE_ASSERT(queue.empty());
-
         return make_ready_future<value_type>::error(std::system_error(broken.get()));
     }
 
