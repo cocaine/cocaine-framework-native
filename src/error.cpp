@@ -75,11 +75,11 @@ error::make_error_condition(error::response_errors err) {
     return std::error_condition(static_cast<int>(err), error::response_category());
 }
 
-error_t::error_t(const std::error_code& ec, const std::string& description) :
+cocaine::framework::error_t::error_t(const std::error_code& ec, const std::string& description) :
     std::system_error(ec, description)
 {}
 
-error_t::~error_t() noexcept {}
+cocaine::framework::error_t::~error_t() noexcept {}
 
 service_not_found::service_not_found(const std::string& name) :
     error_t(error::service_not_found, cocaine::format(ERROR_SERVICE_NOT_FOUND, name)),
