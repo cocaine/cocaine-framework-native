@@ -58,17 +58,27 @@ const std::error_category& error::request_category() {
 }
 
 std::error_code
-make_error_code(error::worker_errors err) {
+error::make_error_code(error::worker_errors err) {
     return std::error_code(static_cast<int>(err), error::worker_category());
 }
 
+std::error_condition
+error::make_error_condition(error::worker_errors err) {
+    return std::error_condition(static_cast<int>(err), error::worker_category());
+}
+
 std::error_code
-make_error_code(error::request_errors err) {
+error::make_error_code(error::request_errors err) {
     return std::error_code(static_cast<int>(err), error::request_category());
 }
 
+std::error_condition
+error::make_error_condition(error::request_errors err) {
+    return std::error_condition(static_cast<int>(err), error::request_category());
+}
+
 disowned_error::disowned_error(int timeout) :
-    error_t(make_error_code(error::disowned), cocaine::format(ERROR_DISOWNED, timeout)),
+    error_t(error::disowned, cocaine::format(ERROR_DISOWNED, timeout)),
     timeout_(timeout)
 {}
 
@@ -77,7 +87,7 @@ int disowned_error::timeout() const noexcept {
 }
 
 termination_error::termination_error(const std::error_code& ec) :
-    error_t(make_error_code(error::terminated), cocaine::format(ERROR_TERMINATED, ec.message())),
+    error_t(error::terminated, cocaine::format(ERROR_TERMINATED, ec.message())),
     ec(ec)
 {}
 
@@ -86,7 +96,7 @@ std::error_code termination_error::error_code() const noexcept {
 }
 
 invalid_protocol_type::invalid_protocol_type(std::uint64_t type) :
-    error_t(make_error_code(error::invalid_protocol_type), cocaine::format(ERROR_INVALID_TYPE, type)),
+    error_t(error::invalid_protocol_type, cocaine::format(ERROR_INVALID_TYPE, type)),
     type_(type)
 {}
 
@@ -94,15 +104,15 @@ std::uint64_t invalid_protocol_type::type() const noexcept {
     return type_;
 }
 
+unexpected_eof::unexpected_eof() :
+    error_t(error::unexpected_eof, ERROR_UNEXPECTED_EOF)
+{}
+
 request_error::request_error(int id, std::string description) :
-    error_t(make_error_code(error::unspecified), std::move(description)),
+    error_t(error::unspecified, std::move(description)),
     id_(id)
 {}
 
 int request_error::id() const noexcept {
     return id_;
 }
-
-unexpected_eof::unexpected_eof() :
-    error_t(make_error_code(error::unexpected_eof), ERROR_UNEXPECTED_EOF)
-{}

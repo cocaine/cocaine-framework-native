@@ -4,6 +4,9 @@
 
 using namespace cocaine::framework;
 
+static const char ERROR_SERVICE_NOT_FOUND[] = "the service '%s' is not available";
+static const char ERROR_VERSION_MISMATCH[]  = "version mismatch (%d expected, but %d actual)";
+
 namespace {
 
 struct service_category_t : public std::error_category {
@@ -15,10 +18,10 @@ struct service_category_t : public std::error_category {
     std::string
     message(int err) const noexcept {
         switch (err) {
-        case static_cast<int>(cocaine::framework::error::version_mismatch):
-            return "the service provides API with version different than required";
         case static_cast<int>(cocaine::framework::error::service_not_found):
             return "the specified service was not found in the locator";
+        case static_cast<int>(cocaine::framework::error::version_mismatch):
+            return "the service provides API with version different than required";
         default:
             return "unexpected service error";
         }
@@ -53,24 +56,22 @@ cocaine::framework::error::response_category() {
 
 std::error_code
 error::make_error_code(error::service_errors err) {
-    return std::error_code(static_cast<int>(err), cocaine::framework::error::service_category());
+    return std::error_code(static_cast<int>(err), error::service_category());
 }
 
 std::error_condition
 error::make_error_condition(error::service_errors err) {
-    return std::error_condition(static_cast<int>(err), cocaine::framework::error::service_category());
+    return std::error_condition(static_cast<int>(err), error::service_category());
 }
 
-/// \internal
 std::error_code
-make_error_code(cocaine::framework::error::response_errors err) {
-    return std::error_code(static_cast<int>(err), cocaine::framework::error::response_category());
+error::make_error_code(error::response_errors err) {
+    return std::error_code(static_cast<int>(err), error::response_category());
 }
 
-/// \internal
 std::error_condition
-make_error_condition(cocaine::framework::error::response_errors err) {
-    return std::error_condition(static_cast<int>(err), cocaine::framework::error::response_category());
+error::make_error_condition(error::response_errors err) {
+    return std::error_condition(static_cast<int>(err), error::response_category());
 }
 
 error_t::error_t(const std::error_code& ec, const std::string& description) :
@@ -80,7 +81,7 @@ error_t::error_t(const std::error_code& ec, const std::string& description) :
 error_t::~error_t() noexcept {}
 
 service_not_found::service_not_found(const std::string& name) :
-    error_t(make_error_code(error::service_not_found), cocaine::format("the service '%s' is not available", name)),
+    error_t(error::service_not_found, cocaine::format(ERROR_SERVICE_NOT_FOUND, name)),
     name_(name)
 {}
 
@@ -89,7 +90,7 @@ const std::string& service_not_found::name() const noexcept {
 }
 
 version_mismatch::version_mismatch(int expected, int actual) :
-    error_t(make_error_code(error::version_mismatch), cocaine::format("version mismatch (%d expected, but %d actual)", expected, actual)),
+    error_t(error::version_mismatch, cocaine::format(ERROR_VERSION_MISMATCH, expected, actual)),
     expected_(expected),
     actual_(actual)
 {}
@@ -103,7 +104,7 @@ int version_mismatch::actual() const noexcept {
 }
 
 response_error::response_error(std::tuple<int, std::string>& err) :
-    error_t(make_error_code(error::unspecified), cocaine::format("[%d]: %s", std::get<0>(err), std::get<1>(err))),
+    error_t(error::unspecified, cocaine::format("[%d]: %s", std::get<0>(err), std::get<1>(err))),
     id_(std::get<0>(err))
 {}
 

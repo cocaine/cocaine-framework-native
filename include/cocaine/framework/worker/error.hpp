@@ -6,6 +6,10 @@
 
 #include "cocaine/framework/error.hpp"
 
+/// This module provides access to worker-side error codes and exceptions.
+///
+/// \unstable because it needs some user experience.
+
 namespace cocaine {
 
 namespace framework {
@@ -37,6 +41,38 @@ const std::error_category& worker_category();
 
 /// Identifies the client request error category by returning an const lvalue reference to it.
 const std::error_category& request_category();
+
+/*!
+ * Constructs an `worker_errors` error code.
+ *
+ * This function is called by the constructor of std::error_code when given an `worker_errors`
+ * argument.
+ */
+std::error_code make_error_code(worker_errors err);
+
+/*!
+ * Constructs an `worker_errors` error condition.
+ *
+ * This function is called by the constructor of std::error_condition when given an `worker_errors`
+ * argument.
+ */
+std::error_condition make_error_condition(worker_errors err);
+
+/*!
+ * Constructs an `request_errors` error code.
+ *
+ * This function is called by the constructor of std::error_code when given an `request_errors`
+ * argument.
+ */
+std::error_code make_error_code(request_errors err);
+
+/*!
+ * Constructs an `request_errors` error condition.
+ *
+ * This function is called by the constructor of std::error_condition when given an `request_errors`
+ * argument.
+ */
+std::error_condition make_error_condition(request_errors err);
 
 } // namespace error
 
@@ -91,6 +127,18 @@ public:
 };
 
 /*!
+ * The unexpected eof exception is thrown by the Framework when it detects, that the runtime has
+ * unexpectedly closed the channel.
+ *
+ * It can happen, for example, when the user has been disconnected from the runtime for some
+ * reasons.
+ */
+class unexpected_eof : public error_t {
+public:
+    unexpected_eof();
+};
+
+/*!
  * The exception class, that is thrown by the Framework when it receives protocol message with
  * client's error.
  */
@@ -104,11 +152,6 @@ public:
     int id() const noexcept;
 };
 
-class unexpected_eof : public error_t {
-public:
-    unexpected_eof();
-};
-
 } // namespace worker
 
 } // namespace framework
@@ -117,10 +160,22 @@ public:
 
 namespace std {
 
+/// Extends the type trait std::is_error_code_enum to identify `worker_errors` error codes.
 template<>
 struct is_error_code_enum<cocaine::framework::worker::error::worker_errors> : public true_type {};
 
+/// Extends the type trait std::is_error_condition_enum to identify `worker_errors` error
+/// conditions.
 template<>
 struct is_error_condition_enum<cocaine::framework::worker::error::worker_errors> : public true_type {};
+
+/// Extends the type trait std::is_error_code_enum to identify `request_errors` error codes.
+template<>
+struct is_error_code_enum<cocaine::framework::worker::error::request_errors> : public true_type {};
+
+/// Extends the type trait std::is_error_condition_enum to identify `request_errors` error
+/// conditions.
+template<>
+struct is_error_condition_enum<cocaine::framework::worker::error::request_errors> : public true_type {};
 
 } // namespace std

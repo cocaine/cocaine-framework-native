@@ -50,6 +50,22 @@ std::error_code make_error_code(service_errors err);
  */
 std::error_condition make_error_condition(service_errors err);
 
+/*!
+ * Constructs an `response_errors` error code.
+ *
+ * This function is called by the constructor of std::error_code when given an `response_errors`
+ * argument.
+ */
+std::error_code make_error_code(response_errors err);
+
+/*!
+ * Constructs an `response_errors` error condition.
+ *
+ * This function is called by the constructor of std::error_condition when given
+ * an `response_errors` argument.
+ */
+std::error_condition make_error_condition(response_errors err);
+
 } // namespace error
 
 /*!
@@ -124,5 +140,14 @@ struct is_error_code_enum<cocaine::framework::error::service_errors> : public tr
 /// conditions.
 template<>
 struct is_error_condition_enum<cocaine::framework::error::service_errors> : public true_type {};
+
+/// Extends the type trait std::is_error_code_enum to identify `response_errors` error codes.
+template<>
+struct is_error_code_enum<cocaine::framework::error::response_errors> : public true_type {};
+
+/// Extends the type trait std::is_error_condition_enum to identify `response_errors` error
+/// conditions.
+template<>
+struct is_error_condition_enum<cocaine::framework::error::response_errors> : public true_type {};
 
 } // namespace std
