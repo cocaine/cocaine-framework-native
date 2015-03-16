@@ -22,10 +22,6 @@ namespace cocaine {
 
 namespace framework {
 
-//namespace detail {
-
-//namespace worker {
-
 /*!
  * \brief The worker_session_t class - implementation heart of any worker.
  *
@@ -82,10 +78,6 @@ private:
     void process_handshake();
     void process_heartbeat();
 };
-
-//}
-
-//}
 
 }
 
