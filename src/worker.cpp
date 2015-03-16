@@ -9,6 +9,7 @@
 
 #include "cocaine/framework/error.hpp"
 #include "cocaine/framework/forwards.hpp"
+#include "cocaine/framework/manager.hpp"
 #include "cocaine/framework/scheduler.hpp"
 
 #include "cocaine/framework/detail/loop.hpp"
@@ -34,13 +35,17 @@ public:
     /// Userland executor.
     detail::worker::executor_t executor;
 
+    /// Service manager, for user purposes.
+    service_manager_t manager;
+
     std::shared_ptr<worker_session_t> session;
 
     impl(options_t options) :
         loop(io),
         scheduler(loop),
         options(std::move(options)),
-        executor()
+        executor(),
+        manager(1)
     {}
 };
 
@@ -58,6 +63,10 @@ worker_t::worker_t(options_t options) :
 }
 
 worker_t::~worker_t() {}
+
+service_manager_t&worker_t::manager() {
+    return d->manager;
+}
 
 void worker_t::on(std::string event, handler_type handler) {
     d->dispatch.on(event, std::move(handler));

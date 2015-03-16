@@ -47,6 +47,8 @@ public:
         on(std::move(event), worker::transform_traits<dispatch_type, F>::apply(std::move(handler)));
     }
 
+    service_manager_t& manager();
+
     void on(std::string event, handler_type handler);
 
     auto options() const -> const options_t&;
