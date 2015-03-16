@@ -27,13 +27,13 @@ enum worker_errors {
     /// The worker receives a message with unknown type.
     invalid_protocol_type,
     /// The runtime has unexpectedly closed the channel.
-    unexpected_eof,
+    unexpected_eof
 };
 
 /// Request specific error codes.
 enum request_errors {
     /// Unspecified error from the client with its own error code and description.
-    unspecified,
+    unspecified
 };
 
 /// Identifies the worker error category by returning an const lvalue reference to it.
