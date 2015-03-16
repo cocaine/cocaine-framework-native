@@ -164,9 +164,15 @@ void worker_session_t::on_read(const std::error_code& ec) {
     channel->reader->read(message, std::bind(&worker_session_t::on_read, this, ph::_1));
 }
 
-void worker_session_t::on_error(const std::error_code&) {
-    // Error (broken network for example).
-    // TODO: disconnect all channels with that error.
+void worker_session_t::on_error(const std::error_code& ec) {
+    CF_DBG("on error: %s", CF_EC(ec));
+    COCAINE_ASSERT(ec);
+
+    auto channels = this->channels.synchronize();
+    for (auto channel : *channels) {
+        channel.second->put(ec);
+    }
+    channels->clear();
 }
 
 void worker_session_t::revoke(std::uint64_t span) {
