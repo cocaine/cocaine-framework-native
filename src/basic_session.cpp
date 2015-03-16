@@ -144,7 +144,6 @@ auto basic_session_t::invoke(std::function<io::encoder_t::message_type(std::uint
 task<basic_session_t::invoke_result>::future_type
 basic_session_t::invoke_deferred(std::function<io::encoder_t::message_type(std::uint64_t)> encoder) {
     // Guaranteed to be invoked from the event loop thread.
-    // TODO: COCAINE_ASSERT(std::this_thread::get_id() == scheduler.thread_id());
     const auto span = counter++;
     return invoke(span, encoder(span));
 }
