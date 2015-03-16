@@ -139,8 +139,6 @@ auto basic_session_t::invoke(std::function<io::encoder_t::message_type(std::uint
 
     scheduler(task);
     return task.get_future();
-//    const std::uint64_t span = counter++;
-//    return invoke(span, encoder(span));
 }
 
 task<basic_session_t::invoke_result>::future_type
