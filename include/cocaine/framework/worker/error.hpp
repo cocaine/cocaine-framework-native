@@ -32,10 +32,10 @@ enum request_errors {
     unspecified,
 };
 
-/// Returns a const lvalue reference to the worker error category.
+/// Identifies the worker error category by returning an const lvalue reference to it.
 const std::error_category& worker_category();
 
-/// Returns a const lvalue reference to the client request error category.
+/// Identifies the client request error category by returning an const lvalue reference to it.
 const std::error_category& request_category();
 
 } // namespace error

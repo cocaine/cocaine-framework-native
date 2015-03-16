@@ -4,6 +4,10 @@
 #include <system_error>
 #include <tuple>
 
+/// This module provides access to client-side error codes and exceptions.
+///
+/// \unstable because it needs some user experience.
+
 namespace cocaine {
 
 namespace framework {
@@ -24,10 +28,26 @@ enum response_errors {
     unspecified
 };
 
+/// Identifies the service error category by returning an const lvalue reference to it.
 const std::error_category& service_category();
+
+/// Identifies the response error category by returning an const lvalue reference to it.
 const std::error_category& response_category();
 
+/*!
+ * Constructs an `service_errors` error code.
+ *
+ * This function is called by the constructor of std::error_code when given an `service_errors`
+ * argument.
+ */
 std::error_code make_error_code(service_errors err);
+
+/*!
+ * Constructs an `service_errors` error condition.
+ *
+ * This function is called by the constructor of std::error_condition when given an `service_errors`
+ * argument.
+ */
 std::error_condition make_error_condition(service_errors err);
 
 } // namespace error
@@ -96,9 +116,12 @@ public:
 
 namespace std {
 
+/// Extends the type trait std::is_error_code_enum to identify `service_errors` error codes.
 template<>
 struct is_error_code_enum<cocaine::framework::error::service_errors> : public true_type {};
 
+/// Extends the type trait std::is_error_condition_enum to identify `service_errors` error
+/// conditions.
 template<>
 struct is_error_condition_enum<cocaine::framework::error::service_errors> : public true_type {};
 
