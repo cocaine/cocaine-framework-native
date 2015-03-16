@@ -60,6 +60,7 @@ public:
     void revoke(std::uint64_t span);
 
 private:
+    /// Handle incoming protocol message.
     void on_read(const std::error_code& ec);
 
     /// Notifies all channels about worker fatal error, after which a normal execution cannot be
@@ -68,6 +69,7 @@ private:
     /// Usually this callback is called on write/read failure or on disown timeout expiration.
     void on_error(const std::error_code& ec);
 
+    /// Notifies all channels about disowning and stops the worker.
     void on_disown(const std::error_code& ec);
 
     /// Sends a handshake protocol message to the runtime.
