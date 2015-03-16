@@ -246,8 +246,7 @@ void worker_session_t::process() {
 
 void worker_session_t::process_handshake() {
     CF_DBG("-> Handshake");
-
-    throw std::logic_error("invalid protocol: the runtime should never send handshake event");
+    CF_WRN("invalid protocol: the runtime should never send handshake event");
 }
 
 void worker_session_t::process_heartbeat() {
