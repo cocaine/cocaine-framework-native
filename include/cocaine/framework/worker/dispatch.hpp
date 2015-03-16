@@ -16,7 +16,6 @@ namespace cocaine {
 
 namespace framework {
 
-// TODO: Can be hidden.
 class dispatch_t {
 public:
     typedef std::function<void(worker::sender, worker::receiver)> handler_type;
