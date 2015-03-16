@@ -42,7 +42,7 @@ public:
     void endpoints(std::vector<endpoint_type> endpoints);
 
     // No queue.
-    auto resolve(std::string name) -> typename task<result_t>::future_type;
+    auto resolve(std::string name) -> task<result_t>::future_type;
 };
 
 /// Manages with queue.
@@ -54,16 +54,16 @@ public:
 private:
     resolver_t resolver;
     scheduler_t& scheduler;
-    std::unordered_map<std::string, std::deque<typename task<result_type>::promise_type>> inprogress;
+    std::unordered_map<std::string, std::deque<task<result_type>::promise_type>> inprogress;
     std::mutex mutex;
 
 public:
     explicit serialized_resolver_t(scheduler_t& scheduler);
 
-    auto resolve(std::string name) -> typename task<result_type>::future_type;
+    auto resolve(std::string name) -> task<result_type>::future_type;
 
     result_type
-    notify_all(typename task<result_type>::future_move_type future, std::string name);
+    notify_all(task<result_type>::future_move_type future, std::string name);
 };
 
 } // namespace detail
