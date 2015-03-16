@@ -99,13 +99,9 @@ void worker_session_t::inhale() {
 
 void worker_session_t::exhale(const std::error_code& ec) {
     if (ec) {
-        if (ec == asio::error::operation_aborted) {
-            // Heartbeat timer can only be interrupted during graceful shutdown.
-            return;
-        }
+        COCAINE_ASSERT(ec == asio::error::operation_aborted);
 
-        CF_DBG("heartbeat timer termination: %s", CF_EC(ec));
-        on_error(ec);
+        // Heartbeat timer can only be interrupted during graceful shutdown.
         return;
     }
 
@@ -119,12 +115,10 @@ void worker_session_t::exhale(const std::error_code& ec) {
 
 void worker_session_t::on_disown(const std::error_code& ec) {
     if (ec) {
-        if (ec == asio::error::operation_aborted) {
-            // It's just normal timer reset. Do nothing.
-            return;
-        }
+        COCAINE_ASSERT(ec == asio::error::operation_aborted);
 
-        on_error(ec);
+        // Do nothing, because it's just usual timer reset.
+        return;
     }
 
     on_error(asio::error::make_error_code(asio::error::timed_out));
