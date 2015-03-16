@@ -61,6 +61,11 @@ public:
 
 private:
     void on_read(const std::error_code& ec);
+
+    /// Notifies all channels about worker fatal error, after which a normal execution cannot be
+    /// guaranteed.
+    ///
+    /// Usually this callback is called on write/read failure or on disown timeout expiration.
     void on_error(const std::error_code& ec);
 
     void on_disown(const std::error_code& ec);
