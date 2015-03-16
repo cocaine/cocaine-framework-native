@@ -24,7 +24,7 @@ namespace {
 typedef std::tuple<std::vector<asio::ip::tcp::endpoint>, uint, io::graph_basis_t> resolve_result;
 
 resolver_t::result_t
-on_resolve(typename task<resolve_result>::future_move_type future,
+on_resolve(task<resolve_result>::future_move_type future,
            std::shared_ptr<session_t>,
            std::string name)
 {
@@ -50,8 +50,8 @@ on_resolve(typename task<resolve_result>::future_move_type future,
     }
 }
 
-typename task<resolve_result>::future_type
-on_invoke(typename task<typename session_t::invoke_result<io::locator::resolve>::type>::future_move_type future,
+task<resolve_result>::future_type
+on_invoke(task<typename session_t::invoke_result<io::locator::resolve>::type>::future_move_type future,
           std::shared_ptr<session_t>)
 {
     try {
@@ -65,7 +65,7 @@ on_invoke(typename task<typename session_t::invoke_result<io::locator::resolve>:
 }
 
 task<typename session_t::invoke_result<io::locator::resolve>::type>::future_type
-on_connect(typename task<void>::future_move_type future,
+on_connect(task<void>::future_move_type future,
            std::shared_ptr<session_t> locator,
            std::string name)
 {
@@ -99,7 +99,7 @@ void resolver_t::endpoints(std::vector<resolver_t::endpoint_type> endpoints) {
     endpoints_ = std::move(endpoints);
 }
 
-auto resolver_t::resolve(std::string name) -> typename task<resolver_t::result_t>::future_type {
+auto resolver_t::resolve(std::string name) -> task<resolver_t::result_t>::future_type {
     CF_CTX("R");
 
     auto locator = std::make_shared<session_t>(scheduler);
@@ -119,18 +119,18 @@ serialized_resolver_t::serialized_resolver_t(std::vector<endpoint_type> endpoint
     resolver.endpoints(std::move(endpoints));
 }
 
-auto serialized_resolver_t::resolve(std::string name) -> typename task<result_type>::future_type {
+auto serialized_resolver_t::resolve(std::string name) -> task<result_type>::future_type {
     std::lock_guard<std::mutex> lock(mutex);
 
     auto it = inprogress.find(name);
     if (it == inprogress.end()) {
-        std::deque<typename task<result_type>::promise_type> queue;
+        std::deque<task<result_type>::promise_type> queue;
         inprogress.insert(it, std::make_pair(name, queue));
         // Use scheduler to avoid deadlock.
         return resolver.resolve(name)
             .then(scheduler, std::bind(&serialized_resolver_t::notify_all, shared_from_this(), ph::_1, name));
     } else {
-        typename task<result_type>::promise_type promise;
+        task<result_type>::promise_type promise;
         auto future = promise.get_future();
         it->second.push_back(std::move(promise));
         return future;
@@ -138,7 +138,7 @@ auto serialized_resolver_t::resolve(std::string name) -> typename task<result_ty
 }
 
 serialized_resolver_t::result_type
-serialized_resolver_t::notify_all(typename task<result_type>::future_move_type future, std::string name) {
+serialized_resolver_t::notify_all(task<result_type>::future_move_type future, std::string name) {
     std::lock_guard<std::mutex> lock(mutex);
 
     auto it = inprogress.find(name);
