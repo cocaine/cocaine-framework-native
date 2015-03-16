@@ -123,7 +123,7 @@ void worker_session_t::on_disown(const std::error_code& ec) {
         return;
     }
 
-    on_error(asio::error::make_error_code(asio::error::timed_out));
+    on_error(worker::error::disowned);
 
     throw disowned_error(DISOWN_TIMEOUT.seconds());
 }
