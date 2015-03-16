@@ -91,10 +91,6 @@ resolver_t::resolver_t(scheduler_t& scheduler) :
 
 resolver_t::~resolver_t() {}
 
-void resolver_t::timeout(std::chrono::milliseconds) {
-    throw std::runtime_error("resolver_t::timeout: not implemented yet");
-}
-
 std::vector<resolver_t::endpoint_type> resolver_t::endpoints() const {
     return endpoints_;
 }

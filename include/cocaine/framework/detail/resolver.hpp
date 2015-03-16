@@ -36,9 +36,6 @@ public:
 
     ~resolver_t();
 
-    // TODO: Unnecessary, use futures.
-    void timeout(std::chrono::milliseconds);
-
     std::vector<endpoint_type> endpoints() const;
     void endpoints(std::vector<endpoint_type> endpoints);
 
