@@ -7,6 +7,7 @@
 #include <asio/local/stream_protocol.hpp>
 #include <asio/connect.hpp>
 
+#include "cocaine/framework/error.hpp"
 #include "cocaine/framework/forwards.hpp"
 #include "cocaine/framework/scheduler.hpp"
 
@@ -72,9 +73,11 @@ int worker_t::run() {
     d->session->connect(d->options.endpoint, d->options.uuid);
 
     // The main thread is guaranteed to work only with cocaine socket and timers.
-    // TODO: It may be a good idea to catch some typed exceptions, like disown_error etc and map
-    //       it into an error code.
-    d->loop.loop.run();
+    try {
+        d->loop.loop.run();
+    } catch (const error_t& err) {
+        return err.code().value();
+    }
 
     return 0;
 }
