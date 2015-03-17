@@ -12,6 +12,7 @@
 #include "cocaine/framework/manager.hpp"
 #include "cocaine/framework/scheduler.hpp"
 
+#include "cocaine/framework/detail/log.hpp"
 #include "cocaine/framework/detail/loop.hpp"
 #include "cocaine/framework/detail/worker/executor.hpp"
 #include "cocaine/framework/detail/worker/session.hpp"
@@ -21,6 +22,21 @@ namespace ph = std::placeholders;
 using namespace cocaine;
 using namespace cocaine::framework;
 using namespace cocaine::framework::detail;
+
+namespace {
+
+static inline
+std::tuple<std::string, std::string>
+parse_endpoint(const std::string& endpoint) {
+    const auto pos = endpoint.rfind(':');
+    if (pos == std::string::npos) {
+        return std::make_tuple(endpoint, "10053");
+    }
+
+    return std::make_tuple(endpoint.substr(0, pos), endpoint.substr(pos + 1));
+}
+
+} // namespace
 
 class worker_t::impl {
 public:
@@ -52,8 +68,25 @@ public:
 worker_t::worker_t(options_t options) :
     d(new impl(std::move(options)))
 {
-    // TODO: Set default locator endpoint.
-    // service_manager_t::endpoint_t locator_endpoint("127.0.0.1", 10053);
+    CF_DBG("initializing '%s' worker ...", d->options.name.c_str());
+
+    std::string host;
+    std::string port;
+    std::tie(host, port) = parse_endpoint(d->options.locator);
+
+    CF_DBG("resolving locator endpoints from '%s' ...", d->options.locator.c_str());
+    boost::asio::io_service loop;
+    boost::asio::ip::tcp::resolver resolver(loop);
+    boost::asio::ip::tcp::resolver::query query(host, port);
+    boost::asio::ip::tcp::resolver::iterator end;
+    const std::vector<session_t::endpoint_type> endpoints(resolver.resolve(query), end);
+
+    CF_DBG("resolving locator endpoints - done (%lu total):", endpoints.size());
+    for (const auto& endpoint : endpoints) {
+        CF_DBG(" - %s", CF_MSG(endpoint).c_str());
+    }
+
+    d->manager.endpoints(std::move(endpoints));
 
     // Block the deprecated signals.
     sigset_t sigset;
