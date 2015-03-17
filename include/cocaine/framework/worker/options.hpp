@@ -20,6 +20,6 @@ struct options_t {
     options_t(int argc, char** argv);
 };
 
-}
+} // namespace framework
 
-}
+} // namespace cocaine
