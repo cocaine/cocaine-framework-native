@@ -1,5 +1,6 @@
 #include "cocaine/framework/worker/options.hpp"
 
+#include <array>
 #include <iostream>
 
 #include <boost/program_options.hpp>
