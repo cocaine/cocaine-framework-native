@@ -15,8 +15,8 @@ struct options_t {
     /// Parses command-line arguments to extract all required settings to be able to start the
     /// worker.
     ///
-    /// Can internally exit on invalid command-line arguments, providing an help message and
-    /// returning proper exit code.
+    /// Can internally terminate the program on invalid command-line arguments, providing an help
+    /// message and returning a proper exit code.
     options_t(int argc, char** argv);
 };
 
