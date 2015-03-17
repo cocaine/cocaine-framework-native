@@ -55,6 +55,7 @@ struct packable<U, 1> {
  * streaming<T> -> variant<chunk<T>::type, error::type, choke::type>
  *              -> variant<T, tuple<int, string>, tuple<>>
  */
+// TODO: Wrap T to avoid duplication.
 template<class T>
 struct variant_of;
 

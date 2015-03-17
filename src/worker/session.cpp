@@ -132,7 +132,6 @@ auto worker_session_t::push(std::uint64_t span, io::encoder_t::message_type&& me
     auto channels = this->channels.synchronize();
     auto it = channels->find(span);
     if (it == channels->end()) {
-        // TODO: Consider is it ever possible?
         return make_ready_future<void>::error(
             std::runtime_error("trying to send message through non-registered channel")
         );

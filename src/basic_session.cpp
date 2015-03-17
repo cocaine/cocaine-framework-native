@@ -121,7 +121,7 @@ auto basic_session_t::connect(const std::vector<endpoint_type>& endpoints) -> ty
 }
 
 auto basic_session_t::endpoint() const -> boost::optional<endpoint_type> {
-    // TODO: Implement me.
+    // TODO: Implement `basic_session_t::endpoint()`.
     return boost::none;
 }
 
@@ -210,8 +210,6 @@ void basic_session_t::on_revoke(std::uint64_t span) {
 void basic_session_t::on_connect(const std::error_code& ec, typename task<std::error_code>::promise_type& promise, std::unique_ptr<socket_type>& s) {
     CF_DBG("<< connect: %s", CF_EC(ec));
 
-    COCAINE_ASSERT(static_cast<std::uint8_t>(state_t::connecting) == state); // TODO: Not always true?
-
     if (ec) {
         channel.reset();
         state = static_cast<std::uint8_t>(state_t::disconnected);
@@ -248,8 +246,6 @@ void basic_session_t::on_read(const std::error_code& ec) {
     if (it == channels->end()) {
         CF_DBG("dropping an orphan span %llu message", CF_US(message.span()));
     } else {
-        // TODO: Probably it will be better to conditionally stop listening if no channels left.
-        // Then I need a bool flag here indicating that there won't be messages more.
         it->second->put(std::move(message));
     }
 
