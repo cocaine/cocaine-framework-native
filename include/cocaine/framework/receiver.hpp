@@ -142,7 +142,7 @@ public:
 
     ~basic_receiver_t();
 
-    auto recv() -> typename task<decoded_message>::future_type;
+    auto recv() -> task<decoded_message>::future_type;
 };
 
 /*!
@@ -222,15 +222,14 @@ class receiver {
     typedef typename variant_type::types variant_typelist;
 
     typedef std::function<variant_type(const msgpack::object&)> unpacker_type;
-    typedef std::function<bool()> terminator_type;
 
-    static const std::vector<unpacker_type> visitors;
+    static const std::vector<unpacker_type> unpackers;
 
     std::shared_ptr<basic_receiver_t<Session>> d;
 
 public:
     receiver(std::shared_ptr<basic_receiver_t<Session>> d) :
-        d(d)
+        d(std::move(d))
     {}
 
     // Intentionally deleted.
@@ -245,10 +244,9 @@ public:
      *
      * \note this method automatically revokes the channel when reached a leaf in the dispatch graph.
      *
-     * \warning this receiver may be invalidated after this call.
+     * \warning the current receiver will be invalidated after this call.
      */
-    typename task<typename receiver_traits<T>::result_type>::future_type
-    recv() {
+    auto recv() -> typename task<typename receiver_traits<T>::result_type>::future_type {
         return d->recv()
             .then(std::bind(&receiver<T, Session>::convert, std::placeholders::_1, d));
     }
@@ -257,7 +255,7 @@ private:
     static
     typename receiver_traits<T>::result_type
     // TODO: Return variant of pairs of the next receiver and the result of previous recv.
-    convert(typename task<decoded_message>::future_type& f, std::shared_ptr<basic_receiver_t<Session>>) {
+    convert(task<decoded_message>::future_type& f, std::shared_ptr<basic_receiver_t<Session>>) {
         const decoded_message message = f.get();
         const std::uint64_t id = message.type();
 
@@ -267,7 +265,7 @@ private:
             throw std::runtime_error("convert message type check: not implemented yet");
         }
 
-        variant_type payload = visitors[id](message.args());
+        variant_type payload = unpackers[id](message.args());
 
         return receiver_traits<T>::convert(payload);
     }
@@ -275,7 +273,7 @@ private:
 
 template<class T, class Session>
 const std::vector<typename receiver<T, Session>::unpacker_type>
-receiver<T, Session>::visitors = slot_unpacker<T>::generate();
+receiver<T, Session>::unpackers = slot_unpacker<T>::generate();
 
 } // namespace framework
 
