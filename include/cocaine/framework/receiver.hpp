@@ -44,35 +44,55 @@ public:
 
 namespace detail {
 
-/// Represents a single receiver result.
+/// Transforms a typelist sequence into a single movable argument type.
 ///
-/// Do not use this trait with top-level event types.
+/// If the sequence contains a single element of type T, then the result type will be T.
+/// Otherwise the sequence will be transformed into a tuple.
+///
+/// packable<sequence<T, U...>>::type -> std::tuple<T, U...>,
+/// packable<sequence<T>>::type       -> T.
 ///
 /// \internal
-template<class Session, class Event>
-struct receiver_result_item {
-    typedef typename io::event_traits<Event>::argument_type argument_type;
-    typedef typename io::event_traits<Event>::dispatch_type dispatch_type;
-
-    typedef receiver<dispatch_type, Session> receiver_type;
-
-    typedef std::tuple<receiver_type, typename tuple::fold<argument_type>::type> type;
-};
-
 template<class U, size_t = boost::mpl::size<U>::value>
 struct packable {
     typedef typename tuple::fold<U>::type type;
 };
 
+/// The template specialization for single-element typelists.
+///
+/// \internal
 template<class U>
 struct packable<U, 1> {
     typedef typename boost::mpl::front<U>::type type;
 };
 
+/// Provides information about one of possible type, which can be returned by a receiver with a
+/// generic tag, if the received message has Event type.
+///
+/// In the common returns a tuple containing the next receiver and the current result.
+///
+/// Do not use this trait with top-level event type.
+///
+/// \internal
+template<class Session, class Event, class = void>
+struct receiver_result_item {
+private:
+    typedef typename io::event_traits<Event>::argument_type argument_type;
+    typedef typename io::event_traits<Event>::dispatch_type dispatch_type;
+
+    typedef receiver<dispatch_type, Session> receiver_type;
+
+public:
+    typedef std::tuple<receiver_type, typename tuple::fold<argument_type>::type> type;
+};
+
 template<class Event>
 struct receiver_result_item_streaming_or_primitive {
+private:
     typedef typename io::event_traits<Event>::argument_type argument_type;
-    typedef typename packable<argument_type>::type type;
+
+public:
+    typedef typename tuple::fold<argument_type>::type type;
 };
 
 /// T... -> list<receiver<E>, R>...
@@ -259,6 +279,29 @@ public:
     };
 };
 
+template<class T>
+struct unpacked_result;
+
+template<class T>
+struct unpacked_result<std::tuple<T>> {
+    typedef T type;
+
+    static inline
+    T unpack(std::tuple<T>& from) {
+        return std::get<0>(from);
+    }
+};
+
+template<class... Args>
+struct unpacked_result<std::tuple<Args...>> {
+    typedef std::tuple<Args...> type;
+
+    static inline
+    std::tuple<Args...> unpack(std::tuple<Args...>& from) {
+        return from;
+    }
+};
+
 /// Helper trait, that simplifies event receiving, that use one of the common protocols.
 template<class T>
 struct from_receiver_result;
@@ -272,7 +315,7 @@ private:
     typedef typename boost::mpl::at<typename variant_type::types, boost::mpl::int_<1>>::type error_type;
 
 public:
-    typedef value_type result_type;
+    typedef typename unpacked_result<value_type>::type result_type;
 
     static
     result_type
@@ -283,7 +326,7 @@ public:
 private:
     struct visitor_t : public boost::static_visitor<result_type> {
         result_type operator()(value_type& value) const {
-            return value;
+            return unpacked_result<value_type>::unpack(value);
         }
 
         result_type operator()(error_type& error) const {
@@ -302,7 +345,7 @@ private:
     typedef typename boost::mpl::at<typename variant_type::types, boost::mpl::int_<2>>::type choke_type;
 
 public:
-    typedef boost::optional<value_type> result_type;
+    typedef boost::optional<typename unpacked_result<value_type>::type> result_type;
 
     static
     result_type
@@ -313,7 +356,7 @@ public:
 private:
     struct visitor_t : public boost::static_visitor<result_type> {
         result_type operator()(value_type& value) const {
-            return boost::make_optional(value);
+            return boost::make_optional(unpacked_result<value_type>::unpack(value));
         }
 
         result_type operator()(error_type& error) const {

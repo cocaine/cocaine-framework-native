@@ -34,7 +34,6 @@ struct invocation_result<Event, io::primitive_tag<T>, void> {
 //! \note sender - usual, receiver - special - recv() -> optional<T> or throw.
 template<class Event, class U, class D>
 struct invocation_result<Event, io::streaming_tag<U>, io::streaming_tag<D>> {
-    typedef typename detail::packable<U>::type value_type;
     typedef std::tuple<sender<io::streaming_tag<D>, basic_session_t>, receiver<io::streaming_tag<U>, basic_session_t>> channel_type;
     typedef channel_type type;
 
