@@ -52,14 +52,6 @@ struct unpacker<std::tuple<receiver<Tag, Session>, std::tuple<Args...>>, Session
 };
 
 template<class Session, typename... Args>
-struct unpacker<std::tuple<receiver<void, Session>, std::tuple<Args...>>, Session> {
-    std::tuple<Args...>
-    operator()(std::shared_ptr<basic_receiver_t<Session>>, const msgpack::object& message) {
-        return unpacker<std::tuple<Args...>, Session>::unpack(message);
-    }
-};
-
-template<class Session, typename... Args>
 struct unpacker<std::tuple<Args...>, Session> {
     std::tuple<Args...>
     operator()(const msgpack::object& message) {
