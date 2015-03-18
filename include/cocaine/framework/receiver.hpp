@@ -8,8 +8,6 @@
 #include <boost/mpl/at.hpp>
 #include <boost/mpl/lambda.hpp>
 #include <boost/mpl/for_each.hpp>
-#include <boost/mpl/front.hpp>
-#include <boost/mpl/size.hpp>
 #include <boost/mpl/transform.hpp>
 #include <boost/mpl/vector.hpp>
 #include <boost/variant.hpp>
@@ -18,11 +16,11 @@
 #include <cocaine/idl/primitive.hpp>
 #include <cocaine/idl/streaming.hpp>
 #include <cocaine/rpc/asio/decoder.hpp>
-#include <cocaine/tuple.hpp>
 
 #include "cocaine/framework/error.hpp"
 #include "cocaine/framework/forwards.hpp"
 #include "cocaine/framework/message.hpp"
+#include "cocaine/framework/receiver.inl.hpp"
 
 namespace cocaine {
 
@@ -43,28 +41,6 @@ public:
 };
 
 namespace detail {
-
-/// Transforms a typelist sequence into a single movable argument type.
-///
-/// If the sequence contains a single element of type T, then the result type will be T.
-/// Otherwise the sequence will be transformed into a tuple.
-///
-/// packable<sequence<T, U...>>::type -> std::tuple<T, U...>,
-/// packable<sequence<T>>::type       -> T.
-///
-/// \internal
-template<class U, size_t = boost::mpl::size<U>::value>
-struct packable {
-    typedef typename tuple::fold<U>::type type;
-};
-
-/// The template specialization for single-element typelists.
-///
-/// \internal
-template<class U>
-struct packable<U, 1> {
-    typedef typename boost::mpl::front<U>::type type;
-};
 
 /// Provides information about one of possible type, which can be returned by a receiver with a
 /// generic tag, if the received message has Event type.
@@ -130,20 +106,14 @@ struct variant_of {
 /// \internal
 template<class T, class Session>
 class slot_unpacker {
+public:
     typedef typename receiver_of<Session, T>::type variant_type;
     typedef std::function<variant_type(std::shared_ptr<basic_receiver_t<Session>>, const msgpack::object&)> function_type;
 
 public:
-    static std::vector<function_type> generate() {
-        std::vector<function_type> result;
-        boost::mpl::for_each<
-            typename boost::mpl::transform<
-                typename variant_type::types,
-                std::add_pointer<boost::mpl::_1>
-            >::type
-        >(slot_unpacker<T, Session>(result));
-        return result;
-    }
+    slot_unpacker(std::vector<function_type>& unpackers) :
+        unpackers(unpackers)
+    {}
 
     template<class U>
     void operator()(U*) {
@@ -152,10 +122,6 @@ public:
 
 private:
     std::vector<function_type>& unpackers;
-
-    slot_unpacker(std::vector<function_type>& unpackers) :
-        unpackers(unpackers)
-    {}
 
 public:
     template<typename>
@@ -175,20 +141,14 @@ public:
 
 template<class T, class Session>
 class slot_unpacker<io::streaming_tag<T>, Session> {
+public:
     typedef typename variant_of<io::streaming_tag<T>>::type variant_type;
     typedef std::function<variant_type(const msgpack::object&)> function_type;
 
 public:
-    static std::vector<function_type> generate() {
-        std::vector<function_type> result;
-        boost::mpl::for_each<
-            typename boost::mpl::transform<
-                typename variant_type::types,
-                std::add_pointer<boost::mpl::_1>
-            >::type
-        >(slot_unpacker<io::streaming_tag<T>, Session>(result));
-        return result;
-    }
+    slot_unpacker(std::vector<function_type>& unpackers) :
+        unpackers(unpackers)
+    {}
 
     template<class U>
     void operator()(U*) {
@@ -198,21 +158,9 @@ public:
 private:
     std::vector<function_type>& unpackers;
 
-    slot_unpacker(std::vector<function_type>& unpackers) :
-        unpackers(unpackers)
-    {}
-
 public:
-    template<typename R>
-    struct unpacker {
-        static
-        R
-        unpack(const msgpack::object& message) {
-            std::tuple<R> result;
-            io::type_traits<std::tuple<R>>::unpack(message, result);
-            return std::get<0>(result);
-        }
-    };
+    template<class U>
+    struct unpacker;
 
     template<typename... Args>
     struct unpacker<std::tuple<Args...>> {
@@ -228,20 +176,14 @@ public:
 
 template<class T, class Session>
 class slot_unpacker<io::primitive_tag<T>, Session> {
+public:
     typedef typename variant_of<io::primitive_tag<T>>::type variant_type;
     typedef std::function<variant_type(const msgpack::object&)> function_type;
 
 public:
-    static std::vector<function_type> generate() {
-        std::vector<function_type> result;
-        boost::mpl::for_each<
-            typename boost::mpl::transform<
-                typename variant_type::types,
-                std::add_pointer<boost::mpl::_1>
-            >::type
-        >(slot_unpacker<io::primitive_tag<T>, Session>(result));
-        return result;
-    }
+    slot_unpacker(std::vector<function_type>& unpackers) :
+        unpackers(unpackers)
+    {}
 
     template<class U>
     void operator()(U*) {
@@ -251,21 +193,9 @@ public:
 private:
     std::vector<function_type>& unpackers;
 
-    slot_unpacker(std::vector<function_type>& unpackers) :
-        unpackers(unpackers)
-    {}
-
 public:
-    template<typename R>
-    struct unpacker {
-        static
-        R
-        unpack(const msgpack::object& message) {
-            std::tuple<R> result;
-            io::type_traits<std::tuple<R>>::unpack(message, result);
-            return std::get<0>(result);
-        }
-    };
+    template<class U>
+    struct unpacker;
 
     template<typename... Args>
     struct unpacker<std::tuple<Args...>> {
@@ -278,6 +208,24 @@ public:
         }
     };
 };
+
+template<class T, class Session>
+static
+std::vector<typename slot_unpacker<T, Session>::function_type>
+make_slot_unpacker() {
+    typedef slot_unpacker<T, Session> unpacker_type;
+
+    std::vector<typename unpacker_type::function_type> result;
+
+    boost::mpl::for_each<
+        typename boost::mpl::transform<
+            typename unpacker_type::variant_type::types,
+            std::add_pointer<boost::mpl::_1>
+        >::type
+    >(unpacker_type(result));
+
+    return result;
+}
 
 template<class T>
 struct unpacked_result;
@@ -504,15 +452,15 @@ public:
 
 template<class T, class Session>
 const std::vector<typename receiver<T, Session>::unpacker_type>
-receiver<T, Session>::unpackers = slot_unpacker<T, Session>::generate();
+receiver<T, Session>::unpackers = make_slot_unpacker<T, Session>();
 
 template<class T, class Session>
 const std::vector<typename receiver<io::primitive_tag<T>, Session>::unpacker_type>
-receiver<io::primitive_tag<T>, Session>::unpackers = slot_unpacker<io::primitive_tag<T>, Session>::generate();
+receiver<io::primitive_tag<T>, Session>::unpackers = make_slot_unpacker<io::primitive_tag<T>, Session>();
 
 template<class T, class Session>
 const std::vector<typename receiver<io::streaming_tag<T>, Session>::unpacker_type>
-receiver<io::streaming_tag<T>, Session>::unpackers = slot_unpacker<io::streaming_tag<T>, Session>::generate();
+receiver<io::streaming_tag<T>, Session>::unpackers = make_slot_unpacker<io::streaming_tag<T>, Session>();
 
 } // namespace framework
 
