@@ -112,6 +112,48 @@ public:
     typedef typename boost::make_variant_over<typelist>::type type;
 };
 
+/// Performs MessagePack'ed objects unpacking into the expected receiver's result tuples.
+///
+/// \internal
+template<typename, class>
+struct unpacker;
+
+/// Unpacker template specialization for unpacking MessagePack'ed results for generic receivers.
+///
+/// \internal
+template<typename Tag, class Session, typename... Args>
+struct unpacker<std::tuple<receiver<Tag, Session>, std::tuple<Args...>>, Session> {
+    inline
+    std::tuple<receiver<Tag, Session>, std::tuple<Args...>>
+    operator()(std::shared_ptr<basic_receiver_t<Session>> d, const msgpack::object& message) {
+        unpacker<std::tuple<Args...>, Session> up;
+        return std::make_tuple(std::move(d), up(message));
+    }
+};
+
+/// Unpacker template specialization for unpacking MessagePack'ed results for terminal receivers.
+///
+/// In this case there are no possible next receivers available.
+///
+/// \internal
+template<class Session, typename... Args>
+struct unpacker<std::tuple<Args...>, Session> {
+    inline
+    std::tuple<Args...>
+    operator()(std::shared_ptr<basic_receiver_t<Session>>, const msgpack::object& message) {
+        unpacker<std::tuple<Args...>, Session> up;
+        return up(message);
+    }
+
+    inline
+    std::tuple<Args...>
+    operator()(const msgpack::object& message) {
+        std::tuple<Args...> result;
+        io::type_traits<std::tuple<Args...>>::unpack(message, result);
+        return result;
+    }
+};
+
 } // namespace detail
 
 } // namespace framework
