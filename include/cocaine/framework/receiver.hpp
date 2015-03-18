@@ -92,6 +92,8 @@ struct receiver_of {
     >::type type;
 };
 
+/// Transforms tag type into a variant with all possible results.
+/// \internal
 template<class T>
 struct variant_of {
     typedef typename boost::make_variant_over<
@@ -102,13 +104,37 @@ struct variant_of {
     >::type type;
 };
 
+template<typename>
+struct unpacker;
+
+template<typename Tag, class Session, typename... Args>
+struct unpacker<std::tuple<receiver<Tag, Session>, std::tuple<Args...>>> {
+    static
+    std::tuple<receiver<Tag, Session>, std::tuple<Args...>>
+    unpack(std::shared_ptr<basic_receiver_t<Session>> d, const msgpack::object& message) {
+        return std::make_tuple(std::move(d), unpacker<std::tuple<Args...>>::unpack(message));
+    }
+};
+
+template<typename... Args>
+struct unpacker<std::tuple<Args...>> {
+    static
+    std::tuple<Args...>
+    unpack(const msgpack::object& message) {
+        std::tuple<Args...> result;
+        io::type_traits<std::tuple<Args...>>::unpack(message, result);
+        return result;
+    }
+};
+
 /// Unpacks message pack object into concrete types.
 /// \internal
 template<class T, class Session>
 class slot_unpacker {
 public:
     typedef typename receiver_of<Session, T>::type variant_type;
-    typedef std::function<variant_type(std::shared_ptr<basic_receiver_t<Session>>, const msgpack::object&)> function_type;
+    typedef std::shared_ptr<basic_receiver_t<Session>> basic_receiver_type;
+    typedef std::function<variant_type(basic_receiver_type, const msgpack::object&)> function_type;
 
 public:
     slot_unpacker(std::vector<function_type>& unpackers) :
@@ -117,96 +143,50 @@ public:
 
     template<class U>
     void operator()(U*) {
-        unpackers.emplace_back(&slot_unpacker::unpacker<U>::unpack);
+        unpackers.emplace_back(&unpacker<U>::unpack);
     }
 
 private:
     std::vector<function_type>& unpackers;
-
-public:
-    template<typename>
-    struct unpacker;
-
-    template<typename Tag, typename... Args>
-    struct unpacker<std::tuple<receiver<Tag, Session>, std::tuple<Args...>>> {
-        static
-        std::tuple<receiver<Tag, Session>, std::tuple<Args...>>
-        unpack(std::shared_ptr<basic_receiver_t<Session>> d, const msgpack::object& message) {
-            std::tuple<Args...> result;
-            io::type_traits<std::tuple<Args...>>::unpack(message, result);
-            return std::make_tuple(std::move(d), std::move(result));
-        }
-    };
 };
 
-template<class T, class Session>
-class slot_unpacker<io::streaming_tag<T>, Session> {
+template<class T>
+class slot_unpacker_raw {
 public:
-    typedef typename variant_of<io::streaming_tag<T>>::type variant_type;
+    typedef typename variant_of<T>::type variant_type;
     typedef std::function<variant_type(const msgpack::object&)> function_type;
 
 public:
-    slot_unpacker(std::vector<function_type>& unpackers) :
+    slot_unpacker_raw(std::vector<function_type>& unpackers) :
         unpackers(unpackers)
     {}
 
     template<class U>
     void operator()(U*) {
-        unpackers.emplace_back(&slot_unpacker::unpacker<U>::unpack);
+        unpackers.emplace_back(&unpacker<U>::unpack);
     }
 
 private:
     std::vector<function_type>& unpackers;
-
-public:
-    template<class U>
-    struct unpacker;
-
-    template<typename... Args>
-    struct unpacker<std::tuple<Args...>> {
-        static
-        std::tuple<Args...>
-        unpack(const msgpack::object& message) {
-            std::tuple<Args...> result;
-            io::type_traits<std::tuple<Args...>>::unpack(message, result);
-            return result;
-        }
-    };
 };
 
 template<class T, class Session>
-class slot_unpacker<io::primitive_tag<T>, Session> {
-public:
-    typedef typename variant_of<io::primitive_tag<T>>::type variant_type;
-    typedef std::function<variant_type(const msgpack::object&)> function_type;
+class slot_unpacker<io::primitive_tag<T>, Session> :
+    public slot_unpacker_raw<io::primitive_tag<T>> {
 
 public:
-    slot_unpacker(std::vector<function_type>& unpackers) :
-        unpackers(unpackers)
+    slot_unpacker(std::vector<typename slot_unpacker_raw<io::primitive_tag<T>>::function_type>& unpackers) :
+        slot_unpacker_raw<io::primitive_tag<T>>(unpackers)
     {}
+};
 
-    template<class U>
-    void operator()(U*) {
-        unpackers.emplace_back(&slot_unpacker::unpacker<U>::unpack);
-    }
-
-private:
-    std::vector<function_type>& unpackers;
-
+template<class T, class Session>
+class slot_unpacker<io::streaming_tag<T>, Session> :
+    public slot_unpacker_raw<io::streaming_tag<T>> {
 public:
-    template<class U>
-    struct unpacker;
-
-    template<typename... Args>
-    struct unpacker<std::tuple<Args...>> {
-        static
-        std::tuple<Args...>
-        unpack(const msgpack::object& message) {
-            std::tuple<Args...> result;
-            io::type_traits<std::tuple<Args...>>::unpack(message, result);
-            return result;
-        }
-    };
+    slot_unpacker(std::vector<typename slot_unpacker_raw<io::streaming_tag<T>>::function_type>& unpackers) :
+        slot_unpacker_raw<io::streaming_tag<T>>(unpackers)
+    {}
 };
 
 template<class T, class Session>
