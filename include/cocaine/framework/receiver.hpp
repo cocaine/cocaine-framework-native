@@ -45,7 +45,8 @@ namespace detail {
 /// Provides information about one of possible type, which can be returned by a receiver with a
 /// generic tag, if the received message has Event type.
 ///
-/// In the common returns a tuple containing the next receiver and the current result.
+/// Returns a tuple containing the next receiver and the current result in the common case.
+/// Returns a tuple containing result types if there are no possible to receive messages after that.
 ///
 /// Do not use this trait with top-level event type.
 ///
@@ -68,15 +69,6 @@ public:
     >::type type;
 };
 
-template<class Event>
-struct receiver_result_item_streaming_or_primitive {
-private:
-    typedef typename io::event_traits<Event>::argument_type argument_type;
-
-public:
-    typedef typename tuple::fold<argument_type>::type type;
-};
-
 /// T... -> list<receiver<E>, R>...
 /// \internal
 template<class Session, class Messages>
@@ -90,23 +82,12 @@ struct receiver_result {
 } // namespace detail
 
 /// Transforms tag type into a variant with all possible pairs of receivers with its result.
+///
 /// \internal
 template<class T, class Session>
 struct receiver_of {
     typedef typename boost::make_variant_over<
         typename detail::receiver_result<Session, typename io::protocol<T>::messages>::type
-    >::type type;
-};
-
-/// Transforms tag type into a variant with all possible results.
-/// \internal
-template<class T>
-struct variant_of {
-    typedef typename boost::make_variant_over<
-        typename boost::mpl::transform<
-            typename io::protocol<T>::messages,
-            detail::receiver_result_item_streaming_or_primitive<boost::mpl::_1>
-        >::type
     >::type type;
 };
 
@@ -171,7 +152,7 @@ private:
 template<class T, class Session>
 class slot_unpacker_raw {
 public:
-    typedef typename variant_of<T>::type variant_type;
+    typedef typename detail::variant_of<T>::type variant_type;
     typedef std::function<variant_type(const msgpack::object&)> function_type;
 
 public:
@@ -191,7 +172,7 @@ private:
 template<class T, class Session>
 class slot_unpacker<io::streaming_tag<T>, Session> {
 public:
-    typedef typename variant_of<io::streaming_tag<T>>::type variant_type;
+    typedef typename detail::variant_of<io::streaming_tag<T>>::type variant_type;
 
     typedef std::function<variant_type(const msgpack::object&)> function_type;
 
@@ -298,7 +279,7 @@ private:
 template<class T, class Session>
 struct from_receiver<io::streaming_tag<T>, Session> {
 private:
-    typedef typename variant_of<io::streaming_tag<T>>::type variant_type;
+    typedef typename detail::variant_of<io::streaming_tag<T>>::type variant_type;
 
     typedef typename boost::mpl::at<typename variant_type::types, boost::mpl::int_<0>>::type value_type;
     typedef typename boost::mpl::at<typename variant_type::types, boost::mpl::int_<1>>::type error_type;
@@ -380,7 +361,7 @@ template<class T, class Session>
 class receiver<io::streaming_tag<T>, Session> {
     typedef Session session_type;
 
-    typedef typename variant_of<io::streaming_tag<T>>::type possible_receivers;
+    typedef typename detail::variant_of<io::streaming_tag<T>>::type possible_receivers;
 
     typedef std::function<possible_receivers(const msgpack::object&)> unpacker_type;
     static const std::vector<unpacker_type> unpackers;
