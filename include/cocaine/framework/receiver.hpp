@@ -91,26 +91,6 @@ private:
 };
 
 template<class T, class Session>
-class slot_unpacker_raw {
-public:
-    typedef typename detail::variant_of<T>::type variant_type;
-    typedef std::function<variant_type(const msgpack::object&)> function_type;
-
-public:
-    slot_unpacker_raw(std::vector<function_type>& unpackers) :
-        unpackers(unpackers)
-    {}
-
-    template<class U>
-    void operator()(U*) {
-        unpackers.emplace_back(unpacker<U, Session>());
-    }
-
-private:
-    std::vector<function_type>& unpackers;
-};
-
-template<class T, class Session>
 class slot_unpacker<receiver<io::streaming_tag<T>, Session>> {
 public:
     typedef typename detail::variant_of<io::streaming_tag<T>>::type variant_type;
