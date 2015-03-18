@@ -232,10 +232,10 @@ struct unpacked_result<std::tuple<Args...>> {
 
 /// Helper trait, that simplifies event receiving, that use one of the common protocols.
 template<class T>
-struct from_receiver_result;
+struct from_receiver;
 
 template<class T>
-struct from_receiver_result<io::primitive_tag<T>> {
+struct from_receiver<io::primitive_tag<T>> {
 private:
     typedef typename variant_of<io::primitive_tag<T>>::type variant_type;
 
@@ -264,7 +264,7 @@ private:
 };
 
 template<class T>
-struct from_receiver_result<io::streaming_tag<T>> {
+struct from_receiver<io::streaming_tag<T>> {
 private:
     typedef typename variant_of<io::streaming_tag<T>>::type variant_type;
 
@@ -359,7 +359,7 @@ public:
         d(std::move(d))
     {}
 
-    auto recv() -> typename task<typename from_receiver_result<tag_type>::result_type>::future_type {
+    auto recv() -> typename task<typename from_receiver<tag_type>::result_type>::future_type {
         COCAINE_ASSERT(this->d);
 
         auto d = std::move(this->d);
@@ -370,7 +370,7 @@ public:
 
 private:
     static inline
-    typename from_receiver_result<tag_type>::result_type
+    typename from_receiver<tag_type>::result_type
     convert(task<decoded_message>::future_move_type future, std::shared_ptr<basic_receiver_t<session_type>>) {
         const auto message = future.get();
         const auto id = message.type();
@@ -380,7 +380,7 @@ private:
         }
 
         auto payload = unpackers[id](message.args());
-        return from_receiver_result<tag_type>::transform(payload);
+        return from_receiver<tag_type>::transform(payload);
     }
 };
 
@@ -420,7 +420,7 @@ private:
         }
 
         auto payload = unpackers[id](message.args());
-        return from_receiver_result<io::streaming_tag<T>>::transform(payload);
+        return from_receiver<io::streaming_tag<T>>::transform(payload);
     }
 };
 
