@@ -8,6 +8,8 @@
 #include <cocaine/rpc/protocol.hpp>
 #include <cocaine/tuple.hpp>
 
+#include <cocaine/framework/forwards.hpp>
+
 namespace cocaine {
 
 namespace framework {
@@ -65,6 +67,49 @@ struct variant_of {
             into_tuple<boost::mpl::_1>
         >::type
     >::type type;
+};
+
+/// Transforms a receiver type into a variant with all possible pairs of produced receivers with
+/// the result of previous recv() operation.
+///
+/// \internal
+template<class Receiver>
+struct result_of {
+private:
+    typedef Receiver receiver_type;
+
+    /// Provides information about one of possible type, which can be returned by a receiver with a
+    /// generic tag, if the received message has Event type.
+    ///
+    /// Returns a tuple containing the next receiver and the current result in the common case.
+    /// Returns a tuple containing result types if there are no possible to receive messages after that.
+    ///
+    /// Do not use this trait with top-level event type.
+    ///
+    /// \internal
+    template<class Event>
+    struct result_of_event {
+    private:
+        typedef typename io::event_traits<Event>::argument_type argument_type;
+        typedef typename io::event_traits<Event>::dispatch_type dispatch_type;
+
+        typedef typename tuple::fold<argument_type>::type tuple_type;
+
+    public:
+        typedef typename std::conditional<
+            std::is_same<dispatch_type, void>::value,
+            tuple_type,
+            std::tuple<receiver<dispatch_type, typename receiver_type::session_type>, tuple_type>
+        >::type type;
+    };
+
+    typedef typename boost::mpl::transform<
+        typename io::protocol<typename receiver_type::tag_type>::messages,
+        result_of_event<boost::mpl::_1>
+    >::type typelist;
+
+public:
+    typedef typename boost::make_variant_over<typelist>::type type;
 };
 
 } // namespace detail
