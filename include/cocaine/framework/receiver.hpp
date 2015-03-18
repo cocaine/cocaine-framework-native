@@ -58,8 +58,14 @@ private:
 
     typedef receiver<dispatch_type, Session> receiver_type;
 
+    typedef typename tuple::fold<argument_type>::type tuple_type;
+
 public:
-    typedef std::tuple<receiver_type, typename tuple::fold<argument_type>::type> type;
+    typedef typename std::conditional<
+        std::is_same<dispatch_type, void>::value,
+        tuple_type,
+        std::tuple<receiver_type, tuple_type>
+    >::type type;
 };
 
 template<class Event>
@@ -85,7 +91,7 @@ struct receiver_result {
 
 /// Transforms tag type into a variant with all possible pairs of receivers with its result.
 /// \internal
-template<class Session, class T>
+template<class T, class Session>
 struct receiver_of {
     typedef typename boost::make_variant_over<
         typename detail::receiver_result<Session, typename io::protocol<T>::messages>::type
@@ -104,23 +110,36 @@ struct variant_of {
     >::type type;
 };
 
-template<typename>
+template<typename, class>
 struct unpacker;
 
 template<typename Tag, class Session, typename... Args>
-struct unpacker<std::tuple<receiver<Tag, Session>, std::tuple<Args...>>> {
-    static
+struct unpacker<std::tuple<receiver<Tag, Session>, std::tuple<Args...>>, Session> {
     std::tuple<receiver<Tag, Session>, std::tuple<Args...>>
-    unpack(std::shared_ptr<basic_receiver_t<Session>> d, const msgpack::object& message) {
-        return std::make_tuple(std::move(d), unpacker<std::tuple<Args...>>::unpack(message));
+    operator()(std::shared_ptr<basic_receiver_t<Session>> d, const msgpack::object& message) {
+        return std::make_tuple(std::move(d), unpacker<std::tuple<Args...>, Session>::unpack(message));
     }
 };
 
-template<typename... Args>
-struct unpacker<std::tuple<Args...>> {
-    static
+template<class Session, typename... Args>
+struct unpacker<std::tuple<receiver<void, Session>, std::tuple<Args...>>, Session> {
     std::tuple<Args...>
-    unpack(const msgpack::object& message) {
+    operator()(std::shared_ptr<basic_receiver_t<Session>>, const msgpack::object& message) {
+        return unpacker<std::tuple<Args...>, Session>::unpack(message);
+    }
+};
+
+template<class Session, typename... Args>
+struct unpacker<std::tuple<Args...>, Session> {
+    std::tuple<Args...>
+    operator()(const msgpack::object& message) {
+        std::tuple<Args...> result;
+        io::type_traits<std::tuple<Args...>>::unpack(message, result);
+        return result;
+    }
+
+    std::tuple<Args...>
+    operator()(std::shared_ptr<basic_receiver_t<Session>>, const msgpack::object& message) {
         std::tuple<Args...> result;
         io::type_traits<std::tuple<Args...>>::unpack(message, result);
         return result;
@@ -132,9 +151,8 @@ struct unpacker<std::tuple<Args...>> {
 template<class T, class Session>
 class slot_unpacker {
 public:
-    typedef typename receiver_of<Session, T>::type variant_type;
-    typedef std::shared_ptr<basic_receiver_t<Session>> basic_receiver_type;
-    typedef std::function<variant_type(basic_receiver_type, const msgpack::object&)> function_type;
+    typedef typename receiver_of<T, Session>::type variant_type;
+    typedef std::function<variant_type(std::shared_ptr<basic_receiver_t<Session>>, const msgpack::object&)> function_type;
 
 public:
     slot_unpacker(std::vector<function_type>& unpackers) :
@@ -143,14 +161,14 @@ public:
 
     template<class U>
     void operator()(U*) {
-        unpackers.emplace_back(&unpacker<U>::unpack);
+        unpackers.emplace_back(unpacker<U, Session>());
     }
 
 private:
     std::vector<function_type>& unpackers;
 };
 
-template<class T>
+template<class T, class Session>
 class slot_unpacker_raw {
 public:
     typedef typename variant_of<T>::type variant_type;
@@ -163,7 +181,7 @@ public:
 
     template<class U>
     void operator()(U*) {
-        unpackers.emplace_back(&unpacker<U>::unpack);
+        unpackers.emplace_back(unpacker<U, Session>());
     }
 
 private:
@@ -171,22 +189,24 @@ private:
 };
 
 template<class T, class Session>
-class slot_unpacker<io::primitive_tag<T>, Session> :
-    public slot_unpacker_raw<io::primitive_tag<T>> {
+class slot_unpacker<io::streaming_tag<T>, Session> {
+public:
+    typedef typename variant_of<io::streaming_tag<T>>::type variant_type;
+
+    typedef std::function<variant_type(const msgpack::object&)> function_type;
 
 public:
-    slot_unpacker(std::vector<typename slot_unpacker_raw<io::primitive_tag<T>>::function_type>& unpackers) :
-        slot_unpacker_raw<io::primitive_tag<T>>(unpackers)
+    slot_unpacker(std::vector<function_type>& unpackers) :
+        unpackers(unpackers)
     {}
-};
 
-template<class T, class Session>
-class slot_unpacker<io::streaming_tag<T>, Session> :
-    public slot_unpacker_raw<io::streaming_tag<T>> {
-public:
-    slot_unpacker(std::vector<typename slot_unpacker_raw<io::streaming_tag<T>>::function_type>& unpackers) :
-        slot_unpacker_raw<io::streaming_tag<T>>(unpackers)
-    {}
+    template<class U>
+    void operator()(U*) {
+        unpackers.emplace_back(unpacker<U, Session>());
+    }
+
+private:
+    std::vector<function_type>& unpackers;
 };
 
 template<class T, class Session>
@@ -231,13 +251,25 @@ struct unpacked_result<std::tuple<Args...>> {
 };
 
 /// Helper trait, that simplifies event receiving, that use one of the common protocols.
-template<class T>
-struct from_receiver;
-
-template<class T>
-struct from_receiver<io::primitive_tag<T>> {
+template<class T, class Session>
+struct from_receiver {
 private:
-    typedef typename variant_of<io::primitive_tag<T>>::type variant_type;
+    typedef typename receiver_of<T, Session>::type variant_type;
+
+public:
+    typedef variant_type result_type;
+
+    static inline
+    result_type
+    transform(variant_type& value) {
+        return value;
+    }
+};
+
+template<class T, class Session>
+struct from_receiver<io::primitive_tag<T>, Session> {
+private:
+    typedef typename receiver_of<io::primitive_tag<T>, Session>::type variant_type;
 
     typedef typename boost::mpl::at<typename variant_type::types, boost::mpl::int_<0>>::type value_type;
     typedef typename boost::mpl::at<typename variant_type::types, boost::mpl::int_<1>>::type error_type;
@@ -263,8 +295,8 @@ private:
     };
 };
 
-template<class T>
-struct from_receiver<io::streaming_tag<T>> {
+template<class T, class Session>
+struct from_receiver<io::streaming_tag<T>, Session> {
 private:
     typedef typename variant_of<io::streaming_tag<T>>::type variant_type;
 
@@ -304,7 +336,7 @@ class receiver {
 public:
     typedef T tag_type;
 
-    typedef typename receiver_of<session_type, T>::type possible_receivers;
+    typedef typename receiver_of<T, session_type>::type possible_receivers;
 
 private:
     typedef std::function<possible_receivers(std::shared_ptr<basic_receiver_t<session_type>>, const msgpack::object&)> unpacker_type;
@@ -318,7 +350,7 @@ public:
         d(std::move(d))
     {}
 
-    auto recv() -> typename task<possible_receivers>::future_type {
+    auto recv() -> typename task<typename from_receiver<T, Session>::result_type>::future_type {
         BOOST_ASSERT(this->d);
 
         auto d = std::move(this->d);
@@ -329,7 +361,7 @@ public:
 
 private:
     static inline
-    possible_receivers
+    typename from_receiver<T, Session>::result_type
     convert(task<decoded_message>::future_move_type future, std::shared_ptr<basic_receiver_t<session_type>> d) {
         const auto message = future.get();
         const auto id = message.type();
@@ -338,49 +370,8 @@ private:
             throw std::runtime_error("invalid protocol");
         }
 
-        return unpackers[id](std::move(d), message.args());
-    }
-};
-
-/// \helper
-template<class T, class Session>
-class receiver<io::primitive_tag<T>, Session> {
-    typedef io::primitive_tag<T> tag_type;
-    typedef Session session_type;
-
-    typedef typename variant_of<tag_type>::type possible_receivers;
-
-    typedef std::function<possible_receivers(const msgpack::object&)> unpacker_type;
-    static const std::vector<unpacker_type> unpackers;
-    std::shared_ptr<basic_receiver_t<session_type>> d;
-
-public:
-    receiver(std::shared_ptr<basic_receiver_t<session_type>> d) :
-        d(std::move(d))
-    {}
-
-    auto recv() -> typename task<typename from_receiver<tag_type>::result_type>::future_type {
-        COCAINE_ASSERT(this->d);
-
-        auto d = std::move(this->d);
-        auto future = d->recv();
-        return future
-            .then(std::bind(&receiver::convert, std::placeholders::_1, std::move(d)));
-    }
-
-private:
-    static inline
-    typename from_receiver<tag_type>::result_type
-    convert(task<decoded_message>::future_move_type future, std::shared_ptr<basic_receiver_t<session_type>>) {
-        const auto message = future.get();
-        const auto id = message.type();
-
-        if (id >= static_cast<std::size_t>(boost::mpl::size<typename possible_receivers::types>::value)) {
-            throw std::runtime_error("invalid protocol");
-        }
-
-        auto payload = unpackers[id](message.args());
-        return from_receiver<tag_type>::transform(payload);
+        auto result = unpackers[id](std::move(d), message.args());
+        return from_receiver<T, Session>::transform(result);
     }
 };
 
@@ -420,7 +411,7 @@ private:
         }
 
         auto payload = unpackers[id](message.args());
-        return from_receiver<io::streaming_tag<T>>::transform(payload);
+        return from_receiver<io::streaming_tag<T>, Session>::transform(payload);
     }
 };
 
@@ -433,10 +424,6 @@ public:
 template<class T, class Session>
 const std::vector<typename receiver<T, Session>::unpacker_type>
 receiver<T, Session>::unpackers = make_slot_unpacker<T, Session>();
-
-template<class T, class Session>
-const std::vector<typename receiver<io::primitive_tag<T>, Session>::unpacker_type>
-receiver<io::primitive_tag<T>, Session>::unpackers = make_slot_unpacker<io::primitive_tag<T>, Session>();
 
 template<class T, class Session>
 const std::vector<typename receiver<io::streaming_tag<T>, Session>::unpacker_type>
