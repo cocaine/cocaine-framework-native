@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <functional>
 #include <string>
 #include <system_error>
@@ -16,6 +17,7 @@
 #include <cocaine/idl/primitive.hpp>
 #include <cocaine/idl/streaming.hpp>
 #include <cocaine/rpc/asio/decoder.hpp>
+#include <cocaine/utility.hpp>
 
 #include "cocaine/framework/error.hpp"
 #include "cocaine/framework/forwards.hpp"
@@ -203,6 +205,18 @@ private:
     };
 };
 
+template<class Session, class Result>
+struct unpacker_factory {
+    typedef Result result_type;
+
+    template<class T>
+    static inline
+    result_type
+    apply() {
+        return detail::unpacker<T, Session>();
+    }
+};
+
 template<class T, class Session>
 class receiver {
 public:
@@ -210,10 +224,10 @@ public:
     typedef Session session_type;
 
 private:
-    typedef typename detail::result_of<receiver<T, session_type>>::type possible_receivers;
-    typedef std::function<possible_receivers(std::shared_ptr<basic_receiver_t<session_type>>, const msgpack::object&)> unpacker_type;
+    typedef typename detail::result_of<receiver<T, session_type>>::type result_type;
+    typedef std::function<result_type(std::shared_ptr<basic_receiver_t<session_type>>, const msgpack::object&)> unpacker_type;
 
-    static const std::vector<unpacker_type> unpackers;
+    static const std::array<unpacker_type, boost::mpl::size<typename result_type::types>::value> unpackers;
 
     std::shared_ptr<basic_receiver_t<session_type>> d;
 
@@ -238,7 +252,7 @@ private:
         const auto message = future.get();
         const auto id = message.type();
 
-        if (id >= static_cast<std::size_t>(boost::mpl::size<typename possible_receivers::types>::value)) {
+        if (id >= unpackers.size()) {
             throw std::runtime_error("invalid protocol");
         }
 
@@ -255,10 +269,11 @@ public:
     typedef Session session_type;
 
 private:
-    typedef typename detail::variant_of<tag_type>::type possible_receivers;
+    typedef typename detail::variant_of<tag_type>::type result_type;
+    typedef std::function<result_type(const msgpack::object&)> unpacker_type;
 
-    typedef std::function<possible_receivers(const msgpack::object&)> unpacker_type;
-    static const std::vector<unpacker_type> unpackers;
+    static const std::array<unpacker_type, boost::mpl::size<typename result_type::types>::value> unpackers;
+
     std::shared_ptr<basic_receiver_t<session_type>> d;
 
 public:
@@ -281,7 +296,7 @@ private:
         const auto message = future.get();
         const auto id = message.type();
 
-        if (id >= static_cast<std::size_t>(boost::mpl::size<typename possible_receivers::types>::value)) {
+        if (id >= unpackers.size()) {
             throw std::runtime_error("invalid protocol");
         }
 
@@ -300,12 +315,18 @@ public:
 };
 
 template<class T, class Session>
-const std::vector<typename receiver<T, Session>::unpacker_type>
-receiver<T, Session>::unpackers = make_slot_unpacker<receiver<T, Session>>();
+const std::array<
+    typename receiver<T, Session>::unpacker_type,
+    boost::mpl::size<typename receiver<T, Session>::result_type::types>::value
+> receiver<T, Session>::unpackers =
+    meta::to_array<typename receiver<T, Session>::result_type::types, unpacker_factory<Session, typename receiver<T, Session>::unpacker_type>>::make();
 
 template<class T, class Session>
-const std::vector<typename receiver<io::streaming_tag<T>, Session>::unpacker_type>
-receiver<io::streaming_tag<T>, Session>::unpackers = make_slot_unpacker<receiver<io::streaming_tag<T>, Session>>();
+const std::array<
+    typename receiver<io::streaming_tag<T>, Session>::unpacker_type,
+    boost::mpl::size<typename receiver<io::streaming_tag<T>, Session>::result_type::types>::value
+> receiver<io::streaming_tag<T>, Session>::unpackers =
+    meta::to_array<typename receiver<io::streaming_tag<T>, Session>::result_type::types, unpacker_factory<Session, typename receiver<io::streaming_tag<T>, Session>::unpacker_type>>::make();
 
 } // namespace framework
 

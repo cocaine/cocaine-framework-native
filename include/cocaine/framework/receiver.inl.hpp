@@ -1,12 +1,18 @@
 #pragma once
 
+#include <array>
+#include <cstdint>
+
+#include <boost/mpl/at.hpp>
 #include <boost/mpl/front.hpp>
+#include <boost/mpl/int.hpp>
 #include <boost/mpl/size.hpp>
 
 #include <boost/variant.hpp>
 
 #include <cocaine/rpc/protocol.hpp>
 #include <cocaine/tuple.hpp>
+#include <cocaine/utility.hpp>
 
 #include <cocaine/framework/forwards.hpp>
 
@@ -123,6 +129,8 @@ struct unpacker;
 /// \internal
 template<typename Tag, class Session, typename... Args>
 struct unpacker<std::tuple<receiver<Tag, Session>, std::tuple<Args...>>, Session> {
+    typedef std::tuple<receiver<Tag, Session>, std::tuple<Args...>> result_type;
+
     inline
     std::tuple<receiver<Tag, Session>, std::tuple<Args...>>
     operator()(std::shared_ptr<basic_receiver_t<Session>> d, const msgpack::object& message) {
@@ -138,6 +146,8 @@ struct unpacker<std::tuple<receiver<Tag, Session>, std::tuple<Args...>>, Session
 /// \internal
 template<class Session, typename... Args>
 struct unpacker<std::tuple<Args...>, Session> {
+    typedef std::tuple<Args...> result_type;
+
     inline
     std::tuple<Args...>
     operator()(std::shared_ptr<basic_receiver_t<Session>>, const msgpack::object& message) {
@@ -155,6 +165,40 @@ struct unpacker<std::tuple<Args...>, Session> {
 };
 
 } // namespace detail
+
+namespace meta {
+
+template<class Sequence, class F>
+struct to_array {
+    typedef Sequence sequence_type;
+    typedef typename F::result_type value_type;
+    static constexpr std::size_t size = boost::mpl::size<sequence_type>::value;
+
+    typedef std::array<value_type, size> result_type;
+
+private:
+    template<class IndexSequence>
+    struct helper;
+
+    template<size_t... Index>
+    struct helper<index_sequence<Index...>> {
+        static inline
+        result_type
+        apply() {
+            return result_type {{
+                F::template apply<typename boost::mpl::at<sequence_type, boost::mpl::int_<Index>>::type>()...
+            }};
+        }
+    };
+
+public:
+    static constexpr
+    result_type make() {
+        return helper<typename make_index_sequence<size>::type>::apply();
+    }
+};
+
+} // namespace meta
 
 } // namespace framework
 
