@@ -2,15 +2,18 @@
 
 #include <array>
 #include <cstdint>
+#include <tuple>
 
 #include <boost/mpl/at.hpp>
 #include <boost/mpl/front.hpp>
 #include <boost/mpl/int.hpp>
 #include <boost/mpl/size.hpp>
 
+#include <boost/optional/optional.hpp>
 #include <boost/variant.hpp>
 
-#include <cocaine/rpc/protocol.hpp>
+#include <cocaine/idl/primitive.hpp>
+#include <cocaine/idl/streaming.hpp>
 #include <cocaine/tuple.hpp>
 #include <cocaine/utility.hpp>
 
@@ -19,6 +22,40 @@
 namespace cocaine {
 
 namespace framework {
+
+namespace meta {
+
+template<class Sequence, class F>
+struct to_array {
+    typedef Sequence sequence_type;
+    typedef typename F::result_type value_type;
+    static constexpr std::size_t size = boost::mpl::size<sequence_type>::value;
+
+    typedef std::array<value_type, size> result_type;
+
+private:
+    template<class IndexSequence>
+    struct helper;
+
+    template<size_t... Index>
+    struct helper<index_sequence<Index...>> {
+        static inline
+        result_type
+        apply() {
+            return result_type {{
+                F::template apply<typename boost::mpl::at<sequence_type, boost::mpl::int_<Index>>::type>()...
+            }};
+        }
+    };
+
+public:
+    static constexpr
+    result_type make() {
+        return helper<typename make_index_sequence<size>::type>::apply();
+    }
+};
+
+} // namespace meta
 
 namespace detail {
 
@@ -164,41 +201,146 @@ struct unpacker<std::tuple<Args...>, Session> {
     }
 };
 
-} // namespace detail
+/// The unpacked result trait provides an ability to unpack single-argument tuples implicitly.
+///
+/// \internal
+template<class T>
+struct unpacked_result;
 
-namespace meta {
+/// The unpacker result template specialization for single-argument tuples.
+///
+/// Returns the single value on unpacking.
+///
+/// \internal
+template<class T>
+struct unpacked_result<std::tuple<T>> {
+    typedef T type;
 
-template<class Sequence, class F>
-struct to_array {
-    typedef Sequence sequence_type;
-    typedef typename F::result_type value_type;
-    static constexpr std::size_t size = boost::mpl::size<sequence_type>::value;
-
-    typedef std::array<value_type, size> result_type;
-
-private:
-    template<class IndexSequence>
-    struct helper;
-
-    template<size_t... Index>
-    struct helper<index_sequence<Index...>> {
-        static inline
-        result_type
-        apply() {
-            return result_type {{
-                F::template apply<typename boost::mpl::at<sequence_type, boost::mpl::int_<Index>>::type>()...
-            }};
-        }
-    };
-
-public:
-    static constexpr
-    result_type make() {
-        return helper<typename make_index_sequence<size>::type>::apply();
+    static inline
+    T unpack(std::tuple<T>& from) {
+        return std::get<0>(from);
     }
 };
 
-} // namespace meta
+/// The unpacker result template specialization for multi- or zero-argument tuples.
+///
+/// Returns the forwarded tuple on unpacking.
+///
+/// \internal
+template<class... Args>
+struct unpacked_result<std::tuple<Args...>> {
+    typedef std::tuple<Args...> type;
+
+    static inline
+    std::tuple<Args...> unpack(std::tuple<Args...>& from) {
+        return from;
+    }
+};
+
+/// The metafunction to be used to fill static array with unpackers.
+///
+/// \internal
+template<class Session, class Result>
+struct unpacker_factory {
+    typedef Result result_type;
+
+    template<class T>
+    static inline
+    result_type
+    apply() {
+        return unpacker<T, Session>();
+    }
+};
+
+} // namespace detail
+
+/// Helper trait, that simplifies event receiving, that use one of the common protocols.
+///
+/// This trait provides the unspecified functionality.
+template<class T, class Session>
+struct from_receiver {
+private:
+    typedef typename detail::result_of<receiver<T, Session>>::type variant_type;
+
+public:
+    typedef variant_type result_type;
+
+    static inline
+    result_type
+    transform(variant_type& value) {
+        return value;
+    }
+};
+
+/// The trait template specialization for primitive tags.
+///
+/// Unpacks the variant of option type into its value or throws otherwise.
+template<class T, class Session>
+struct from_receiver<io::primitive_tag<T>, Session> {
+private:
+    typedef typename detail::result_of<receiver<io::primitive_tag<T>, Session>>::type variant_type;
+
+    typedef typename boost::mpl::at<typename variant_type::types, boost::mpl::int_<0>>::type value_type;
+    typedef typename boost::mpl::at<typename variant_type::types, boost::mpl::int_<1>>::type error_type;
+
+public:
+    typedef typename detail::unpacked_result<value_type>::type result_type;
+
+    static
+    result_type
+    transform(variant_type& value) {
+        return boost::apply_visitor(visitor_t(), value);
+    }
+
+private:
+    struct visitor_t : public boost::static_visitor<result_type> {
+        result_type operator()(value_type& value) const {
+            return detail::unpacked_result<value_type>::unpack(value);
+        }
+
+        result_type operator()(error_type& error) const {
+            throw cocaine::framework::response_error(error);
+        }
+    };
+};
+
+/// The trait template specialization for streaming tags.
+///
+/// Unpacks the variant of streaming type into the optional value. This optional will be initialized
+/// on chunk value, or none or choke value. Otherwise throws on error.
+template<class T, class Session>
+struct from_receiver<io::streaming_tag<T>, Session> {
+private:
+    typedef typename detail::variant_of<io::streaming_tag<T>>::type variant_type;
+
+    typedef typename boost::mpl::at<typename variant_type::types, boost::mpl::int_<0>>::type value_type;
+    typedef typename boost::mpl::at<typename variant_type::types, boost::mpl::int_<1>>::type error_type;
+    typedef typename boost::mpl::at<typename variant_type::types, boost::mpl::int_<2>>::type choke_type;
+
+public:
+    typedef boost::optional<typename detail::unpacked_result<value_type>::type> result_type;
+
+    static
+    result_type
+    transform(variant_type& value) {
+        return boost::apply_visitor(visitor_t(), value);
+    }
+
+private:
+    struct visitor_t : public boost::static_visitor<result_type> {
+        result_type operator()(value_type& value) const {
+            return boost::make_optional(detail::unpacked_result<value_type>::unpack(value));
+        }
+
+        result_type operator()(error_type& error) const {
+            throw cocaine::framework::response_error(error);
+        }
+
+        result_type operator()(choke_type&) const {
+            return boost::none;
+        }
+    };
+};
 
 } // namespace framework
 
