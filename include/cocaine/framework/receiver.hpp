@@ -43,6 +43,7 @@ public:
     auto recv() -> task<decoded_message>::future_type;
 };
 
+/// The receiver class provides a convenient way to extract typed messages from the session.
 template<class T, class Session>
 class receiver {
 public:
@@ -62,6 +63,43 @@ public:
         d(std::move(d))
     {}
 
+    /// The copy constructor is deleted intentionally.
+    ///
+    /// This is necessary, because each recv() method call in the common case invalidates current
+    /// object's state and returns the new receiver instead.
+    receiver(const receiver& other) = delete;
+    receiver(receiver&&) = default;
+
+    /// The copy assignlemt operator is deleted intentionally.
+    ///
+    /// This is necessary, because each recv() method call in the common case invalidates current
+    /// object's state and returns the new receiver instead.
+    receiver& operator=(const receiver& other) = delete;
+    receiver& operator=(receiver&&) = default;
+
+    /// Performs receive asynchronous operation, extracting the next incoming message from the
+    /// receiver channel.
+    ///
+    /// \returns a future, which contains either the next protocol message or the exception on any
+    /// system error.
+    ///
+    /// The actual result type depends on from_receiver trait. In the common case it returns a
+    /// variant containing tuples of pairs of the next receiver object and the result of this
+    /// operation.
+    /// For example:
+    ///     recv() -> future<variant<tuple<receiver<T1>, R1>, tuple<receiver<T2> ,R2>, ...>>.
+    ///
+    /// If the message received is a terminal message, then there will be no receiver in the tuple.
+    /// For example for primitive tags there are from_receiver trait specialization, which gives us
+    /// the following behavior:
+    ///     recv() -> future<value> | throw.
+    ///
+    /// For further understanding see \sa detail::result_of.
+    ///
+    /// \note this method automatically revokes the channel when reached a leaf in the dispatch
+    /// graph.
+    ///
+    /// \warning the current receiver will be invalidated after this call.
     auto recv() -> typename task<typename from_receiver<T, Session>::result_type>::future_type {
         BOOST_ASSERT(this->d);
 
@@ -87,6 +125,20 @@ private:
     }
 };
 
+/// The receiver specialization for streaming tags.
+///
+/// The main difference is that the receiver doesn't invalidate itself on recv, allowing you to
+/// extract chunks using the same receiver.
+///
+/// Unlike the common receiver here you are allowed to copy it.
+///
+/// For example:
+/// \code{.cpp}
+/// while (boost::optional<T> value = rx.recv()) {
+///     // Do something with the chunk.
+/// }
+/// \endcode
+///
 /// \helper
 template<class T, class Session>
 class receiver<io::streaming_tag<T>, Session> {
@@ -107,9 +159,21 @@ public:
         d(std::move(d))
     {}
 
-    // TODO: Not copyable, but doesn't invalidates itself on recv!
+    receiver(const receiver&) = default;
+    receiver(receiver&&) = default;
 
-    auto recv() -> typename task<boost::optional<std::string>>::future_type {
+    receiver& operator=(const receiver&) = default;
+    receiver& operator=(receiver&&) = default;
+
+    /// Performs receive asynchronous operation, extracting the next incoming message from the
+    /// receiver channel.
+    ///
+    /// \returns a future, which contains the optional value of streaming type or the exception on
+    /// any system error.
+    ///
+    /// For example:
+    ///     recv() -> future<optional<T>> | throw.
+    auto recv() -> typename task<typename from_receiver<tag_type, Session>::result_type>::future_type {
         auto future = d->recv();
         return future
             .then(std::bind(&receiver::convert, std::placeholders::_1, d));
@@ -117,7 +181,7 @@ public:
 
 private:
     static inline
-    boost::optional<std::string>
+    typename from_receiver<tag_type, Session>::result_type
     convert(task<decoded_message>::future_move_type future, std::shared_ptr<basic_receiver_t<session_type>>) {
         const auto message = future.get();
         const auto id = message.type();
@@ -127,10 +191,14 @@ private:
         }
 
         auto payload = unpackers[id](message.args());
-        return from_receiver<io::streaming_tag<T>, Session>::transform(payload);
+        return from_receiver<tag_type, Session>::transform(payload);
     }
 };
 
+/// The terminal receiver specialization.
+///
+/// Does nothing except the dropping internal reference-counted object, which leads to the channel
+/// revoking.
 template<class Session>
 class receiver<void, Session> {
 public:
