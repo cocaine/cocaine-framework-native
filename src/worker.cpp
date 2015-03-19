@@ -98,7 +98,7 @@ worker_t::worker_t(options_t options) :
     const std::vector<session_t::endpoint_type> endpoints(resolver.resolve(query), end);
 
     CF_DBG("resolving locator endpoints - done (%lu total):", endpoints.size());
-    for (const auto& endpoint : endpoints) {
+    for (__attribute__((unused)) const auto& endpoint : endpoints) {
         CF_DBG(" - %s", CF_MSG(endpoint).c_str());
     }
 
