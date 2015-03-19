@@ -153,8 +153,9 @@ public:
 private:
     typedef typename detail::variant_of<tag_type>::type result_type;
     typedef std::function<result_type(const msgpack::object&)> unpacker_type;
+    typedef std::array<unpacker_type, boost::mpl::size<typename result_type::types>::value> unpackers_type;
 
-    static const std::array<unpacker_type, boost::mpl::size<typename result_type::types>::value> unpackers;
+    static const unpackers_type unpackers;
 
     std::shared_ptr<basic_receiver_t<session_type>> d;
 
@@ -212,19 +213,26 @@ public:
     receiver(std::shared_ptr<basic_receiver_t<Session>>) {}
 };
 
+// Static unpackers variables initialization.
 template<class T, class Session>
 const std::array<
     typename receiver<T, Session>::unpacker_type,
     boost::mpl::size<typename receiver<T, Session>::result_type::types>::value
 > receiver<T, Session>::unpackers =
-    meta::to_array<typename receiver<T, Session>::result_type::types, detail::unpacker_factory<Session, typename receiver<T, Session>::unpacker_type>>::make();
+    meta::to_array<
+        typename receiver<T, Session>::result_type::types,
+        detail::unpacker_factory<Session, typename receiver<T, Session>::unpacker_type>
+    >::make();
 
 template<class T, class Session>
 const std::array<
     typename receiver<io::streaming_tag<T>, Session>::unpacker_type,
     boost::mpl::size<typename receiver<io::streaming_tag<T>, Session>::result_type::types>::value
 > receiver<io::streaming_tag<T>, Session>::unpackers =
-    meta::to_array<typename receiver<io::streaming_tag<T>, Session>::result_type::types, detail::unpacker_factory<Session, typename receiver<io::streaming_tag<T>, Session>::unpacker_type>>::make();
+    meta::to_array<
+        typename receiver<io::streaming_tag<T>, Session>::result_type::types,
+        detail::unpacker_factory<Session, typename receiver<io::streaming_tag<T>, Session>::unpacker_type>
+    >::make();
 
 } // namespace framework
 
