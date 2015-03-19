@@ -25,9 +25,10 @@ public:
     basic_session_t(scheduler_t&) {}
 
     MOCK_CONST_METHOD0(connected, bool());
-    MOCK_METHOD1(connect, typename task<std::error_code>::future_type&(const std::vector<endpoint_type>&));
+    MOCK_METHOD1(connect, task<std::error_code>::future_move_type(const std::vector<endpoint_type>&));
 
-    typename task<std::error_code>::future_type& connect(const endpoint_type& endpoint) {
+    task<std::error_code>::future_move_type
+    connect(const endpoint_type& endpoint) {
         return connect(std::vector<endpoint_type> {{ endpoint }});
     }
 

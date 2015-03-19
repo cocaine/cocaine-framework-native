@@ -99,12 +99,12 @@ TEST(basic_session_t, ConnectMultipleTimesOnDisconnectedService) {
 
     // ===== Test Stage =====
     auto session = std::make_shared<basic_session_t>(client.loop());
-    auto f1 = session->connect(endpoint).then([&session](typename task<std::error_code>::future_type& f){
+    auto f1 = session->connect(endpoint).then([&session](task<std::error_code>::future_move_type f){
         EXPECT_EQ(std::error_code(), f.get());
         EXPECT_TRUE(session->connected());
     });
 
-    auto f2 = session->connect(endpoint).then([&session](typename task<std::error_code>::future_type& f){
+    auto f2 = session->connect(endpoint).then([&session](task<std::error_code>::future_move_type f){
         EXPECT_THAT(f.get(), AnyOf(io::error::already_started, io::error::already_connected));
     });
 

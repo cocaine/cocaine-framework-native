@@ -41,7 +41,7 @@ class basic_session_t::push_t : public std::enable_shared_from_this<push_t> {
     typename task<void>::promise_type promise;
 
 public:
-    push_t(io::encoder_t::message_type&& message, std::shared_ptr<basic_session_t> connection, typename task<void>::promise_type&& promise) :
+    push_t(io::encoder_t::message_type&& message, std::shared_ptr<basic_session_t> connection, task<void>::promise_type&& promise) :
         message(std::move(message)),
         connection(connection),
         promise(std::move(promise))
@@ -223,7 +223,7 @@ void basic_session_t::on_revoke(std::uint64_t span) {
     }
 }
 
-void basic_session_t::on_connect(const std::error_code& ec, typename task<std::error_code>::promise_type& promise, std::unique_ptr<socket_type>& s) {
+void basic_session_t::on_connect(const std::error_code& ec, task<std::error_code>::promise_move_type promise, std::unique_ptr<socket_type>& s) {
     CF_DBG("<< connect: %s", CF_EC(ec));
 
     if (ec) {

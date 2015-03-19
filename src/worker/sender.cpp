@@ -34,12 +34,12 @@ on_write(typename task<void>::future_move_type future, std::shared_ptr<basic_sen
 }
 
 void
-on_error(typename task<void>::future_type& future) {
+on_error(task<void>::future_move_type future) {
     future.get();
 }
 
 void
-on_close(typename task<void>::future_type& future) {
+on_close(task<void>::future_move_type future) {
     future.get();
 }
 

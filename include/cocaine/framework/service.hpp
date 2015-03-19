@@ -102,9 +102,8 @@ private:
     template<class Event, class... Args>
     static
     typename task<channel<Event>>::future_type
-    // TODO: Style!
-    on_connect(typename task<void>::future_type& f, std::shared_ptr<session_t> session, Args&... args) {
-        f.get();
+    on_connect(task<void>::future_move_type future, std::shared_ptr<session_t> session, Args&... args) {
+        future.get();
         // Between these calls no one can guarantee, that the connection won't be broken. In this
         // case you will get a system error after either write or read attempt.
         return session->invoke<Event>(std::forward<Args>(args)...);

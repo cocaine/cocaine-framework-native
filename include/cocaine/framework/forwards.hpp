@@ -28,6 +28,7 @@ namespace cocaine {
             typedef typename std::add_lvalue_reference<future_type>::type future_move_type;
 
             typedef promise<T> promise_type;
+            typedef typename std::add_lvalue_reference<promise_type>::type promise_move_type;
         };
 
         /// \internal

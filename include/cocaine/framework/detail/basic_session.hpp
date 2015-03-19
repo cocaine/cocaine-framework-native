@@ -155,7 +155,7 @@ public:
 private:
     void on_disconnect();
     void on_revoke(std::uint64_t span);
-    void on_connect(const std::error_code& ec, typename task<std::error_code>::promise_type& promise, std::unique_ptr<socket_type>& s);
+    void on_connect(const std::error_code& ec, task<std::error_code>::promise_move_type promise, std::unique_ptr<socket_type>& s);
     void on_read(const std::error_code& ec);
     void on_error(const std::error_code& ec);
 };

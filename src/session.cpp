@@ -45,8 +45,8 @@ public:
     {}
 
     /// \warning call only from event loop thread, otherwise the behavior is undefined.
-    void on_connect(typename task<std::error_code>::future_type& f, std::shared_ptr<typename task<void>::promise_type> promise) {
-        const auto ec = f.get();
+    void on_connect(task<std::error_code>::future_move_type future, std::shared_ptr<task<void>::promise_type> promise) {
+        const auto ec = future.get();
 
         if (ec) {
             switch (ec.value()) {

@@ -44,7 +44,7 @@ class worker_session_t::push_t : public std::enable_shared_from_this<push_t<Sess
     typename task<void>::promise_type h;
 
 public:
-    explicit push_t(io::encoder_t::message_type&& message, std::shared_ptr<Session> session, typename task<void>::promise_type&& h) :
+    explicit push_t(io::encoder_t::message_type&& message, std::shared_ptr<Session> session, task<void>::promise_type&& h) :
         message(std::move(message)),
         session(session),
         h(std::move(h))

@@ -104,7 +104,7 @@ private:
     template<class Event>
     static
     sender<typename io::event_traits<Event>::dispatch_type, Session>
-    traverse(typename task<void>::future_type& future, std::shared_ptr<basic_sender_t<Session>> d) {
+    traverse(task<void>::future_move_type future, std::shared_ptr<basic_sender_t<Session>> d) {
         future.get();
         return sender<typename io::event_traits<Event>::dispatch_type, Session>(std::move(d));
     }
