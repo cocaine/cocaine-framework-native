@@ -50,11 +50,13 @@ class basic_session_t : public std::enable_shared_from_this<basic_session_t> {
     typedef asio::ip::tcp protocol_type;
     typedef protocol_type::socket socket_type;
 
+    typedef std::shared_ptr<basic_sender_t<basic_session_t>> basic_sender_type;
+
 public:
     typedef boost::asio::ip::tcp::endpoint endpoint_type;
 
     typedef std::tuple<
-        std::shared_ptr<basic_sender_t<basic_session_t>>,
+        basic_sender_type,
         std::shared_ptr<basic_receiver_t<basic_session_t>>
     > invoke_result;
 
@@ -132,10 +134,13 @@ public:
      *
      * \threadsafe
      */
-    auto invoke(std::uint64_t span, io::encoder_t::message_type&& message) -> typename task<invoke_result>::future_type;
+    auto invoke(std::uint64_t span, io::encoder_t::message_type&& message) -> task<invoke_result>::future_type;
+
+    /// Sends an invoke event without channel creation.
+    /// TODO: Implement: invoke_mute.
 
     /// \overload
-    auto invoke(std::function<io::encoder_t::message_type(std::uint64_t)> encoder) -> typename task<invoke_result>::future_type;
+    auto invoke(std::function<io::encoder_t::message_type(std::uint64_t)> encoder) -> task<invoke_result>::future_type;
 
     task<invoke_result>::future_type
     invoke_deferred(std::function<io::encoder_t::message_type(std::uint64_t)> encoder);
@@ -143,7 +148,7 @@ public:
     /*!
      * Sends an event without creating a new channel.
      */
-    auto push(io::encoder_t::message_type&& message) -> typename task<void>::future_type;
+    auto push(io::encoder_t::message_type&& message) -> task<void>::future_type;
 
     /*!
      * Unsubscribes a channel with the given span.

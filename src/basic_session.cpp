@@ -38,7 +38,7 @@ using namespace cocaine::framework::detail;
 class basic_session_t::push_t : public std::enable_shared_from_this<push_t> {
     io::encoder_t::message_type message;
     std::shared_ptr<basic_session_t> connection;
-    typename task<void>::promise_type promise;
+    task<void>::promise_type promise;
 
 public:
     push_t(io::encoder_t::message_type&& message, std::shared_ptr<basic_session_t> connection, task<void>::promise_type&& promise) :
@@ -87,11 +87,11 @@ bool basic_session_t::connected() const noexcept {
     return state == static_cast<std::uint8_t>(state_t::connected);
 }
 
-auto basic_session_t::connect(const endpoint_type& endpoint) -> typename task<std::error_code>::future_type {
+auto basic_session_t::connect(const endpoint_type& endpoint) -> task<std::error_code>::future_type {
     return connect(std::vector<endpoint_type> {{ endpoint }});
 }
 
-auto basic_session_t::connect(const std::vector<endpoint_type>& endpoints) -> typename task<std::error_code>::future_type {
+auto basic_session_t::connect(const std::vector<endpoint_type>& endpoints) -> task<std::error_code>::future_type {
     CF_CTX("bC");
     CF_DBG(">> connecting ...");
 
@@ -165,7 +165,7 @@ basic_session_t::invoke_deferred(std::function<io::encoder_t::message_type(std::
 }
 
 auto
-basic_session_t::invoke(std::uint64_t span, io::encoder_t::message_type&& message) -> typename task<invoke_result>::future_type {
+basic_session_t::invoke(std::uint64_t span, io::encoder_t::message_type&& message) -> task<invoke_result>::future_type {
     CF_CTX("bI" + std::to_string(span));
     CF_DBG("invoking span %llu event ...", CF_US(span));
 
@@ -181,11 +181,11 @@ basic_session_t::invoke(std::uint64_t span, io::encoder_t::message_type&& messag
         }));
 }
 
-auto basic_session_t::push(io::encoder_t::message_type&& message) -> typename task<void>::future_type {
+auto basic_session_t::push(io::encoder_t::message_type&& message) -> task<void>::future_type {
     CF_CTX("bP");
     CF_DBG(">> writing message ...");
 
-    typename task<void>::promise_type promise;
+    task<void>::promise_type promise;
     auto future = promise.get_future();
 
     scheduler(wrap(std::bind(&push_t::operator(),
