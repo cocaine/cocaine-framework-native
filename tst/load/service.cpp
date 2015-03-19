@@ -28,8 +28,8 @@ TEST(load, EchoSyncST) {
 
     for (size_t id = 0; id < ITERS; ++id) {
         auto channel = echo.invoke<io::app::enqueue>(std::string("ping")).get();
-        auto tx = std::move(std::get<0>(channel));
-        auto rx = std::move(std::get<1>(channel));
+        auto tx = std::move(channel.tx);
+        auto rx = std::move(channel.rx);
 
         tx.send<scope::chunk>(std::string("le message")).get();
 
@@ -78,8 +78,8 @@ on_invoke(typename task<typename invocation_result<io::app::enqueue>::type>::fut
           std::atomic<int>& counter)
 {
     auto channel = future.get();
-    auto tx = std::move(std::get<0>(channel));
-    auto rx = std::move(std::get<1>(channel));
+    auto tx = std::move(channel.tx);
+    auto rx = std::move(channel.rx);
     return tx.send<scope::chunk>(std::string("le message"))
         .then(std::bind(&on_send, ph::_1, rx))
         .then(std::bind(&on_chunk, ph::_1, rx))
@@ -128,8 +128,8 @@ TEST(basic_service_t, EchoMT) {
 
 //            for (size_t id = 0; id < 10000; ++id) {
 //                auto ch = echo->invoke<cocaine::io::app::enqueue>(std::string("ping")).get();
-//                auto tx = std::move(std::get<0>(ch));
-//                auto rx = std::move(std::get<1>(ch));
+//                auto tx = std::move(ch.tx);
+//                auto rx = std::move(ch.rx);
 //                auto chunk = std::to_string(tid) + "/" + std::to_string(id) + ": le message";
 //                tx.send<upstream::chunk>(chunk).get();
 //                auto result = rx.recv().get();

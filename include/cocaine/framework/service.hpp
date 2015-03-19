@@ -37,11 +37,7 @@ template<
     class Dispatch = typename io::event_traits<Event>::dispatch_type
 >
 struct invocation_result {
-    typedef std::tuple<
-        sender  <Dispatch, basic_session_t>,
-        receiver<Upstream, basic_session_t>
-    > channel_type;
-
+    typedef channel<Event> channel_type;
     typedef channel_type type;
 
     static
@@ -58,18 +54,13 @@ struct invocation_result {
 /// \helper
 template<class Event, class T>
 struct invocation_result<Event, io::primitive_tag<T>, void> {
-    typedef std::tuple<
-        sender  <void, basic_session_t>,
-        receiver<io::primitive_tag<T>, basic_session_t>
-    > channel_type;
-
+    typedef channel<Event> channel_type;
     typedef typename detail::packable<T>::type type;
 
     static
     typename task<type>::future_type
     apply(channel_type&& channel) {
-        auto rx = std::move(std::get<1>(channel));
-        return rx.recv();
+        return channel.rx.recv();
     }
 };
 
@@ -110,7 +101,8 @@ public:
 private:
     template<class Event, class... Args>
     static
-    typename task<typename session_t::invoke_result<Event>::type>::future_type
+    typename task<channel<Event>>::future_type
+    // TODO: Style!
     on_connect(typename task<void>::future_type& f, std::shared_ptr<session_t> session, Args&... args) {
         f.get();
         // Between these calls no one can guarantee, that the connection won't be broken. In this
@@ -121,7 +113,7 @@ private:
     template<class Event>
     static
     typename task<typename invocation_result<Event>::type>::future_type
-    on_invoke(typename task<typename session_t::invoke_result<Event>::type>::future_move_type future) {
+    on_invoke(typename task<channel<Event>>::future_move_type future) {
         return invocation_result<Event>::apply(future.get());
     }
 };

@@ -91,12 +91,12 @@ bool session<BasicSession>::connected() const {
 }
 
 template<class BasicSession>
-auto session<BasicSession>::connect(const session::endpoint_type& endpoint) -> typename task<void>::future_type {
+auto session<BasicSession>::connect(const session::endpoint_type& endpoint) -> task<void>::future_type {
     return connect(std::vector<endpoint_type> {{ endpoint }});
 }
 
 template<class BasicSession>
-auto session<BasicSession>::connect(const std::vector<session::endpoint_type>& endpoints) -> typename task<void>::future_type {
+auto session<BasicSession>::connect(const std::vector<session::endpoint_type>& endpoints) -> task<void>::future_type {
     if (endpoints == *d->endpoints.synchronize()) {
         return make_ready_future<void>::error(
             std::runtime_error("already in progress with different endpoint set")

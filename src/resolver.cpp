@@ -67,24 +67,18 @@ on_resolve(task<resolve_result>::future_move_type future,
 }
 
 task<resolve_result>::future_type
-on_invoke(task<typename session_t::invoke_result<io::locator::resolve>::type>::future_move_type future,
-          std::shared_ptr<session_t>)
-{
+on_invoke(task<channel<io::locator::resolve>>::future_move_type future, std::shared_ptr<session_t>) {
     try {
-        auto ch = future.get();
-        auto rx = std::move(std::get<1>(ch));
-        return rx.recv();
+        auto channel = future.get();
+        return channel.rx.recv();
     } catch (const std::exception& err) {
         CF_DBG("<< resolving - invocation error: %s", err.what());
         throw;
     }
 }
 
-task<typename session_t::invoke_result<io::locator::resolve>::type>::future_type
-on_connect(task<void>::future_move_type future,
-           std::shared_ptr<session_t> locator,
-           std::string name)
-{
+task<channel<io::locator::resolve>>::future_type
+on_connect(task<void>::future_move_type future, std::shared_ptr<session_t> locator, std::string name) {
     try {
         future.get();
 

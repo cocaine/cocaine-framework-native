@@ -83,8 +83,8 @@ TEST(service, Echo) {
     auto echo = manager.create<cocaine::io::storage_tag>("echo-cpp");
 
     auto channel = echo.invoke<cocaine::io::app::enqueue>(std::string("ping")).get();
-    auto tx = std::move(std::get<0>(channel));
-    auto rx = std::move(std::get<1>(channel));
+    auto tx = std::move(channel.tx);
+    auto rx = std::move(channel.rx);
 
     tx.send<upstream::chunk>(std::string("le message")).get();
     auto result = rx.recv().get();
@@ -123,9 +123,9 @@ typename task<void>::future_type
 on_invoke(typename task<typename invocation_result<cocaine::io::app::enqueue>::type>::future_move_type future) {
     typedef typename cocaine::io::protocol<cocaine::io::app::enqueue::dispatch_type>::scope upstream;
 
-    auto ch = future.get();
-    auto tx = std::move(std::get<0>(ch));
-    auto rx = std::move(std::get<1>(ch));
+    auto channel = future.get();
+    auto tx = std::move(channel.tx);
+    auto rx = std::move(channel.rx);
     return tx.send<upstream::chunk>(std::string("le message"))
         .then(std::bind(&on_send, ph::_1, rx))
         .then(std::bind(&on_recv, ph::_1, rx))

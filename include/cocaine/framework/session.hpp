@@ -29,6 +29,21 @@ namespace cocaine {
 
 namespace framework {
 
+template<class Event>
+struct channel {
+    typedef sender  <typename io::event_traits<Event>::dispatch_type, basic_session_t> sender_type;
+    typedef receiver<typename io::event_traits<Event>::upstream_type, basic_session_t> receiver_type;
+    typedef std::tuple<sender_type, receiver_type> tuple_type;
+
+    sender_type tx;
+    receiver_type rx;
+
+    explicit channel(tuple_type&& tuple) :
+        tx(std::move(std::get<0>(tuple))),
+        rx(std::move(std::get<1>(tuple)))
+    {}
+};
+
 /*!
  * RAII class that manages with connection queue and returns a typed sender/receiver.
  */
@@ -43,13 +58,6 @@ public:
         std::shared_ptr<basic_receiver_t<basic_session_t>>
     > basic_invoke_result;
 
-    template<class Event>
-    struct invoke_result {
-        typedef sender  <typename io::event_traits<Event>::dispatch_type, basic_session_t> sender_type;
-        typedef receiver<typename io::event_traits<Event>::upstream_type, basic_session_t> receiver_type;
-        typedef std::tuple<sender_type, receiver_type> type;
-    };
-
 private:
     class impl;
     std::shared_ptr<impl> d;
@@ -61,13 +69,13 @@ public:
 
     bool connected() const;
 
-    auto connect(const endpoint_type& endpoint) -> typename task<void>::future_type;
-    auto connect(const std::vector<endpoint_type>& endpoints) -> typename task<void>::future_type;
+    auto connect(const endpoint_type& endpoint) -> task<void>::future_type;
+    auto connect(const std::vector<endpoint_type>& endpoints) -> task<void>::future_type;
 
     auto endpoint() const -> boost::optional<endpoint_type>;
 
     template<class Event, class... Args>
-    typename task<typename invoke_result<Event>::type>::future_type
+    typename task<channel<Event>>::future_type
     invoke(Args&&... args) {
         namespace ph = std::placeholders;
 
@@ -88,9 +96,9 @@ private:
 
     template<class Event>
     static
-    typename invoke_result<Event>::type
+    channel<Event>
     on_invoke(typename task<basic_invoke_result>::future_move_type future) {
-        return typename invoke_result<Event>::type(future.get());
+        return channel<Event>(future.get());
     }
 };
 
