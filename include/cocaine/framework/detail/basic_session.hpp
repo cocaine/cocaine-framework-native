@@ -23,12 +23,13 @@
 
 #include <asio/ip/tcp.hpp>
 
+#include <cocaine/common.hpp>
 #include <cocaine/locked_ptr.hpp>
+#include <cocaine/rpc/asio/channel.hpp>
 
 #include "cocaine/framework/forwards.hpp"
 #include "cocaine/framework/receiver.hpp"
 
-#include "cocaine/framework/detail/channel.hpp"
 #include "cocaine/framework/detail/decoder.hpp"
 
 namespace cocaine {
@@ -58,7 +59,7 @@ public:
     > invoke_result;
 
 private:
-    typedef detail::channel<protocol_type, io::encoder_t, detail::decoder_t> channel_type;
+    typedef io::channel<protocol_type, io::encoder_t, detail::decoder_t> channel_type;
 
     enum class state_t : std::uint8_t {
         disconnected = 0,
