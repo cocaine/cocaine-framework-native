@@ -72,7 +72,7 @@ uint basic_service_t::version() const noexcept {
     return d->version;
 }
 
-auto basic_service_t::connect() -> typename task<void>::future_type {
+auto basic_service_t::connect() -> task<void>::future_type {
     CF_CTX("SC");
     CF_DBG(">> connecting ...");
 

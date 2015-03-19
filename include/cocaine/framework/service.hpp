@@ -66,7 +66,7 @@ public:
     auto name() const noexcept -> const std::string&;
     auto version() const noexcept -> uint;
 
-    auto connect() -> typename task<void>::future_type;
+    auto connect() -> task<void>::future_type;
 
     auto endpoint() const -> boost::optional<session_t::endpoint_type>;
 
