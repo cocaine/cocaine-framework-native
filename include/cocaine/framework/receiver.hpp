@@ -28,12 +28,16 @@ namespace framework {
 /// session.
 template<class Session>
 class basic_receiver_t {
+public:
+    typedef Session session_type;
+
+private:
     std::uint64_t id;
-    std::shared_ptr<Session> session;
+    std::shared_ptr<session_type> session;
     std::shared_ptr<shared_state_t> state;
 
 public:
-    basic_receiver_t(std::uint64_t id, std::shared_ptr<Session> session, std::shared_ptr<shared_state_t> state);
+    basic_receiver_t(std::uint64_t id, std::shared_ptr<session_type> session, std::shared_ptr<shared_state_t> state);
 
     ~basic_receiver_t();
 
