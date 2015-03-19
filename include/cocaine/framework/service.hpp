@@ -14,33 +14,36 @@ template<
     class Upstream = typename io::event_traits<Event>::upstream_type,
     class Dispatch = typename io::event_traits<Event>::dispatch_type
 >
-struct invocation_result;
+struct invocation_result {
+    typedef std::tuple<
+        sender  <Dispatch, basic_session_t>,
+        receiver<Upstream, basic_session_t>
+    > channel_type;
 
-//! \note value or throw.
-template<class Event, class T>
-struct invocation_result<Event, io::primitive_tag<T>, void> {
-    typedef typename detail::packable<T>::type value_type;
-    typedef std::tuple<sender<void, basic_session_t>, receiver<io::primitive_tag<T>, basic_session_t>> channel_type;
-    typedef value_type type;
-
-    static
-    typename task<value_type>::future_type
-    apply(channel_type&& channel) {
-        auto rx = std::move(std::get<1>(channel));
-        return rx.recv();
-    }
-};
-
-//! \note sender - usual, receiver - special - recv() -> optional<T> or throw.
-template<class Event, class U, class D>
-struct invocation_result<Event, io::streaming_tag<U>, io::streaming_tag<D>> {
-    typedef std::tuple<sender<io::streaming_tag<D>, basic_session_t>, receiver<io::streaming_tag<U>, basic_session_t>> channel_type;
     typedef channel_type type;
 
     static
     typename task<type>::future_type
     apply(channel_type&& channel) {
         return make_ready_future<type>::value(std::move(channel));
+    }
+};
+
+//! \note value or throw.
+template<class Event, class T>
+struct invocation_result<Event, io::primitive_tag<T>, void> {
+    typedef std::tuple<
+        sender  <void, basic_session_t>,
+        receiver<io::primitive_tag<T>, basic_session_t>
+    > channel_type;
+
+    typedef typename detail::packable<T>::type type;
+
+    static
+    typename task<type>::future_type
+    apply(channel_type&& channel) {
+        auto rx = std::move(std::get<1>(channel));
+        return rx.recv();
     }
 };
 
