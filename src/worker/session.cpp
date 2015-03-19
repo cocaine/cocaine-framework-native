@@ -101,7 +101,7 @@ void worker_session_t::inhale() {
 
 void worker_session_t::exhale(const std::error_code& ec) {
     if (ec) {
-        COCAINE_ASSERT(ec == asio::error::operation_aborted);
+        BOOST_ASSERT(ec == asio::error::operation_aborted);
 
         // Heartbeat timer can only be interrupted during graceful shutdown.
         return;
@@ -117,7 +117,7 @@ void worker_session_t::exhale(const std::error_code& ec) {
 
 void worker_session_t::on_disown(const std::error_code& ec) {
     if (ec) {
-        COCAINE_ASSERT(ec == asio::error::operation_aborted);
+        BOOST_ASSERT(ec == asio::error::operation_aborted);
 
         // Do nothing, because it's just usual timer reset.
         return;
@@ -165,7 +165,7 @@ void worker_session_t::on_read(const std::error_code& ec) {
 
 void worker_session_t::on_error(const std::error_code& ec) {
     CF_DBG("on error: %s", CF_EC(ec));
-    COCAINE_ASSERT(ec);
+    BOOST_ASSERT(ec);
 
     auto channels = this->channels.synchronize();
     for (auto channel : *channels) {

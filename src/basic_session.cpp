@@ -114,7 +114,7 @@ auto basic_session_t::connect(const std::vector<endpoint_type>& endpoints) -> ty
         break;
     }
     default:
-        COCAINE_ASSERT(false);
+        BOOST_ASSERT(false);
     }
 
     return future;
@@ -254,7 +254,7 @@ void basic_session_t::on_read(const std::error_code& ec) {
 }
 
 void basic_session_t::on_error(const std::error_code& ec) {
-    COCAINE_ASSERT(ec);
+    BOOST_ASSERT(ec);
 
     state = static_cast<std::uint8_t>(state_t::disconnected);
 

@@ -38,7 +38,7 @@ public:
                 queue.push_back(promise);
                 break;
             case asio::error::already_connected:
-                COCAINE_ASSERT(queue.empty());
+                BOOST_ASSERT(queue.empty());
                 promise->set_value();
                 break;
             default:

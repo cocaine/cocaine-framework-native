@@ -5,7 +5,7 @@ using namespace cocaine::framework;
 void shared_state_t::put(value_type&& message) {
     std::unique_lock<std::mutex> lock(mutex);
 
-    COCAINE_ASSERT(!broken);
+    BOOST_ASSERT(!broken);
 
     if (await.empty()) {
         queue.push(std::move(message));
@@ -21,7 +21,7 @@ void shared_state_t::put(value_type&& message) {
 void shared_state_t::put(const std::error_code& ec) {
     std::unique_lock<std::mutex> lock(mutex);
 
-    COCAINE_ASSERT(!broken);
+    BOOST_ASSERT(!broken);
 
     broken = ec;
     std::queue<typename task<value_type>::promise_type> await(std::move(this->await));
