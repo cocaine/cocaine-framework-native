@@ -77,6 +77,8 @@ public:
     template<class Event, class... Args>
     typename task<sender<typename io::event_traits<Event>::dispatch_type, Session>>::future_type
     send(Args&&... args) {
+        BOOST_ASSERT(this->d);
+
         auto d = std::move(this->d);
         auto future = d->template send<Event>(std::forward<Args>(args)...);
         return future.then(std::bind(&sender::traverse<Event>, std::placeholders::_1, std::move(d)));
