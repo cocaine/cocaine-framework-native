@@ -18,51 +18,13 @@
 
 #include "cocaine/framework/forwards.hpp"
 #include "cocaine/framework/receiver.hpp"
-#include "cocaine/framework/session.hpp"
 #include "cocaine/framework/scheduler.hpp"
+#include "cocaine/framework/service.inl.hpp"
+#include "cocaine/framework/session.hpp"
 
 namespace cocaine {
 
 namespace framework {
-
-/// The invocation result helper trait allows you to unpack invocation result to something more
-/// convenient.
-///
-/// Must provide the type typedef for result type.
-///
-/// \helper
-template<
-    class Event,
-    class Upstream = typename io::event_traits<Event>::upstream_type,
-    class Dispatch = typename io::event_traits<Event>::dispatch_type
->
-struct invocation_result {
-    typedef channel<Event> channel_type;
-    typedef channel_type type;
-
-    static
-    typename task<type>::future_type
-    apply(channel_type&& channel) {
-        return make_ready_future<type>::value(std::move(channel));
-    }
-};
-
-/// The template trait specialization for primitive tags with no sender.
-///
-/// On apply unpacks the single option value and returns it on value type, throws otherwise.
-///
-/// \helper
-template<class Event, class T>
-struct invocation_result<Event, io::primitive_tag<T>, void> {
-    typedef channel<Event> channel_type;
-    typedef typename detail::packable<T>::type type;
-
-    static
-    typename task<type>::future_type
-    apply(channel_type&& channel) {
-        return channel.rx.recv();
-    }
-};
 
 class basic_service_t {
 public:
