@@ -55,6 +55,9 @@ namespace cocaine {
 
         class basic_session_t;
 
+        template<class Event>
+        struct channel;
+
         template<class BasicSession>
         class session;
 

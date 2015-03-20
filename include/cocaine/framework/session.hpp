@@ -21,6 +21,7 @@
 #include <boost/asio/ip/tcp.hpp>
 
 #include "cocaine/framework/config.hpp"
+#include "cocaine/framework/channel.hpp"
 #include "cocaine/framework/forwards.hpp"
 #include "cocaine/framework/receiver.hpp"
 #include "cocaine/framework/sender.hpp"
@@ -28,21 +29,6 @@
 namespace cocaine {
 
 namespace framework {
-
-template<class Event>
-struct channel {
-    typedef sender  <typename io::event_traits<Event>::dispatch_type, basic_session_t> sender_type;
-    typedef receiver<typename io::event_traits<Event>::upstream_type, basic_session_t> receiver_type;
-    typedef std::tuple<sender_type, receiver_type> tuple_type;
-
-    sender_type tx;
-    receiver_type rx;
-
-    explicit channel(tuple_type&& tuple) :
-        tx(std::move(std::get<0>(tuple))),
-        rx(std::move(std::get<1>(tuple)))
-    {}
-};
 
 /*!
  * RAII class that manages with connection queue and returns a typed sender/receiver.
@@ -84,8 +70,8 @@ public:
     }
 
 private:
-    auto invoke(std::function<io::encoder_t::message_type(std::uint64_t)> encoder)
-        -> typename task<basic_invoke_result>::future_type;
+    task<basic_invoke_result>::future_type
+    invoke(std::function<io::encoder_t::message_type(std::uint64_t)> encoder);
 
     template<class Event, class... Args>
     static
