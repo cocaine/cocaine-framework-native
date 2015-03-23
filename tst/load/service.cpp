@@ -113,35 +113,4 @@ TEST(load, EchoAsyncST) {
     EXPECT_EQ(ITERS, counter);
 }
 
-TEST(basic_service_t, EchoMT) {
-//    typedef typename io::protocol<io::app::enqueue::dispatch_type>::scope upstream;
-
-//    service_manager_t manager(1);
-
-//    std::vector<boost::thread> threads;
-
-//    for (size_t tid = 0; tid < 8; ++tid) {
-//        threads.emplace_back(boost::thread([tid, &manager]{
-//            auto echo = manager.create<cocaine::io::app_tag>("echo-cpp");
-
-//            for (size_t id = 0; id < 10000; ++id) {
-//                auto ch = echo->invoke<cocaine::io::app::enqueue>(std::string("ping")).get();
-//                auto tx = std::move(ch.tx);
-//                auto rx = std::move(ch.rx);
-//                auto chunk = std::to_string(tid) + "/" + std::to_string(id) + ": le message";
-//                tx.send<upstream::chunk>(chunk).get();
-//                auto result = rx.recv().get();
-//                rx.recv().get();
-
-//                EXPECT_EQ(chunk, *result);
-//                if (chunk != *result) {
-//                    std::terminate();
-//                }
-//            }
-//        }));
-//    }
-
-//    for (auto& thread : threads) {
-//        thread.join();
-//    }
 }
