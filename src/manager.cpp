@@ -22,6 +22,7 @@
 #include "cocaine/framework/scheduler.hpp"
 
 #include "cocaine/framework/detail/loop.hpp"
+#include "cocaine/framework/detail/runnable.hpp"
 
 using namespace cocaine::framework;
 using namespace cocaine::framework::detail;
@@ -38,7 +39,7 @@ public:
         work(boost::optional<loop_t::work>(loop_t::work(io))),
         event_loop(io),
         scheduler(event_loop),
-        thread(std::bind(static_cast<std::size_t(loop_t::*)()>(&loop_t::run), std::ref(io)))
+        thread(named_runnable<loop_t>("[CF::M]", io))
     {}
 
     ~execution_unit_t() {
