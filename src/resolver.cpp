@@ -37,7 +37,7 @@ using namespace cocaine::framework::detail;
 
 namespace {
 
-typedef std::tuple<std::vector<asio::ip::tcp::endpoint>, uint, io::graph_basis_t> resolve_result;
+typedef std::tuple<std::vector<asio::ip::tcp::endpoint>, uint, io::graph_root_t> resolve_result;
 
 resolver_t::result_t
 on_resolve(task<resolve_result>::future_move_type future,

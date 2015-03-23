@@ -25,10 +25,9 @@
 
 #include <cocaine/common.hpp>
 #include <cocaine/forwards.hpp>
+#include <cocaine/idl/rpc.hpp>
 #include <cocaine/locked_ptr.hpp>
 #include <cocaine/rpc/asio/channel.hpp>
-
-#include <cocaine/detail/service/node/messages.hpp>
 
 #include "cocaine/framework/message.hpp"
 #include "cocaine/framework/worker/dispatch.hpp"
