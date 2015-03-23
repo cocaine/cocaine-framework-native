@@ -26,7 +26,7 @@ TEST(load, EchoSyncST) {
     service_manager_t manager(1);
     auto echo = manager.create<cocaine::io::app_tag>(APP);
 
-    for (size_t id = 0; id < ITERS; ++id) {
+    for (uint id = 0; id < ITERS; ++id) {
         auto channel = echo.invoke<io::app::enqueue>(std::string("ping")).get();
         auto tx = std::move(channel.tx);
         auto rx = std::move(channel.rx);
@@ -100,7 +100,7 @@ TEST(load, EchoAsyncST) {
     std::vector<typename task<void>::future_type> futures;
     futures.reserve(ITERS);
 
-    for (int i = 0; i < ITERS; ++i) {
+    for (uint i = 0; i < ITERS; ++i) {
         futures.emplace_back(
             echo.invoke<io::app::enqueue>(std::string("ping"))
                 .then(std::bind(&on_invoke, ph::_1, std::ref(counter)))

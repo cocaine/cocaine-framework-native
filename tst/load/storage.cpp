@@ -28,7 +28,7 @@ TEST(load, StorageAsyncST) {
     std::vector<typename task<std::string>::future_type> futures;
     futures.reserve(ITERS);
 
-    for (int i = 0; i < ITERS; ++i) {
+    for (uint i = 0; i < ITERS; ++i) {
         futures.emplace_back(
             storage.invoke<io::storage::read>(std::string("collection"), std::string("key"))
         );
@@ -53,7 +53,7 @@ TEST(load, StorageAsyncMT) {
             std::vector<typename task<std::string>::future_type> futures;
             futures.reserve(ITERS);
 
-            for (int i = 0; i < ITERS; ++i) {
+            for (uint i = 0; i < ITERS; ++i) {
                 futures.emplace_back(
                     storage.invoke<io::storage::read>(std::string("collection"), std::string("key"))
                 );
