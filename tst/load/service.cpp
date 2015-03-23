@@ -45,16 +45,16 @@ namespace ph = std::placeholders;
 
 namespace {
 
-typename task<boost::optional<std::string>>::future_type
-on_send(typename task<sender<io::app::enqueue::dispatch_type, basic_session_t>>::future_move_type future,
+task<boost::optional<std::string>>::future_type
+on_send(task<sender<io::app::enqueue::dispatch_type, basic_session_t>>::future_move_type future,
         receiver<io::app::enqueue::upstream_type, basic_session_t> rx)
 {
     future.get();
     return rx.recv();
 }
 
-typename task<boost::optional<std::string>>::future_type
-on_chunk(typename task<boost::optional<std::string>>::future_move_type future,
+task<boost::optional<std::string>>::future_type
+on_chunk(task<boost::optional<std::string>>::future_move_type future,
         receiver<io::app::enqueue::upstream_type, basic_session_t> rx)
 {
     auto result = future.get();
@@ -64,17 +64,15 @@ on_chunk(typename task<boost::optional<std::string>>::future_move_type future,
 }
 
 void
-on_choke(typename task<boost::optional<std::string>>::future_move_type future,
-         std::atomic<int>& counter)
-{
+on_choke(task<boost::optional<std::string>>::future_move_type future, std::atomic<int>& counter) {
     auto result = future.get();
     EXPECT_FALSE(result);
 
     counter++;
 }
 
-typename task<void>::future_type
-on_invoke(typename task<typename invocation_result<io::app::enqueue>::type>::future_move_type future,
+task<void>::future_type
+on_invoke(task<invocation_result<io::app::enqueue>::type>::future_move_type future,
           std::atomic<int>& counter)
 {
     auto channel = future.get();
@@ -97,7 +95,7 @@ TEST(load, EchoAsyncST) {
     service_manager_t manager(1);
     auto echo = manager.create<cocaine::io::app_tag>(APP);
 
-    std::vector<typename task<void>::future_type> futures;
+    std::vector<task<void>::future_type> futures;
     futures.reserve(ITERS);
 
     for (uint i = 0; i < ITERS; ++i) {

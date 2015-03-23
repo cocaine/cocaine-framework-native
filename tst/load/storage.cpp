@@ -25,7 +25,7 @@ TEST(load, StorageAsyncST) {
     service_manager_t manager(1);
     auto storage = manager.create<cocaine::io::storage_tag>("storage");
 
-    std::vector<typename task<std::string>::future_type> futures;
+    std::vector<task<std::string>::future_type> futures;
     futures.reserve(ITERS);
 
     for (uint i = 0; i < ITERS; ++i) {
@@ -50,7 +50,7 @@ TEST(load, StorageAsyncMT) {
     for (int tid = 0; tid < 4; ++tid) {
         std::packaged_task<void()> work([&manager, ITERS]{
             auto storage = manager.create<cocaine::io::storage_tag>("storage");
-            std::vector<typename task<std::string>::future_type> futures;
+            std::vector<task<std::string>::future_type> futures;
             futures.reserve(ITERS);
 
             for (uint i = 0; i < ITERS; ++i) {
