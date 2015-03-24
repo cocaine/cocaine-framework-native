@@ -22,3 +22,4 @@ cocaine-framework-*.includes
 *.la
 *.a
 
+config.hpp
