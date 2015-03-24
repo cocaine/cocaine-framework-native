@@ -1,0 +1,2 @@
+/// Use internal logging system (much verbose, so spam, wow).
+#cmakedefine CF_USE_INTERNAL_LOGGING
