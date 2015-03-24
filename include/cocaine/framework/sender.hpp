@@ -52,12 +52,12 @@ public:
      */
     template<class Event, class... Args>
     auto
-    send(Args&&... args) -> typename task<void>::future_type {
+    send(Args&&... args) -> task<void>::future_type {
         return send(io::encoded<Event>(id, std::forward<Args>(args)...));
     }
 
 private:
-    auto send(io::encoder_t::message_type&& message) -> typename task<void>::future_type;
+    auto send(io::encoder_t::message_type&& message) -> task<void>::future_type;
 };
 
 template<class T, class Session>
