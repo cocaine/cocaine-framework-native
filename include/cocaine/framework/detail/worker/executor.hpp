@@ -20,6 +20,7 @@
 #include <boost/thread/thread.hpp>
 
 #include "cocaine/framework/detail/loop.hpp"
+#include "cocaine/framework/detail/runnable.hpp"
 
 namespace cocaine {
 
@@ -69,9 +70,7 @@ public:
 private:
     void start(unsigned int threads) {
         for (unsigned int i = 0; i < threads; ++i) {
-            pool.create_thread(
-                std::bind(static_cast<std::size_t(detail::loop_t::*)()>(&detail::loop_t::run), std::ref(loop))
-            );
+            pool.create_thread(named_runnable<loop_t>("[CF::W]", loop));
         }
     }
 };
