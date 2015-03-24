@@ -54,7 +54,7 @@ public:
     invoke(Args&&... args) {
         namespace ph = std::placeholders;
 
-        context_holder holder("`" + name() + "|SI");
+        context_holder holder("SI");
         return connect()
             .then(scheduler, wrap(std::bind(&basic_service_t::on_connect<Event, Args...>, ph::_1, session, std::forward<Args>(args)...)))
             .then(scheduler, wrap(std::bind(&basic_service_t::on_invoke<Event>, ph::_1)));
