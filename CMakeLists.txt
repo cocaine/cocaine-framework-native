@@ -2,7 +2,11 @@ cmake_minimum_required(VERSION 2.6)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
-option(CF_USE_INTERNAL_LOGGING "Build the library with trace logging" OFF)
+option(WITH_TRACE "Build the library with trace logging" OFF)
+
+if(WITH_TRACE)
+    set(COCAINE_FRAMEWORK_HAS_INTERNAL_TRACING 1)
+endif()
 
 configure_file(
     "${CMAKE_SOURCE_DIR}/config.hpp.in"

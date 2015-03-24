@@ -16,7 +16,7 @@
 
 #include "cocaine/framework/detail/log.hpp"
 
-#ifdef CF_USE_INTERNAL_LOGGING
+#ifdef COCAINE_FRAMEWORK_HAS_INTERNAL_TRACING
 
 #include <blackhole/formatter/string.hpp>
 #include <blackhole/sink/stream.hpp>

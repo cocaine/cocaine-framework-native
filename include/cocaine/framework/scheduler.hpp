@@ -26,7 +26,7 @@ namespace cocaine {
 namespace framework {
 
 struct context_holder {
-#ifdef CF_USE_INTERNAL_LOGGING
+#ifdef COCAINE_FRAMEWORK_HAS_INTERNAL_TRACING
     class impl;
     std::unique_ptr<impl> d;
 #endif
@@ -35,7 +35,7 @@ struct context_holder {
     ~context_holder();
 };
 
-#ifdef CF_USE_INTERNAL_LOGGING
+#ifdef COCAINE_FRAMEWORK_HAS_INTERNAL_TRACING
 
 std::string current_context();
 

@@ -16,7 +16,7 @@
 
 #include "cocaine/framework/scheduler.hpp"
 
-#ifdef CF_USE_INTERNAL_LOGGING
+#ifdef COCAINE_FRAMEWORK_HAS_INTERNAL_TRACING
 #include <blackhole/attribute/set.hpp>
 #include <blackhole/scoped_attributes.hpp>
 #endif
@@ -30,7 +30,7 @@ void scheduler_t::operator()(closure_type fn) {
     ev.loop.post(std::move(fn));
 }
 
-#ifdef CF_USE_INTERNAL_LOGGING
+#ifdef COCAINE_FRAMEWORK_HAS_INTERNAL_TRACING
 
 namespace {
 
@@ -46,7 +46,7 @@ namespace cocaine {
 
 namespace framework {
 
-#ifdef CF_USE_INTERNAL_LOGGING
+#ifdef COCAINE_FRAMEWORK_HAS_INTERNAL_TRACING
 
 std::string current_context() {
     blackhole::scoped_attributes_t scoped(detail::logger(), blackhole::attribute::set_t());
@@ -75,7 +75,7 @@ public:
 
 #endif
 
-#ifdef CF_USE_INTERNAL_LOGGING
+#ifdef COCAINE_FRAMEWORK_HAS_INTERNAL_TRACING
 context_holder::context_holder(const std::string& context) : d(new impl(context)) {}
 #else
 context_holder::context_holder(const std::string&) {}

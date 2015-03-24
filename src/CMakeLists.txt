@@ -3,8 +3,11 @@ if(APPLE)
 endif()
 
 find_package(Boost 1.40 REQUIRED COMPONENTS system thread program_options)
-find_package(Blackhole REQUIRED)
 find_package(Cocaine 0.12 REQUIRED)
+
+if(WITH_TRACE)
+    find_package(Blackhole REQUIRED)
+endif()
 
 set(Boost_USE_MULTITHREADED ON)
 

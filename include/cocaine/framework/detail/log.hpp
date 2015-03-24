@@ -18,7 +18,7 @@
 
 #include "cocaine/framework/config.hpp"
 
-#ifdef CF_USE_INTERNAL_LOGGING
+#ifdef COCAINE_FRAMEWORK_HAS_INTERNAL_TRACING
 
 #include <boost/preprocessor/slot/counter.hpp>
 
