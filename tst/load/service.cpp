@@ -233,11 +233,10 @@ TEST(load, DISABLED_HttpSync) {
 TEST(load, HttpAsync) {
     const std::string APP = util::get_option<std::string>("load.HttpAsync.app", DEFAULT_APP);
     const uint ITERS = util::get_option<uint>("load.HttpAsync.iters", DEFAULT_ITERS);
-    const uint THREADS = util::get_option<uint>("load.HttpAsync.threads", 1);
 
     std::atomic<int> counter(0);
 
-    service_manager_t manager(THREADS);
+    service_manager_t manager(1);
     auto echo = manager.create<cocaine::io::app_tag>(APP);
 
     std::vector<task<void>::future_type> futures;
