@@ -27,8 +27,8 @@ using namespace cocaine::framework::detail;
 
 namespace {
 
-typename task<void>::future_type
-on_resolve(typename task<resolver_t::result_t>::future_move_type future, uint version, std::shared_ptr<session_t> session) {
+task<void>::future_type
+on_resolve(task<resolver_t::result_t>::future_move_type future, uint version, std::shared_ptr<session_t> session) {
     auto info = future.get();
     if (version != info.version) {
         return make_ready_future<void>::error(version_mismatch(version, info.version));
@@ -38,7 +38,7 @@ on_resolve(typename task<resolver_t::result_t>::future_move_type future, uint ve
 }
 
 void
-on_connect(typename task<void>::future_move_type future) {
+on_connect(task<void>::future_move_type future) {
     try {
         future.get();
         CF_DBG("<< connected");
@@ -48,7 +48,7 @@ on_connect(typename task<void>::future_move_type future) {
     }
 }
 
-}
+} // namespace
 
 class basic_service_t::impl {
 public:

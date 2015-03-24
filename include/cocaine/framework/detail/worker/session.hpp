@@ -71,8 +71,8 @@ public:
 
     void connect(std::string endpoint, std::string uuid);
 
-    auto push(std::uint64_t span, io::encoder_t::message_type&& message) -> typename task<void>::future_type;
-    auto push(io::encoder_t::message_type&& message) -> typename task<void>::future_type;
+    auto push(std::uint64_t span, io::encoder_t::message_type&& message) -> task<void>::future_type;
+    auto push(io::encoder_t::message_type&& message) -> task<void>::future_type;
     void revoke(std::uint64_t span);
 
 private:

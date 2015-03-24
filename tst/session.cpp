@@ -160,7 +160,7 @@ TEST(basic_session_t, RAIIOnConnect) {
     client_t client;
 
     // ===== Test Stage =====
-    typename task<std::error_code>::future_type future;
+    task<std::error_code>::future_type future;
     {
         auto session = std::make_shared<basic_session_t>(client.loop());
         future = std::move(session->connect(endpoint));

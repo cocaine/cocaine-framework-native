@@ -77,7 +77,7 @@ TEST(service, StorageError) {
 }
 
 TEST(service, Echo) {
-    typedef typename cocaine::io::protocol<cocaine::io::app::enqueue::dispatch_type>::scope upstream;
+    typedef cocaine::io::protocol<cocaine::io::app::enqueue::dispatch_type>::scope upstream;
 
     service_manager_t manager(1);
     auto echo = manager.create<cocaine::io::storage_tag>("echo-cpp");
@@ -96,16 +96,16 @@ namespace ph = std::placeholders;
 
 namespace {
 
-typename task<boost::optional<std::string>>::future_type
-on_send(typename task<sender<cocaine::io::app::enqueue::dispatch_type, basic_session_t>>::future_move_type future,
+task<boost::optional<std::string>>::future_type
+on_send(task<sender<cocaine::io::app::enqueue::dispatch_type, basic_session_t>>::future_move_type future,
         receiver<cocaine::io::app::enqueue::upstream_type, basic_session_t> rx)
 {
     future.get();
     return rx.recv();
 }
 
-typename task<boost::optional<std::string>>::future_type
-on_recv(typename task<boost::optional<std::string>>::future_move_type future,
+task<boost::optional<std::string>>::future_type
+on_recv(task<boost::optional<std::string>>::future_move_type future,
         receiver<cocaine::io::app::enqueue::upstream_type, basic_session_t> rx)
 {
     boost::optional<std::string> result = future.get();
@@ -114,14 +114,14 @@ on_recv(typename task<boost::optional<std::string>>::future_move_type future,
 }
 
 void
-on_choke(typename task<boost::optional<std::string>>::future_move_type future) {
+on_choke(task<boost::optional<std::string>>::future_move_type future) {
     auto result = future.get();
     EXPECT_FALSE(result);
 }
 
-typename task<void>::future_type
-on_invoke(typename task<typename invocation_result<cocaine::io::app::enqueue>::type>::future_move_type future) {
-    typedef typename cocaine::io::protocol<cocaine::io::app::enqueue::dispatch_type>::scope upstream;
+task<void>::future_type
+on_invoke(task<invocation_result<cocaine::io::app::enqueue>::type>::future_move_type future) {
+    typedef cocaine::io::protocol<cocaine::io::app::enqueue::dispatch_type>::scope upstream;
 
     auto channel = future.get();
     auto tx = std::move(channel.tx);

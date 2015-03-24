@@ -45,9 +45,9 @@ public:
     sender& operator=(const sender& other) = delete;
     sender& operator=(sender&&) = default;
 
-    auto write(std::string message) -> typename task<sender>::future_type;
-    auto error(int id, std::string reason) -> typename task<void>::future_type;
-    auto close() -> typename task<void>::future_type;
+    auto write(std::string message) -> task<sender>::future_type;
+    auto error(int id, std::string reason) -> task<void>::future_type;
+    auto close() -> task<void>::future_type;
 };
 
 } // namespace worker

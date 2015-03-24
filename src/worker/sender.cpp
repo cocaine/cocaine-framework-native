@@ -28,7 +28,7 @@ using namespace cocaine::framework;
 namespace {
 
 worker::sender
-on_write(typename task<void>::future_move_type future, std::shared_ptr<basic_sender_t<worker_session_t>> session) {
+on_write(task<void>::future_move_type future, std::shared_ptr<basic_sender_t<worker_session_t>> session) {
     future.get();
     return worker::sender(session);
 }
@@ -56,21 +56,21 @@ worker::sender::~sender() {
     }
 }
 
-auto worker::sender::write(std::string message) -> typename task<worker::sender>::future_type {
+auto worker::sender::write(std::string message) -> task<worker::sender>::future_type {
     auto session = std::move(this->session);
 
     return session->send<io::rpc::chunk>(std::move(message))
         .then(std::bind(&on_write, ph::_1, session));
 }
 
-auto worker::sender::error(int id, std::string reason) -> typename task<void>::future_type {
+auto worker::sender::error(int id, std::string reason) -> task<void>::future_type {
     auto session = std::move(this->session);
 
     return session->send<io::rpc::error>(id, std::move(reason))
         .then(std::bind(&on_error, ph::_1));
 }
 
-auto worker::sender::close() -> typename task<void>::future_type {
+auto worker::sender::close() -> task<void>::future_type {
     auto session = std::move(this->session);
 
     return session->send<io::rpc::choke>()

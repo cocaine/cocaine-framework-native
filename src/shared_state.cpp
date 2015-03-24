@@ -40,7 +40,7 @@ void shared_state_t::put(const std::error_code& ec) {
     BOOST_ASSERT(!broken);
 
     broken = ec;
-    std::queue<typename task<value_type>::promise_type> await(std::move(this->await));
+    std::queue<task<value_type>::promise_type> await(std::move(this->await));
     lock.unlock();
 
     while (!await.empty()) {
@@ -49,7 +49,7 @@ void shared_state_t::put(const std::error_code& ec) {
     }
 }
 
-auto shared_state_t::get() -> typename task<value_type>::future_type {
+auto shared_state_t::get() -> task<value_type>::future_type {
     std::lock_guard<std::mutex> lock(mutex);
 
     if (broken) {
@@ -57,7 +57,7 @@ auto shared_state_t::get() -> typename task<value_type>::future_type {
     }
 
     if (queue.empty()) {
-        await.push(typename task<value_type>::promise_type());
+        await.push(task<value_type>::promise_type());
         return await.back().get_future();
     }
 

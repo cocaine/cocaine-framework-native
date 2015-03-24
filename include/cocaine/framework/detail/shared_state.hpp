@@ -34,7 +34,7 @@ public:
 
 private:
     std::queue<value_type> queue;
-    std::queue<typename task<value_type>::promise_type> await;
+    std::queue<task<value_type>::promise_type> await;
 
     boost::optional<std::error_code> broken;
 
@@ -44,9 +44,9 @@ public:
     void put(value_type&& message);
     void put(const std::error_code& ec);
 
-    auto get() -> typename task<value_type>::future_type;
+    auto get() -> task<value_type>::future_type;
 };
 
-}
+} // namespace framework
 
-}
+} // namespace cocaine

@@ -40,7 +40,7 @@ public:
      */
     receiver(std::shared_ptr<basic_receiver_t<worker_session_t>> session);
 
-    auto recv() -> typename task<boost::optional<std::string>>::future_type;
+    auto recv() -> task<boost::optional<std::string>>::future_type;
 };
 
 } // namespace worker

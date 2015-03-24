@@ -95,7 +95,7 @@ auto basic_session_t::connect(const std::vector<endpoint_type>& endpoints) -> ta
     CF_CTX("bC");
     CF_DBG(">> connecting ...");
 
-    typename task<std::error_code>::promise_type promise;
+    task<std::error_code>::promise_type promise;
     auto future = promise.get_future();
 
     std::lock_guard<std::mutex> lock(mutex);
@@ -147,7 +147,7 @@ void basic_session_t::disconnect() {
 }
 
 auto basic_session_t::invoke(std::function<io::encoder_t::message_type(std::uint64_t)> encoder)
-    -> typename task<invoke_result>::future_type
+    -> task<invoke_result>::future_type
 {
     packaged_task<task<basic_session_t::invoke_result>::future_type()> task(
         std::bind(&basic_session_t::invoke_deferred, shared_from_this(), std::move(encoder))

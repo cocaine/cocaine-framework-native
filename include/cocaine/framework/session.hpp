@@ -83,7 +83,7 @@ private:
     template<class Event>
     static
     channel<Event>
-    on_invoke(typename task<basic_invoke_result>::future_move_type future) {
+    on_invoke(task<basic_invoke_result>::future_move_type future) {
         return channel<Event>(future.get());
     }
 };

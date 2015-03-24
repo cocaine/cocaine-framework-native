@@ -41,7 +41,7 @@ template<class Session>
 class worker_session_t::push_t : public std::enable_shared_from_this<push_t<Session>> {
     io::encoder_t::message_type message;
     std::shared_ptr<Session> session;
-    typename task<void>::promise_type h;
+    task<void>::promise_type h;
 
 public:
     explicit push_t(io::encoder_t::message_type&& message, std::shared_ptr<Session> session, task<void>::promise_type&& h) :
@@ -144,7 +144,7 @@ void worker_session_t::on_disown(const std::error_code& ec) {
     throw disowned_error(DISOWN_TIMEOUT.seconds());
 }
 
-auto worker_session_t::push(std::uint64_t span, io::encoder_t::message_type&& message) -> typename task<void>::future_type {
+auto worker_session_t::push(std::uint64_t span, io::encoder_t::message_type&& message) -> task<void>::future_type {
     auto channels = this->channels.synchronize();
     auto it = channels->find(span);
     if (it == channels->end()) {
@@ -156,8 +156,8 @@ auto worker_session_t::push(std::uint64_t span, io::encoder_t::message_type&& me
     return push(std::move(message));
 }
 
-auto worker_session_t::push(io::encoder_t::message_type&& message) -> typename task<void>::future_type {
-    typename task<void>::promise_type promise;
+auto worker_session_t::push(io::encoder_t::message_type&& message) -> task<void>::future_type {
+    task<void>::promise_type promise;
     auto future = promise.get_future();
 
     scheduler(std::bind(&push_t<worker_session_t>::operator(),
@@ -247,7 +247,7 @@ void worker_session_t::process_terminate() {
 void worker_session_t::process_invoke() {
     std::string event;
     io::type_traits<
-        typename io::event_traits<io::rpc::invoke>::argument_type
+        io::event_traits<io::rpc::invoke>::argument_type
     >::unpack(message.args(), event);
     CF_DBG("-> Invoke '%s'", event.c_str());
 

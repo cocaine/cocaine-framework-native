@@ -121,7 +121,7 @@ public:
 private:
     static
     http_sender
-    unwrap(typename task<sender>::future_move_type future) {
+    unwrap(task<sender>::future_move_type future) {
         return future.get();
     }
 };
@@ -174,7 +174,7 @@ public:
 private:
     static
     http_sender<http::streaming, M>
-    transform(typename task<sender>::future_move_type future) {
+    transform(task<sender>::future_move_type future) {
         auto tx = future.get();
         return http_sender<http::streaming, M>(std::move(tx));
     }
@@ -228,7 +228,7 @@ public:
      * \return a future, which will be set after receiving the next message from the stream. It may
      * contain none value, indicating that the other side has closed the stream for writing.
      */
-    typename task<boost::optional<std::string>>::future_type
+    task<boost::optional<std::string>>::future_type
     recv() {
         if (cached) {
             cached = false;
@@ -283,7 +283,7 @@ public:
 private:
     static
     std::tuple<typename M::request_type, http_receiver<http::streaming, M>>
-    transform(typename task<boost::optional<std::string>>::future_move_type future, receiver rx) {
+    transform(task<boost::optional<std::string>>::future_move_type future, receiver rx) {
         auto unpacked = future.get();
 
         if (!unpacked) {

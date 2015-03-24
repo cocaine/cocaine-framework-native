@@ -37,7 +37,7 @@ public:
     scheduler_t& scheduler;
     std::shared_ptr<basic_session_type> sess;
     synchronized<std::vector<endpoint_type>> endpoints;
-    std::vector<std::shared_ptr<typename task<void>::promise_type>> queue;
+    std::vector<std::shared_ptr<task<void>::promise_type>> queue;
 
     explicit impl(scheduler_t& scheduler) :
         scheduler(scheduler),
@@ -103,7 +103,7 @@ auto session<BasicSession>::connect(const std::vector<session::endpoint_type>& e
         );
     }
 
-    auto promise = std::make_shared<typename task<void>::promise_type>();
+    auto promise = std::make_shared<task<void>::promise_type>();
     auto future = promise->get_future();
 
     d->sess->connect(endpoints)
@@ -119,7 +119,7 @@ auto session<BasicSession>::endpoint() const -> boost::optional<endpoint_type> {
 
 template<class BasicSession>
 auto session<BasicSession>::invoke(std::function<io::encoder_t::message_type(std::uint64_t)> encoder)
-    -> typename task<basic_invoke_result>::future_type
+    -> task<basic_invoke_result>::future_type
 {
     return d->sess->invoke(std::move(encoder));
 }

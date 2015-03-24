@@ -14,7 +14,7 @@ using namespace cocaine::framework;
 
 using namespace testing;
 
-typedef typename io::protocol<io::app::enqueue::dispatch_type>::scope scope;
+typedef io::protocol<io::app::enqueue::dispatch_type>::scope scope;
 
 static const char DEFAULT_APP[] = "echo-cpp";
 static const uint DEFAULT_ITERS = 10;

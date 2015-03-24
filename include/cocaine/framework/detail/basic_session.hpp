@@ -102,10 +102,10 @@ public:
     bool connected() const noexcept;
 
     /// \threadsafe
-    auto connect(const endpoint_type& endpoint) -> typename task<std::error_code>::future_type;
+    auto connect(const endpoint_type& endpoint) -> task<std::error_code>::future_type;
 
     /// \threadsafe
-    auto connect(const std::vector<endpoint_type>& endpoints) -> typename task<std::error_code>::future_type;
+    auto connect(const std::vector<endpoint_type>& endpoints) -> task<std::error_code>::future_type;
 
     /*!
      * Returns the endpoint of the connected peer if the session is in connected state; otherwise

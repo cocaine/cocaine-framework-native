@@ -32,14 +32,14 @@ using namespace cocaine::framework::worker;
 namespace {
 
 boost::optional<std::string>
-on_recv(typename task<decoded_message>::future_move_type future) {
+on_recv(task<decoded_message>::future_move_type future) {
     const auto message = future.get();
     const auto id = message.type();
     switch (id) {
     case io::event_traits<io::rpc::chunk>::id: {
         std::string chunk;
         io::type_traits<
-            typename io::event_traits<io::rpc::chunk>::argument_type
+            io::event_traits<io::rpc::chunk>::argument_type
         >::unpack(message.args(), chunk);
         return chunk;
     }
@@ -47,7 +47,7 @@ on_recv(typename task<decoded_message>::future_move_type future) {
         int id;
         std::string reason;
         io::type_traits<
-            typename io::event_traits<io::rpc::error>::argument_type
+            io::event_traits<io::rpc::error>::argument_type
         >::unpack(message.args(), id, reason);
         throw request_error(id, std::move(reason));
     }
@@ -66,7 +66,7 @@ worker::receiver::receiver(std::shared_ptr<basic_receiver_t<worker_session_t>> s
     session(std::move(session))
 {}
 
-auto worker::receiver::recv() -> typename task<boost::optional<std::string>>::future_type {
+auto worker::receiver::recv() -> task<boost::optional<std::string>>::future_type {
     return session->recv()
         .then(std::bind(&on_recv, ph::_1));
 }

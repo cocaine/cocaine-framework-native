@@ -94,7 +94,7 @@ TEST(session, ConnectWhileConnecting) {
     auto d = std::make_shared<mock::basic_session_t>();
     auto s = std::make_shared<session<mock::basic_session_t>>(d);
 
-    typename task<std::error_code>::promise_type p1;
+    task<std::error_code>::promise_type p1;
     auto f1 = p1.get_future();
     auto f2 = make_ready_future<std::error_code>::value(asio::error::already_started);
 
@@ -117,7 +117,7 @@ TEST(session, ConnectWhileConnectingError) {
     auto d = std::make_shared<mock::basic_session_t>();
     auto s = std::make_shared<session<mock::basic_session_t>>(d);
 
-    typename task<std::error_code>::promise_type p1;
+    task<std::error_code>::promise_type p1;
     auto f1 = p1.get_future();
     auto f2 = make_ready_future<std::error_code>::value(asio::error::already_started);
 
