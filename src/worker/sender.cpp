@@ -16,7 +16,7 @@
 
 #include "cocaine/framework/worker/sender.hpp"
 
-#include <cocaine/detail/service/node/messages.hpp>
+#include <cocaine/idl/rpc.hpp>
 
 #include "cocaine/framework/sender.hpp"
 
