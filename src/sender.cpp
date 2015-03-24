@@ -26,7 +26,7 @@ using namespace cocaine::framework;
 template<class Session>
 basic_sender_t<Session>::basic_sender_t(std::uint64_t id, std::shared_ptr<session_type> session) :
     id(id),
-    session(session)
+    session(std::move(session))
 {}
 
 template<class Session>

@@ -27,8 +27,8 @@ using namespace cocaine::framework;
 template<class Session>
 basic_receiver_t<Session>::basic_receiver_t(std::uint64_t id, std::shared_ptr<Session> session, std::shared_ptr<shared_state_t> state) :
     id(id),
-    session(session),
-    state(state)
+    session(std::move(session)),
+    state(std::move(state))
 {}
 
 template<class Session>
