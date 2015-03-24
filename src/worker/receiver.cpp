@@ -16,9 +16,8 @@
 
 #include "cocaine/framework/worker/receiver.hpp"
 
+#include <cocaine/idl/rpc.hpp>
 #include <cocaine/traits/tuple.hpp>
-
-#include <cocaine/detail/service/node/messages.hpp>
 
 #include "cocaine/framework/message.hpp"
 #include "cocaine/framework/receiver.hpp"
