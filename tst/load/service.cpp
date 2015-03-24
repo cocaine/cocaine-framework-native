@@ -230,7 +230,7 @@ TEST(load, DISABLED_HttpSync) {
     }
 }
 
-TEST(load, HttpAsync) {
+TEST(load, DISABLED_HttpAsync) {
     const std::string APP = util::get_option<std::string>("load.HttpAsync.app", DEFAULT_APP);
     const uint ITERS = util::get_option<uint>("load.HttpAsync.iters", DEFAULT_ITERS);
 
