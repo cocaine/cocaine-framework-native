@@ -75,10 +75,10 @@ private:
     }
 };
 
-}
+} // namespace worker
 
-}
+} // namespace detail
 
-}
+} // namespace framework
 
-}
+} // namespace cocaine
