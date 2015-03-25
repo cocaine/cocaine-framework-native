@@ -173,7 +173,7 @@ basic_session_t::invoke(std::uint64_t span, io::encoder_t::message_type&& messag
     auto state = std::make_shared<shared_state_t>();
     auto rx = std::make_shared<basic_receiver_t<basic_session_t>>(span, shared_from_this(), state);
 
-    channels->insert(std::make_pair(span, state));
+    channels->insert(std::make_pair(span, std::move(state)));
     return push(std::move(message))
         .then(scheduler, wrap([tx, rx](task<void>::future_move_type future) -> invoke_result {
             future.get();
