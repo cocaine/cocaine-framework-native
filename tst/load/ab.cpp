@@ -11,6 +11,7 @@
 
 #include <cocaine/framework/service.hpp>
 #include <cocaine/framework/manager.hpp>
+#include <cocaine/framework/detail/log.hpp>
 
 #include "../util/env.hpp"
 
@@ -74,6 +75,7 @@ on_invoke(task<invocation_result<io::app::enqueue>::type>::future_move_type futu
 
 void on_end(task<void>::future_move_type future,
             std::chrono::high_resolution_clock::time_point start,
+            uint i,
             acc_t& acc)
 {
     auto now = std::chrono::high_resolution_clock::now();
@@ -81,6 +83,7 @@ void on_end(task<void>::future_move_type future,
     auto elapsed = std::chrono::duration<float, std::chrono::milliseconds::period>(now - start).count();
     acc(elapsed);
     future.get();
+    CF_DBG("<<< %d", i + 1);
 }
 
 namespace http {
@@ -160,42 +163,54 @@ on_invoke(task<invocation_result<io::app::enqueue>::type>::future_move_type futu
 } // namespace ab
 
 TEST(load, ab) {
-    const uint ITERS = 2000;
+    const std::string CONFIG_FILENAME = testing::util::get_option<std::string>("CF_CFG", "");
 
-    acc_t acc(boost::accumulators::tag::tail<boost::accumulators::right>::cache_size = ITERS);
+    std::string app = "echo-cpp";
+    std::string event = "ping";
+    uint iters = 100;
+
+    if (!CONFIG_FILENAME.empty()) {
+        std::ifstream infile(CONFIG_FILENAME);
+        infile >> app >> event >> iters;
+    }
+
+    acc_t acc(boost::accumulators::tag::tail<boost::accumulators::right>::cache_size = iters);
 
     std::atomic<int> counter(0);
 
-    service_manager_t manager(1);
-    auto echo = manager.create<cocaine::io::app_tag>("echo-cpp");
-    echo.connect().get();
+    {
+        service_manager_t manager(1);
+        auto echo = manager.create<cocaine::io::app_tag>(app);
+        echo.connect().get();
 
-    std::vector<task<void>::future_type> futures;
-    futures.reserve(ITERS);
+        std::vector<task<void>::future_type> futures;
+        futures.reserve(iters);
 
-    for (uint i = 0; i < ITERS; ++i) {
-        auto now = std::chrono::high_resolution_clock::now();
-        futures.emplace_back(
-            echo.invoke<io::app::enqueue>(std::string("ping"))
-                .then(std::bind(&ab::on_invoke, ph::_1, std::ref(counter)))
-                .then(std::bind(&ab::on_end, ph::_1, now, std::ref(acc)))
-        );
+        for (uint i = 0; i < iters; ++i) {
+            auto now = std::chrono::high_resolution_clock::now();
+            CF_DBG(">>> %d", i + 1);
+            futures.emplace_back(
+                echo.invoke<io::app::enqueue>(std::string(event))
+                    .then(std::bind(&ab::on_invoke, ph::_1, std::ref(counter)))
+                    .then(std::bind(&ab::on_end, ph::_1, now, i, std::ref(acc)))
+            );
+        }
+
+        // Block here.
+        for (auto& future : futures) {
+            future.get();
+        }
     }
 
-    // Block here.
-    for (auto& future : futures) {
-        future.get();
-    }
+    EXPECT_EQ(iters, counter);
 
-    EXPECT_EQ(ITERS, counter);
-
-    for (auto probability : { 0.50, 0.75, 0.90, 0.95, 0.98, 0.99, 0.995 }) {
+    for (auto probability : { 0.50, 0.75, 0.90, 0.95, 0.98, 0.99, 0.9995 }) {
         const double val = boost::accumulators::quantile(
             acc,
             boost::accumulators::quantile_probability = probability
         );
 
-        fprintf(stdout, "%6.1f%% : %6.3fms\n", 100 * probability, val);
+        fprintf(stdout, "%6.2f%% : %6.3fms\n", 100 * probability, val);
     }
 }
 
@@ -227,7 +242,7 @@ TEST(load, ab_http) {
         futures.emplace_back(
             echo.invoke<io::app::enqueue>(event)
                 .then(std::bind(&ab::http::on_invoke, ph::_1, std::ref(counter)))
-                .then(std::bind(&ab::on_end, ph::_1, now, std::ref(acc)))
+                .then(std::bind(&ab::on_end, ph::_1, now, i, std::ref(acc)))
         );
     }
 
