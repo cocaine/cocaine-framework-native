@@ -22,10 +22,18 @@
 #include "cocaine/framework/service.inl.hpp"
 #include "cocaine/framework/session.hpp"
 
+/// This module provides access to the client part of the Framework.
+///
+/// \unstable because it needs some user experience.
+
 namespace cocaine {
 
 namespace framework {
 
+/// The basic service class represents an untyped Cocaine service.
+///
+/// You are restricted to create instances of this class directly, use \sa service_manager_t for
+/// this purposes.
 class basic_service_t {
 public:
     typedef std::vector<session_t::endpoint_type> endpoints_t;
@@ -37,14 +45,28 @@ private:
     scheduler_t& scheduler;
 
 public:
+    /// Constructs an instance of the service.
+    ///
+    /// \param name a service's name, which is used by the Locator to resolve this service.
+    /// \param version a protocol version number.
+    /// \param locations list of the Locator endpoints which is usually well-known.
+    /// \param scheduler an object which incapsulates an IO event loop inside itself.
     basic_service_t(std::string name, uint version, endpoints_t locations, scheduler_t& scheduler);
+
+    /// Constructs an instance of the service via moving already existing instance.
     basic_service_t(basic_service_t&& other);
 
     ~basic_service_t();
 
+    /// Returns the name of this service given at the construction.
     auto name() const noexcept -> const std::string&;
+
+    /// Returns the protocol version number of this service given at the construction.
     auto version() const noexcept -> uint;
 
+    /// Tries to connect to the service through the Locator.
+    ///
+    /// \returns a future which is set after the connection is established.
     auto connect() -> task<void>::future_type;
 
     auto endpoint() const -> boost::optional<session_t::endpoint_type>;

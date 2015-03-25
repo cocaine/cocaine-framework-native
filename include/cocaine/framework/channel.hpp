@@ -27,15 +27,22 @@ namespace cocaine {
 namespace framework {
 
 /// The channel class represents a named tuple channel.
+///
+/// Channels are always associated with some concrete Event.
 template<class Event>
 struct channel {
+    typedef Event event_type;
+
     typedef sender  <typename io::event_traits<Event>::dispatch_type, basic_session_t> sender_type;
     typedef receiver<typename io::event_traits<Event>::upstream_type, basic_session_t> receiver_type;
     typedef std::tuple<sender_type, receiver_type> tuple_type;
 
+    /// The sender part of channel.
     sender_type tx;
+    /// The receiver part of channel.
     receiver_type rx;
 
+    /// Creates a channel object through unnamed tuple deconstructing.
     explicit channel(tuple_type&& tuple) :
         tx(std::move(std::get<0>(tuple))),
         rx(std::move(std::get<1>(tuple)))
