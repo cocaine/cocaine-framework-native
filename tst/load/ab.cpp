@@ -83,7 +83,7 @@ void on_end(task<void>::future_move_type future,
     auto elapsed = std::chrono::duration<float, std::chrono::milliseconds::period>(now - start).count();
     acc(elapsed);
     future.get();
-    CF_DBG("<<< %d", i + 1);
+    CF_DBG("<<< %d.", i + 1);
 }
 
 namespace http {
@@ -188,7 +188,7 @@ TEST(load, ab) {
 
         for (uint i = 0; i < iters; ++i) {
             auto now = std::chrono::high_resolution_clock::now();
-            CF_DBG(">>> %d", i + 1);
+            CF_DBG(">>> %d.", i + 1);
             futures.emplace_back(
                 echo.invoke<io::app::enqueue>(std::string(event))
                     .then(std::bind(&ab::on_invoke, ph::_1, std::ref(counter)))
