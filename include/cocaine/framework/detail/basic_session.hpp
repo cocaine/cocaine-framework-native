@@ -70,6 +70,9 @@ private:
         dying
     };
 
+    std::mutex invoke_mutex;
+    std::mutex channel_mutex;
+
     scheduler_t& scheduler;
 
     std::unique_ptr<channel_type> channel;
@@ -134,16 +137,10 @@ public:
      *
      * \threadsafe
      */
-    auto invoke(std::uint64_t span, io::encoder_t::message_type&& message) -> task<invoke_result>::future_type;
+    auto invoke(std::function<io::encoder_t::message_type(std::uint64_t)> encoder)
+        -> task<invoke_result>::future_type;
 
-    /// Sends an invoke event without channel creation.
-    /// TODO: Implement: invoke_mute.
-
-    /// \overload
-    auto invoke(std::function<io::encoder_t::message_type(std::uint64_t)> encoder) -> task<invoke_result>::future_type;
-
-    task<invoke_result>::future_type
-    invoke_deferred(std::function<io::encoder_t::message_type(std::uint64_t)> encoder);
+    /// TODO: Implement: invoke_mute - sends an invoke event without channel creation.
 
     /*!
      * Sends an event without creating a new channel.

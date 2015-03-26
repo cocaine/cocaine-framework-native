@@ -27,7 +27,7 @@
 using namespace cocaine::framework;
 
 void scheduler_t::operator()(closure_type fn) {
-    ev.loop.post(std::move(fn));
+    ev.userloop.post(std::move(fn));
 }
 
 #ifdef COCAINE_FRAMEWORK_HAS_INTERNAL_TRACING

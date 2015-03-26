@@ -27,10 +27,9 @@ namespace framework {
 
 class execution_unit_t;
 
+class service_manager_data;
 class service_manager_t {
-    size_t current;
-    std::vector<session_t::endpoint_type> locations;
-    std::vector<std::unique_ptr<execution_unit_t>> units;
+    std::unique_ptr<service_manager_data> d;
 
 public:
     service_manager_t();

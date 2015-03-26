@@ -149,23 +149,9 @@ void basic_session_t::disconnect() {
 auto basic_session_t::invoke(std::function<io::encoder_t::message_type(std::uint64_t)> encoder)
     -> task<invoke_result>::future_type
 {
-    packaged_task<task<basic_session_t::invoke_result>::future_type()> task(
-        std::bind(&basic_session_t::invoke_deferred, shared_from_this(), std::move(encoder))
-    );
-
-    scheduler(task);
-    return task.get_future();
-}
-
-task<basic_session_t::invoke_result>::future_type
-basic_session_t::invoke_deferred(std::function<io::encoder_t::message_type(std::uint64_t)> encoder) {
-    // Guaranteed to be invoked from the event loop thread.
+    std::lock_guard<std::mutex> invoke_lock(invoke_mutex);
     const auto span = counter++;
-    return invoke(span, encoder(span));
-}
 
-auto
-basic_session_t::invoke(std::uint64_t span, io::encoder_t::message_type&& message) -> task<invoke_result>::future_type {
     CF_CTX("bI" + std::to_string(span));
     CF_DBG("invoking span %llu event ...", CF_US(span));
 
@@ -174,7 +160,7 @@ basic_session_t::invoke(std::uint64_t span, io::encoder_t::message_type&& messag
     auto rx = std::make_shared<basic_receiver_t<basic_session_t>>(span, shared_from_this(), state);
 
     channels->insert(std::make_pair(span, std::move(state)));
-    return push(std::move(message))
+    return push(encoder(span))
         .then(scheduler, wrap([tx, rx](task<void>::future_move_type future) -> invoke_result {
             future.get();
             return std::make_tuple(tx, rx);
@@ -187,9 +173,10 @@ auto basic_session_t::push(io::encoder_t::message_type&& message) -> task<void>:
 
     task<void>::promise_type promise;
     auto future = promise.get_future();
+    auto action = std::make_shared<push_t>(std::move(message), shared_from_this(), std::move(promise));
 
-    scheduler(wrap(std::bind(&push_t::operator(),
-                   std::make_shared<push_t>(std::move(message), shared_from_this(), std::move(promise)))));
+    std::lock_guard<std::mutex> channel_lock(channel_mutex);
+    (*action)();
     return future;
 }
 
@@ -205,6 +192,7 @@ void basic_session_t::on_disconnect() {
     state = static_cast<std::uint8_t>(state_t::dying);
     if (channels->empty()) {
         CF_DBG("<< stop listening");
+        std::lock_guard<std::mutex> channel_lock(channel_mutex);
         channel.reset();
     }
 }
@@ -219,6 +207,7 @@ void basic_session_t::on_revoke(std::uint64_t span) {
         // for data reading.
         // TODO: But there can be pending writing events.
         CF_DBG("<< stop listening");
+        std::lock_guard<std::mutex> channel_lock(channel_mutex);
         channel.reset();
     }
 }
@@ -226,6 +215,7 @@ void basic_session_t::on_revoke(std::uint64_t span) {
 void basic_session_t::on_connect(const std::error_code& ec, task<std::error_code>::promise_move_type promise, std::unique_ptr<socket_type>& s) {
     CF_DBG("<< connect: %s", CF_EC(ec));
 
+    std::unique_lock<std::mutex> channel_lock(channel_mutex);
     if (ec) {
         channel.reset();
         state = static_cast<std::uint8_t>(state_t::disconnected);
@@ -238,6 +228,7 @@ void basic_session_t::on_connect(const std::error_code& ec, task<std::error_code
         channel->reader->read(message, wrap(std::bind(&basic_session_t::on_read, shared_from_this(), ph::_1)));
         state = static_cast<std::uint8_t>(state_t::connected);
     }
+    channel_lock.unlock();
 
     promise.set_value(ec);
 }
@@ -250,6 +241,7 @@ void basic_session_t::on_read(const std::error_code& ec) {
         return;
     }
 
+    std::unique_lock<std::mutex> channel_lock(channel_mutex);
     if (!channel) {
         CF_DBG("received message from disconnected channel");
         on_error(asio::error::operation_aborted);
@@ -262,7 +254,9 @@ void basic_session_t::on_read(const std::error_code& ec) {
     if (it == channels->end()) {
         CF_DBG("dropping an orphan span %llu message", CF_US(message.span()));
     } else {
+        channel_lock.unlock();
         it->second->put(std::move(message));
+        channel_lock.lock();
     }
 
     CF_DBG(">> listening for read events ...");

@@ -24,9 +24,20 @@ namespace framework {
 
 /// \internal
 struct event_loop_t {
-    detail::loop_t& loop;
+    typedef detail::loop_t loop_type;
 
-    explicit event_loop_t(detail::loop_t& loop) : loop(loop) {}
+    loop_type& loop;
+    loop_type& userloop;
+
+    explicit event_loop_t(loop_type& loop) noexcept :
+        loop(loop),
+        userloop(loop)
+    {}
+
+    event_loop_t(loop_type& ioloop, loop_type& userloop) noexcept :
+        loop(ioloop),
+        userloop(userloop)
+    {}
 };
 
 }

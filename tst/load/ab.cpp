@@ -161,7 +161,7 @@ on_invoke(task<invocation_result<io::app::enqueue>::type>::future_move_type futu
 } // namespace http
 
 } // namespace ab
-
+#include <cocaine/framework/detail/loop.hpp>
 TEST(load, ab) {
     const std::string CONFIG_FILENAME = testing::util::get_option<std::string>("CF_CFG", "");
 
@@ -214,7 +214,7 @@ TEST(load, ab) {
     }
 }
 
-TEST(load, ab_http) {
+TEST(load, DISABLE_ab_http) {
     const std::string CONFIG_FILENAME = testing::util::get_option<std::string>("CF_CFG", "");
 
     std::string app = "nodejs";
@@ -239,6 +239,7 @@ TEST(load, ab_http) {
 
     for (uint i = 0; i < iters; ++i) {
         auto now = std::chrono::high_resolution_clock::now();
+        CF_DBG(">>> %d.", i + 1);
         futures.emplace_back(
             echo.invoke<io::app::enqueue>(event)
                 .then(std::bind(&ab::http::on_invoke, ph::_1, std::ref(counter)))
@@ -262,3 +263,12 @@ TEST(load, ab_http) {
         fprintf(stdout, "%6.2f%% : %6.3fms\n", 100 * probability, val);
     }
 }
+
+
+// Запись в сокет без отложений реально помогает сократить тайминги в два раза!
+// Отложенные disconnect, revoke, кажется, не особо влияют.
+// Две очереди событий?
+// priority loop?
+// Несколько тредов на один евент луп.
+// jemalloc?
+// boost::future?
