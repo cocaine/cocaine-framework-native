@@ -214,7 +214,7 @@ TEST(load, ab) {
     }
 }
 
-TEST(load, DISABLE_ab_http) {
+TEST(load, ab_http) {
     const std::string CONFIG_FILENAME = testing::util::get_option<std::string>("CF_CFG", "");
 
     std::string app = "nodejs";
