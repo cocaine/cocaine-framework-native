@@ -1,0 +1,4 @@
+#pragma once
+
+/// Use internal logging system (much verbose, so spam, wow).
+#cmakedefine COCAINE_FRAMEWORK_HAS_INTERNAL_TRACING

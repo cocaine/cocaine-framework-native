@@ -1,6 +1,7 @@
 /*
 Copyright (c) 2013 Andrey Goryachev <andrey.goryachev@gmail.com>
-Copyright (c) 2011-2013 Other contributors as noted in the AUTHORS file.
+Copyright (c) 2015+ Evgeny Safronov <division494@gmail.com>
+Copyright (c) 2011-2015 Other contributors as noted in the AUTHORS file.
 
 This file is part of Cocaine.
 
@@ -21,17 +22,15 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 #ifndef COCAINE_FRAMEWORK_COMMON_HPP
 #define COCAINE_FRAMEWORK_COMMON_HPP
 
-#include <cocaine/platform.hpp>
-#include <cocaine/traits.hpp>
-#include <cocaine/common.hpp>
-
-#include <msgpack.hpp>
-
-#include <stdexcept>
+#include <cassert>
 #include <exception>
+#include <stdexcept>
 #include <utility>
 
-#if defined(__clang__) || defined(HAVE_GCC46)
+#include <cocaine/common.hpp>
+#include <cocaine/traits.hpp>
+
+#if defined(__clang__) || defined(HAVE_GCC46) || __GNUC__ >= 5
     #include <atomic>
 #else
     #include <cstdatomic>
@@ -53,43 +52,6 @@ template<class T>
 T&&
 declval();
 
-template<class T>
-void
-unpack(const char* data, size_t size, T& obj) {
-    msgpack::unpacked msg;
-    msgpack::unpack(&msg, data, size);
-    cocaine::io::type_traits<T>::unpack(msg.get(), obj);
-}
-
-template<class T>
-T
-unpack(const char* data, size_t size) {
-    msgpack::unpacked msg;
-    msgpack::unpack(&msg, data, size);
-    T obj;
-    cocaine::io::type_traits<T>::unpack(msg.get(), obj);
-    return obj;
-}
-
-template<class T>
-void
-unpack(const std::string& data, T& obj) {
-    msgpack::unpacked msg;
-    msgpack::unpack(&msg, data.data(), data.size());
-    cocaine::io::type_traits<T>::unpack(msg.get(), obj);
-}
-
-template<class T>
-T
-unpack(const std::string& data) {
-    msgpack::unpacked msg;
-    msgpack::unpack(&msg, data.data(), data.size());
-    T obj;
-    cocaine::io::type_traits<T>::unpack(msg.get(), obj);
-    return obj;
-}
-
 }} // namespace cocaine::framework
-
 
 #endif // COCAINE_FRAMEWORK_COMMON_HPP

@@ -1,3 +1,22 @@
+cocaine-framework-native (0.12.0-rc2) unstable; urgency=low
+
+  * [Feature] service manager can now scale its event loop processing.
+
+ -- Evgeny Safronov <division494@gmail.com>  Fri, 27 Mar 2015 16:32:15 +0300
+
+cocaine-framework-native (0.12.0-rc1) unstable; urgency=low
+
+  * [API] now it's possible to write HTTP handlers.
+
+ -- Evgeny Safronov <division494@gmail.com>  Wed, 11 Mar 2015 20:51:26 +0300
+
+cocaine-framework-native (0.12.0-rc0) unstable; urgency=low
+
+  * Initial release.
+  * [API]: the Framework no longer includes detail headers in public API.
+
+ -- Evgeny Safronov <division494@gmail.com>  Thu, 05 Mar 2015 12:30:00 +0300
+
 cocaine-framework-native (0.11.1.2) unstable; urgency=low
 
   * Fix deadlock in service client.
@@ -177,7 +196,7 @@ cocaine-framework-native (0.10.1-0) unstable; urgency=low
   * Correct handling of exceptions and errors.
   * New base class for applications.
   * A lot of changes related to code style.
-  * Cleaned API. 
+  * Cleaned API.
 
  -- Andrey Goryachev <bugsbunny@yandex-team.ru>  Fri, 12 Apr 2013 14:25:43 +0400
 

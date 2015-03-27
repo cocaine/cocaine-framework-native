@@ -1,16 +1,26 @@
-# Compiled Object files
+# Build directory.
+build
+
+# IDE specific.
+*.user
+cocaine-framework-*.config
+cocaine-framework-*.creator
+cocaine-framework-*.files
+cocaine-framework-*.includes
+
+# Compiled Object files.
 *.slo
 *.lo
 *.o
 
-# Compiled Dynamic libraries
+# Compiled Dynamic libraries.
 *.so
 *.dylib
 
-# Compiled Static libraries
+# Compiled Static libraries.
 *.lai
 *.la
 *.a
 
-# Build directory
-build/*
+config.hpp
+logs
