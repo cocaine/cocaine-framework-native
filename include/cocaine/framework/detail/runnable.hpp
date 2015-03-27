@@ -24,6 +24,8 @@
 
 #include <string>
 
+#include <cocaine/framework/detail/log.hpp>
+
 namespace cocaine {
 
 namespace framework {
@@ -55,7 +57,19 @@ public:
         ::pthread_setname_np(name);
 #endif
 
-        loop.run();
+        size_t total = 0;
+        while (true) {
+            CF_DBG("----------");
+            if (!loop.run_one()) {
+                break;
+            }
+            size_t size = 1 + loop.poll();
+            CF_DBG("handled: %llu", CF_US(size));
+
+            total += size;
+        }
+
+        CF_DBG("total handled: %llu", CF_US(total));
     }
 };
 
