@@ -53,30 +53,27 @@ on_chunk(task<boost::optional<std::string>>::future_move_type future,
 }
 
 void
-on_choke(task<boost::optional<std::string>>::future_move_type future, std::atomic<int>& counter) {
+on_choke(task<boost::optional<std::string>>::future_move_type future) {
     auto result = future.get();
     EXPECT_FALSE(result);
-
-    counter++;
 }
 
 task<void>::future_type
-on_invoke(task<invocation_result<io::app::enqueue>::type>::future_move_type future,
-          std::atomic<int>& counter)
-{
+on_invoke(task<channel<io::app::enqueue>>::future_move_type future) {
     auto channel = future.get();
     auto tx = std::move(channel.tx);
     auto rx = std::move(channel.rx);
     return tx.send<scope::chunk>(std::string("le message"))
         .then(std::bind(&on_send, ph::_1, rx))
         .then(std::bind(&on_chunk, ph::_1, rx))
-        .then(std::bind(&on_choke, ph::_1, std::ref(counter)));
+        .then(std::bind(&on_choke, ph::_1));
 }
 
 void on_end(task<void>::future_move_type future,
             std::chrono::high_resolution_clock::time_point start,
             uint i,
-            acc_t& acc)
+            acc_t& acc,
+            std::atomic<int>& counter)
 {
     auto now = std::chrono::high_resolution_clock::now();
 
@@ -84,7 +81,19 @@ void on_end(task<void>::future_move_type future,
     acc(elapsed);
     future.get();
     CF_DBG("<<< %d.", i + 1);
+
+    counter++;
 }
+
+namespace echo {
+
+void
+on_invoke(task<std::string>::future_move_type future) {
+    auto result = future.get();
+    EXPECT_EQ(result, "le message");
+}
+
+} // namespace echo
 
 namespace http {
 
@@ -131,17 +140,13 @@ on_body(task<boost::optional<std::string>>::future_move_type future,
 }
 
 void
-on_close(task<boost::optional<std::string>>::future_move_type future, std::atomic<int>& counter) {
+on_close(task<boost::optional<std::string>>::future_move_type future) {
     auto result = future.get();
     EXPECT_FALSE(result);
-
-    counter++;
 }
 
 task<void>::future_type
-on_invoke(task<invocation_result<io::app::enqueue>::type>::future_move_type future,
-          std::atomic<int>& counter)
-{
+on_invoke(task<channel<io::app::enqueue>>::future_move_type future) {
     auto channel = future.get();
     auto tx = std::move(channel.tx);
     auto rx = std::move(channel.rx);
@@ -155,14 +160,67 @@ on_invoke(task<invocation_result<io::app::enqueue>::type>::future_move_type futu
         .then(std::bind(&on_send, ph::_1, rx))
         .then(std::bind(&on_headers, ph::_1, rx))
         .then(std::bind(&on_body, ph::_1, rx))
-        .then(std::bind(&on_close, ph::_1, std::ref(counter)));
+        .then(std::bind(&on_close, ph::_1));
 }
 
 } // namespace http
 
 } // namespace ab
-#include <cocaine/framework/detail/loop.hpp>
+#include <cocaine/idl/echo.hpp>
+
 TEST(load, ab) {
+    const std::string CONFIG_FILENAME = testing::util::get_option<std::string>("CF_CFG", "");
+
+    std::string app = "echo";
+    std::string event = "ping";
+    uint iters = 100;
+
+    if (!CONFIG_FILENAME.empty()) {
+        std::ifstream infile(CONFIG_FILENAME);
+        infile >> app >> event >> iters;
+    }
+
+    acc_t acc(boost::accumulators::tag::tail<boost::accumulators::right>::cache_size = iters);
+
+    std::atomic<int> counter(0);
+
+    {
+        service_manager_t manager(7);
+        auto echo = manager.create<cocaine::io::echo_tag>(app);
+        echo.connect().get();
+
+        std::vector<task<void>::future_type> futures;
+        futures.reserve(iters);
+
+        for (uint id = 0; id < iters; ++id) {
+            auto now = std::chrono::high_resolution_clock::now();
+            CF_DBG(">>> %d.", id + 1);
+            futures.emplace_back(
+                echo.invoke<io::echo::ping>(std::string("le message"))
+                    .then(std::bind(&ab::echo::on_invoke, ph::_1))
+                    .then(std::bind(&ab::on_end, ph::_1, now, id, std::ref(acc), std::ref(counter)))
+            );
+        }
+
+        // Block here.
+        for (auto& future : futures) {
+            future.get();
+        }
+    }
+
+    EXPECT_EQ(iters, counter);
+
+    for (auto probability : { 0.50, 0.75, 0.90, 0.95, 0.98, 0.99, 0.9995 }) {
+        const double val = boost::accumulators::quantile(
+            acc,
+            boost::accumulators::quantile_probability = probability
+        );
+
+        fprintf(stdout, "%6.2f%% : %6.3fms\n", 100 * probability, val);
+    }
+}
+
+TEST(load, ab_app) {
     const std::string CONFIG_FILENAME = testing::util::get_option<std::string>("CF_CFG", "");
 
     std::string app = "echo-cpp";
@@ -179,7 +237,7 @@ TEST(load, ab) {
     std::atomic<int> counter(0);
 
     {
-        service_manager_t manager(1);
+        service_manager_t manager;
         auto echo = manager.create<cocaine::io::app_tag>(app);
         echo.connect().get();
 
@@ -191,8 +249,8 @@ TEST(load, ab) {
             CF_DBG(">>> %d.", i + 1);
             futures.emplace_back(
                 echo.invoke<io::app::enqueue>(std::string(event))
-                    .then(std::bind(&ab::on_invoke, ph::_1, std::ref(counter)))
-                    .then(std::bind(&ab::on_end, ph::_1, now, i, std::ref(acc)))
+                    .then(std::bind(&ab::on_invoke, ph::_1))
+                    .then(std::bind(&ab::on_end, ph::_1, now, i, std::ref(acc), std::ref(counter)))
             );
         }
 
@@ -242,8 +300,8 @@ TEST(load, ab_http) {
         CF_DBG(">>> %d.", i + 1);
         futures.emplace_back(
             echo.invoke<io::app::enqueue>(event)
-                .then(std::bind(&ab::http::on_invoke, ph::_1, std::ref(counter)))
-                .then(std::bind(&ab::on_end, ph::_1, now, i, std::ref(acc)))
+                .then(std::bind(&ab::http::on_invoke, ph::_1))
+                .then(std::bind(&ab::on_end, ph::_1, now, i, std::ref(acc), std::ref(counter)))
         );
     }
 
@@ -264,7 +322,6 @@ TEST(load, ab_http) {
     }
 }
 
-
 // Запись в сокет без отложений реально помогает сократить тайминги в два раза!
 // Отложенные disconnect, revoke, кажется, не особо влияют.
 // Две очереди событий?
@@ -272,3 +329,4 @@ TEST(load, ab_http) {
 // Несколько тредов на один евент луп.
 // jemalloc?
 // boost::future?
+// может где можно вызывать then сразу?
