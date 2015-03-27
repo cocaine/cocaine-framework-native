@@ -41,10 +41,12 @@ private:
 
 public:
     template<size_t N>
-    named_runnable(const char(&name)[N], loop_type& loop, typename std::enable_if<N <= 16>::type* = 0):
+    named_runnable(const char(&name)[N], loop_type& loop):
         name(name),
         loop(loop)
-    {}
+    {
+        static_assert(N <= 16, "a thread name must fit in 16 bytes including the terminate null byte");
+    }
 
     void operator()() {
 #if defined(__linux__)
