@@ -98,7 +98,7 @@ auto basic_session_t::connect(const std::vector<endpoint_type>& endpoints) -> ta
     task<std::error_code>::promise_type promise;
     auto future = promise.get_future();
 
-    std::lock_guard<std::mutex> lock(mutex);
+    std::unique_lock<std::mutex> lock(state_mutex);
     switch (static_cast<state_t>(state.load())) {
     case state_t::disconnected: {
         std::unique_ptr<socket_type> socket(new socket_type(scheduler.loop().loop));
@@ -106,6 +106,7 @@ auto basic_session_t::connect(const std::vector<endpoint_type>& endpoints) -> ta
         // The code above can throw std::bad_alloc, so here it is the right place to change
         // current object's state.
         state = static_cast<std::uint8_t>(state_t::connecting);
+        lock.unlock();
 
         auto converted = endpoints_cast<asio::ip::tcp::endpoint>(endpoints);
         socket_type* socket_ = socket.get();
@@ -118,14 +119,14 @@ auto basic_session_t::connect(const std::vector<endpoint_type>& endpoints) -> ta
         break;
     }
     case state_t::connecting: {
+        lock.unlock();
         CF_DBG("<< already in progress");
-
         promise.set_value(asio::error::already_started);
         break;
     }
     case state_t::connected: {
+        lock.unlock();
         CF_DBG("<< already connected");
-
         promise.set_value(asio::error::already_connected);
         break;
     }
@@ -143,7 +144,15 @@ auto basic_session_t::endpoint() const -> boost::optional<endpoint_type> {
 
 void basic_session_t::disconnect() {
     CF_DBG(">> disconnecting ...");
-    scheduler(wrap(std::bind(&basic_session_t::on_disconnect, shared_from_this())));
+
+    state = static_cast<std::uint8_t>(state_t::dying);
+    if (channels->empty()) {
+        CF_DBG("<< stop listening");
+        std::lock_guard<std::mutex> channel_lock(channel_mutex);
+        channel.reset();
+    }
+
+    CF_DBG("<< disconnected");
 }
 
 auto basic_session_t::invoke(std::function<io::encoder_t::message_type(std::uint64_t)> encoder)
@@ -183,23 +192,6 @@ auto basic_session_t::push(io::encoder_t::message_type&& message) -> task<void>:
 void basic_session_t::revoke(std::uint64_t span) {
     CF_DBG(">> revoking span %llu channel", CF_US(span));
 
-    scheduler(wrap(std::bind(&basic_session_t::on_revoke, shared_from_this(), span)));
-}
-
-void basic_session_t::on_disconnect() {
-    CF_DBG("<< disconnected");
-
-    state = static_cast<std::uint8_t>(state_t::dying);
-    if (channels->empty()) {
-        CF_DBG("<< stop listening");
-        std::lock_guard<std::mutex> channel_lock(channel_mutex);
-        channel.reset();
-    }
-}
-
-void basic_session_t::on_revoke(std::uint64_t span) {
-    CF_DBG("<< revoke span %llu channel", CF_US(span));
-
     auto channels = this->channels.synchronize();
     channels->erase(span);
     if (channels->empty() && state == static_cast<std::uint8_t>(state_t::dying)) {
@@ -210,6 +202,7 @@ void basic_session_t::on_revoke(std::uint64_t span) {
         std::lock_guard<std::mutex> channel_lock(channel_mutex);
         channel.reset();
     }
+    CF_DBG("<< revoke span %llu channel", CF_US(span));
 }
 
 void basic_session_t::on_connect(const std::error_code& ec, task<std::error_code>::promise_move_type promise, std::unique_ptr<socket_type>& s) {
@@ -247,20 +240,29 @@ void basic_session_t::on_read(const std::error_code& ec) {
         on_error(asio::error::operation_aborted);
         return;
     }
+    channel_lock.unlock();
 
     CF_DBG("received message [%llu, %llu, %s]", CF_US(message.span()), CF_US(message.type()), CF_MSG(message.args()).c_str());
-    auto channels = this->channels.synchronize();
-    auto it = channels->find(message.span());
-    if (it == channels->end()) {
-        CF_DBG("dropping an orphan span %llu message", CF_US(message.span()));
-    } else {
-        channel_lock.unlock();
-        it->second->put(std::move(message));
-        channel_lock.lock();
+    std::shared_ptr<shared_state_t> state;
+    {
+        auto channels = this->channels.synchronize();
+        auto it = channels->find(message.span());
+        if (it == channels->end()) {
+            CF_DBG("dropping an orphan span %llu message", CF_US(message.span()));
+        } else {
+            state = it->second;
+        }
     }
 
-    CF_DBG(">> listening for read events ...");
-    channel->reader->read(message, wrap(std::bind(&basic_session_t::on_read, shared_from_this(), ph::_1)));
+    if (state) {
+        state->put(std::move(message));
+    }
+
+    channel_lock.lock();
+    if (channel) {
+        CF_DBG(">> listening for read events ...");
+        channel->reader->read(message, wrap(std::bind(&basic_session_t::on_read, shared_from_this(), ph::_1)));
+    }
 }
 
 void basic_session_t::on_error(const std::error_code& ec) {

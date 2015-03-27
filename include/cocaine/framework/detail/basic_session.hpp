@@ -77,7 +77,7 @@ private:
 
     std::unique_ptr<channel_type> channel;
 
-    mutable std::mutex mutex;
+    mutable std::mutex state_mutex;
     std::atomic<std::uint8_t> state;
 
     std::atomic<std::uint64_t> counter;
@@ -155,8 +155,6 @@ public:
     void revoke(std::uint64_t span);
 
 private:
-    void on_disconnect();
-    void on_revoke(std::uint64_t span);
     void on_connect(const std::error_code& ec, task<std::error_code>::promise_move_type promise, std::unique_ptr<socket_type>& s);
     void on_read(const std::error_code& ec);
     void on_error(const std::error_code& ec);
