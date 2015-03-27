@@ -1,3 +1,9 @@
+cocaine-framework-native (0.12.0-rc2) unstable; urgency=low
+
+  * [Feature] service manager can now scale its event loop processing.
+
+ -- Evgeny Safronov <division494@gmail.com>  Fri, 27 Mar 2015 16:32:15 +0300
+
 cocaine-framework-native (0.12.0-rc1) unstable; urgency=low
 
   * [API] now it's possible to write HTTP handlers.
