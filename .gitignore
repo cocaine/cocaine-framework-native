@@ -22,5 +22,5 @@ cocaine-framework-*.includes
 *.la
 *.a
 
-config.hpp
+include/cocaine/framework/config.hpp
 logs
