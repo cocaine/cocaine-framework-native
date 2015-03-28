@@ -42,6 +42,13 @@ target_link_libraries(${PROJECT}
 
 add_definitions(-std=c++0x)
 
+# To be able to run load tests you should put a file named "load.cfg" in the current directory.
+# This file contains each test name and its arguments separated by space.
+# For example: load.service.echo 1000 echo ping
+#              ^                 ^    ^    ^
+#              test name         |    app  event
+#                                iterations
+
 add_executable(load
     load/main
     load/stats
