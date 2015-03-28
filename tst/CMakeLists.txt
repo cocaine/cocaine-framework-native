@@ -23,17 +23,11 @@ set(PROJECT cocaine-framework-tests)
 set(SOURCES
     main
     util/net
-    service
     func/real/connector
 # Temporary suppressed, because of Blackhole version on build farm.
 #    func/real/logging
     func/real/service
     func/stub/session
-    load/storage
-    load/service
-    load/ab
-# Suppressed, because of echo service unavailability.
-#    load/ab.service
     func/manual/service
 )
 
@@ -47,3 +41,21 @@ target_link_libraries(${PROJECT}
     gtest)
 
 add_definitions(-std=c++0x)
+
+add_executable(load
+    load/main
+    load/stats
+    load/app/echo
+    load/app/http
+# Suppressed, because of echo service unavailability.
+#    load/service/echo
+    load/service/storage
+    load/service/logging
+)
+
+add_dependencies(load googlemock)
+
+target_link_libraries(load
+    cocaine-framework-native
+    gmock
+    gtest)
