@@ -25,12 +25,15 @@ set(SOURCES
     util/net
     service
     func/real/connector
+# Temporary suppressed, because of Blackhole version on build farm.
 #    func/real/logging
     func/real/service
     func/stub/session
     load/storage
     load/service
     load/ab
+# Suppressed, because of echo service unavailability.
+#    load/ab.service
     func/manual/service
 )
 
