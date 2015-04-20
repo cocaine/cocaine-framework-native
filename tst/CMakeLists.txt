@@ -25,7 +25,7 @@ set(SOURCES
     util/net
     func/real/connector
 # Temporary suppressed, because of Blackhole version on build farm.
-#    func/real/logging
+    func/real/logging
     func/real/service
     func/stub/session
     func/manual/service
