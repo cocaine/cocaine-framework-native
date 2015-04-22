@@ -14,5 +14,6 @@ configure_file(
 
 add_subdirectory(src)
 add_subdirectory(example/echo)
+add_subdirectory(example/client)
 add_subdirectory(example/http)
 add_subdirectory(tst)

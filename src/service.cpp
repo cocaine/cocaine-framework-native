@@ -19,6 +19,7 @@
 #include "cocaine/framework/detail/basic_session.hpp"
 #include "cocaine/framework/detail/log.hpp"
 #include "cocaine/framework/detail/resolver.hpp"
+#include "cocaine/framework/trace.hpp"
 
 namespace ph = std::placeholders;
 
@@ -105,8 +106,8 @@ basic_service_t::connect() {
     }
 
     return d->resolver->resolve(d->name)
-        .then(trace::wrap(std::bind(&::on_resolve, ph::_1, d->version, session)))
-        .then(trace::wrap(std::bind(&::on_connect, ph::_1)));
+        .then(trace::wrap(trace_t::bind(&::on_resolve, ph::_1, d->version, session)))
+        .then(trace::wrap(trace_t::bind(&::on_connect, ph::_1)));
 }
 
 boost::optional<session_t::endpoint_type>

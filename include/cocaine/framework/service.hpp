@@ -22,6 +22,9 @@
 #include "cocaine/framework/session.hpp"
 #include "cocaine/framework/trace.hpp"
 
+#include <cocaine/idl/logging.hpp>
+#include <cocaine/trace/trace_logger.hpp>
+
 /// This module provides access to the client part of the Framework.
 ///
 /// \unstable because it needs some user experience.
@@ -89,8 +92,8 @@ public:
         trace::context_holder holder("SI");
 
         return connect()
-            .then(scheduler, trace::wrap(std::bind(&basic_service_t::on_connect<Event, Args...>, ph::_1, session, std::forward<Args>(args)...)))
-            .then(scheduler, trace::wrap(std::bind(&basic_service_t::on_invoke<Event>, ph::_1)));
+            .then(scheduler, trace::wrap(trace_t::bind(&basic_service_t::on_connect<Event, Args...>, ph::_1, session, std::forward<Args>(args)...)))
+            .then(scheduler, trace::wrap(trace_t::bind(&basic_service_t::on_invoke<Event>, ph::_1)));
     }
 
 private:

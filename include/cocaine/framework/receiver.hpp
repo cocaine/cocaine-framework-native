@@ -25,9 +25,12 @@
 
 #include <cocaine/rpc/tags.hpp>
 
+#include <cocaine/trace/trace.hpp>
+
 #include "cocaine/framework/forwards.hpp"
 #include "cocaine/framework/message.hpp"
 #include "cocaine/framework/receiver.inl.hpp"
+#include "cocaine/framework/trace.hpp"
 
 namespace cocaine {
 
@@ -54,6 +57,7 @@ public:
     ///
     /// This future may throw std::system_error on any network failure.
     auto recv() -> task<decoded_message>::future_type;
+    cocaine::trace_t get_trace() const;
 };
 
 /// The receiver class provides a convenient way to extract typed messages from the session.
@@ -118,8 +122,10 @@ public:
 
         auto d = std::move(this->d);
         auto future = d->recv();
+
+        trace_t::restore_scope_t scope(d->get_trace());
         return future
-            .then(std::bind(&receiver::convert, std::placeholders::_1, std::move(d)));
+            .then(trace_t::bind(&receiver::convert, std::placeholders::_1, d));
     }
 
 private:
@@ -190,7 +196,7 @@ public:
     auto recv() -> typename task<typename from_receiver<tag_type, Session>::result_type>::future_type {
         auto future = d->recv();
         return future
-            .then(std::bind(&receiver::convert, std::placeholders::_1, d));
+            .then(trace_t::bind(&receiver::convert, std::placeholders::_1, d));
     }
 
 private:

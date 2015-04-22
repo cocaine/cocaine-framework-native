@@ -18,6 +18,8 @@
 
 #include <queue>
 
+#include "cocaine/framework/trace.hpp"
+
 #include "cocaine/framework/forwards.hpp"
 #include "cocaine/framework/message.hpp"
 
@@ -41,10 +43,14 @@ private:
     std::mutex mutex;
 
 public:
+    shared_state_t() :
+        trace(trace_t::current())
+    {}
     void put(value_type&& message);
     void put(const std::error_code& ec);
-
     auto get() -> task<value_type>::future_type;
+
+    trace_t trace;
 };
 
 } // namespace framework

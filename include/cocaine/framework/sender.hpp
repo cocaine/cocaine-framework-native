@@ -22,6 +22,11 @@
 #include "cocaine/framework/encoder.hpp"
 #include "cocaine/framework/forwards.hpp"
 
+#include <cocaine/rpc/asio/encoder.hpp>
+
+#include <cocaine/trace/trace.hpp>
+
+
 namespace cocaine {
 
 namespace framework {
@@ -49,10 +54,12 @@ public:
      * Setting an error in the receiver doesn't work, because there can be mute events, which
      * doesn't respond ever.
      */
+
     template<class Event, class... Args>
     auto
     send(Args&&... args) -> task<void>::future_type {
-        return send(std::bind(&encode<Event, Args...>, id, std::placeholders::_1, std::forward<Args>(args)...));
+        trace_t::push_scope_t scope("tx");
+        return send(trace_t::bind(&encode<Event, Args...>, id, std::placeholders::_1, std::forward<Args>(args)...));
     }
 
 private:
@@ -96,7 +103,7 @@ public:
 
         auto d = std::move(this->d);
         auto future = d->template send<Event>(std::forward<Args>(args)...);
-        return future.then(std::bind(&sender::traverse<Event>, std::placeholders::_1, std::move(d)));
+        return future.then(trace_t::bind(&sender::traverse<Event>, std::placeholders::_1, std::move(d)));
     }
 
 private:

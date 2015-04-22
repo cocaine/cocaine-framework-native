@@ -18,6 +18,7 @@
 
 #include <cocaine/traits/enum.hpp>
 #include <cocaine/idl/streaming.hpp>
+#include <cocaine/framework/trace.hpp>
 
 #include "cocaine/framework/scheduler.hpp"
 #include "cocaine/framework/worker/error.hpp"
@@ -296,6 +297,8 @@ void worker_session_t::process_invoke(std::map<std::uint64_t, std::shared_ptr<sh
     auto state = std::make_shared<shared_state_t>();
     auto rx = std::make_shared<basic_receiver_t<worker_session_t>>(id, shared_from_this(), state);
 
+    trace_t trace(message.trace_id(), message.span_id(), message.parent_id(), event, "SERVICE");
+    trace_t::restore_scope_t scope(trace);
     if (auto handler = dispatch.get(event)) {
         channels.insert(std::make_pair(id, state));
         executor([handler, tx, rx](){
