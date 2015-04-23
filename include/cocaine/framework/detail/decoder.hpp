@@ -16,17 +16,12 @@
 
 #pragma once
 
-#include <memory>
+#include <stddef.h>
 #include <system_error>
 
-#include <boost/none_t.hpp>
+namespace cocaine { namespace framework {
 
-#include "cocaine/framework/forwards.hpp"
-#include "cocaine/framework/detail/forwards.hpp"
-
-namespace cocaine {
-
-namespace framework {
+class decoded_message;
 
 namespace detail {
 
@@ -36,8 +31,6 @@ struct decoder_t {
     size_t decode(const char* data, size_t size, message_type& message, std::error_code& ec);
 };
 
-}
+} // namespace detail
 
-}
-
-}
+}} // namespace cocaine::framework

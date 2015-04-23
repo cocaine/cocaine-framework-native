@@ -16,12 +16,13 @@
 
 #include "cocaine/framework/detail/decoder.hpp"
 
-#include <vector>
+#include <memory>
 
-#include <msgpack.hpp>
+#include <msgpack/object.hpp>
+#include <msgpack/unpack.hpp>
+#include <msgpack/zone.hpp>
 
-#include <cocaine/common.hpp>
-#include <cocaine/rpc/asio/decoder.hpp>
+#include <cocaine/rpc/asio/errors.hpp>
 
 #include "cocaine/framework/message.hpp"
 
