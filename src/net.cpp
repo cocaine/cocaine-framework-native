@@ -65,16 +65,12 @@ address_cast(const boost::asio::ip::address& address) {
 
 boost::asio::ip::tcp::endpoint
 endpoint_cast(const asio::ip::tcp::endpoint& endpoint) {
-    return boost::asio::ip::tcp::endpoint(
-        address_cast(endpoint.address()), endpoint.port()
-    );
+    return { address_cast(endpoint.address()), endpoint.port() };
 }
 
 asio::ip::tcp::endpoint
 endpoint_cast(const boost::asio::ip::tcp::endpoint& endpoint) {
-    return asio::ip::tcp::endpoint(
-        address_cast(endpoint.address()), endpoint.port()
-    );
+    return { address_cast(endpoint.address()), endpoint.port() };
 }
 
 }}} // namespace cocaine::framework::detail
