@@ -16,6 +16,8 @@
 
 #include "cocaine/framework/detail/net.hpp"
 
+#include <stdexcept>
+
 #include <boost/version.hpp>
 
 #if BOOST_VERSION < 104800
@@ -23,11 +25,7 @@
 #include <boost/array.hpp>
 #endif
 
-namespace cocaine {
-
-namespace framework {
-
-namespace detail {
+namespace cocaine { namespace framework { namespace detail {
 
 boost::asio::ip::address
 address_cast(const asio::ip::address& address) {
@@ -79,8 +77,4 @@ endpoint_cast(const boost::asio::ip::tcp::endpoint& endpoint) {
     );
 }
 
-} // namespace detail
-
-} // namespace framework
-
-} // namespace cocaine
+}}} // namespace cocaine::framework::detail

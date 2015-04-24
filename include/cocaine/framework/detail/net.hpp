@@ -16,15 +16,15 @@
 
 #pragma once
 
-#include <asio/ip/tcp.hpp>
+#include <vector>
 
+#include <boost/asio/ip/address.hpp>
 #include <boost/asio/ip/tcp.hpp>
 
-namespace cocaine {
+#include <asio/ip/address.hpp>
+#include <asio/ip/tcp.hpp>
 
-namespace framework {
-
-namespace detail {
+namespace cocaine { namespace framework { namespace detail {
 
 boost::asio::ip::address address_cast(const asio::ip::address& address);
 asio::ip::address address_cast(const boost::asio::ip::address& address);
@@ -42,8 +42,4 @@ std::vector<To> endpoints_cast(const std::vector<From>& from) {
     return result;
 }
 
-} // namespace detail
-
-} // namespace framework
-
-} // namespace cocaine
+}}} // namespace cocaine::framework::detail
