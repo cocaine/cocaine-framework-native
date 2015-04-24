@@ -4,6 +4,7 @@ Priority: extra
 Maintainer: Evgeny Safronov <division494@gmail.com>
 Build-Depends: cmake, cdbs, debhelper (>= 7.0.13),
  libboost-dev,
+ libboost-system-dev,
  libboost-thread-dev,
  libboost-program-options-dev,
  libcocaine-dev (>= 0.12),
