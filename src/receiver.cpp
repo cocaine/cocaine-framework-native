@@ -16,9 +16,6 @@
 
 #include "cocaine/framework/receiver.hpp"
 
-#include "cocaine/framework/session.hpp"
-
-#include "cocaine/framework/detail/basic_session.hpp"
 #include "cocaine/framework/detail/shared_state.hpp"
 #include "cocaine/framework/detail/log.hpp"
 

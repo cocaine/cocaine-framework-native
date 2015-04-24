@@ -17,21 +17,14 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <functional>
-#include <string>
-#include <system_error>
-#include <queue>
 
-#include <boost/mpl/at.hpp>
-#include <boost/mpl/lambda.hpp>
-#include <boost/mpl/for_each.hpp>
-#include <boost/mpl/transform.hpp>
-#include <boost/mpl/vector.hpp>
-#include <boost/variant.hpp>
+#include <boost/assert.hpp>
+#include <boost/mpl/size.hpp>
 
-#include <cocaine/common.hpp>
+#include <cocaine/rpc/tags.hpp>
 
-#include "cocaine/framework/error.hpp"
 #include "cocaine/framework/forwards.hpp"
 #include "cocaine/framework/message.hpp"
 #include "cocaine/framework/receiver.inl.hpp"
@@ -235,7 +228,7 @@ const std::array<
     typename receiver<T, Session>::unpacker_type,
     boost::mpl::size<typename receiver<T, Session>::result_type::types>::value
 > receiver<T, Session>::unpackers =
-    meta::to_array<
+    detail::to_array<
         typename receiver<T, Session>::result_type::types,
         detail::unpacker_factory<Session, typename receiver<T, Session>::unpacker_type>
     >::make();
@@ -245,7 +238,7 @@ const std::array<
     typename receiver<io::streaming_tag<T>, Session>::unpacker_type,
     boost::mpl::size<typename receiver<io::streaming_tag<T>, Session>::result_type::types>::value
 > receiver<io::streaming_tag<T>, Session>::unpackers =
-    meta::to_array<
+    detail::to_array<
         typename receiver<io::streaming_tag<T>, Session>::result_type::types,
         detail::unpacker_factory<Session, typename receiver<io::streaming_tag<T>, Session>::unpacker_type>
     >::make();

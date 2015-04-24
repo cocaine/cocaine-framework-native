@@ -33,14 +33,16 @@
 #include <cocaine/tuple.hpp>
 #include <cocaine/utility.hpp>
 
-#include <cocaine/framework/forwards.hpp>
+#include "cocaine/framework/forwards.hpp"
+#include "cocaine/framework/error.hpp"
 
-namespace cocaine {
+namespace cocaine { namespace framework {
 
-namespace framework {
+namespace detail {
 
-namespace meta {
-
+/// Transforms a typelist sequence into an array using the given metafunction.
+///
+/// \internal
 template<class Sequence, class F>
 struct to_array {
     typedef Sequence sequence_type;
@@ -70,10 +72,6 @@ public:
         return helper<typename make_index_sequence<size>::type>::apply();
     }
 };
-
-} // namespace meta
-
-namespace detail {
 
 /// Transforms a typelist sequence into a single movable argument type.
 ///
@@ -358,6 +356,4 @@ private:
     };
 };
 
-} // namespace framework
-
-} // namespace cocaine
+}} // namespace cocaine::framework
