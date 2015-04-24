@@ -18,32 +18,43 @@
 
 #include <cstdint>
 #include <memory>
+#include <stddef.h>
 
 #include <boost/none_t.hpp>
 
 namespace msgpack { struct object; }
 
-namespace cocaine {
+namespace cocaine { namespace framework {
 
-namespace framework {
-
+/// The decoded message class represents movable unpacked MessagePack payload with internal storage.
 class decoded_message {
     class impl;
     std::unique_ptr<impl> d;
 
 public:
+    /// Constructs a null-initialized message object.
     explicit decoded_message(boost::none_t);
-    decoded_message(const char* data, size_t size);
+
+    /// Constructs a message object from its raw parts.
+    ///
+    /// \pre the message should be valid MessagePack'ed Cocaine message, otherwise the behavior is
+    /// undefined.
+    /// \throws std::bad_alloc if unable to allocate the required memory chunk.
+    decoded_message(const char* data, std::size_t size);
+
     ~decoded_message();
 
     decoded_message(decoded_message&& other);
     decoded_message& operator=(decoded_message&& other);
 
-    auto span() const -> uint64_t;
-    auto type() const -> uint64_t;
+    /// Returns the message span id.
+    auto span() const -> std::uint64_t;
+
+    /// Returns the message type.
+    auto type() const -> std::uint64_t;
+
+    /// Returns the object representation of message arguments.
     auto args() const -> const msgpack::object&;
 };
 
-} // namespace framework
-
-} // namespace cocaine
+}} // namespace cocaine::framework

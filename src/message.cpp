@@ -16,9 +16,14 @@
 
 #include "cocaine/framework/message.hpp"
 
+#include <algorithm>
+#include <type_traits>
 #include <vector>
 
-#include <msgpack.hpp>
+#include <msgpack/object.hpp>
+#include <msgpack/type/int.hpp>
+#include <msgpack/unpack.hpp>
+#include <msgpack/zone.hpp>
 
 using namespace cocaine::framework;
 
@@ -26,7 +31,7 @@ class decoded_message::impl {
 public:
     impl() {}
 
-    impl(const char* data, size_t size) {
+    impl(const char* data, std::size_t size) {
         storage.resize(size);
         std::copy(data, data + size, storage.begin());
 
@@ -50,7 +55,7 @@ decoded_message::decoded_message(boost::none_t) :
     d(new impl)
 {}
 
-decoded_message::decoded_message(const char* data, size_t size) :
+decoded_message::decoded_message(const char* data, std::size_t size) :
     d(new impl(data, size))
 {}
 
@@ -65,12 +70,12 @@ decoded_message& decoded_message::operator=(decoded_message&& other) {
     return *this;
 }
 
-auto decoded_message::span() const -> uint64_t {
-    return d->unpacked.get().via.array.ptr[0].as<uint64_t>();
+auto decoded_message::span() const -> std::uint64_t {
+    return d->unpacked.get().via.array.ptr[0].as<std::uint64_t>();
 }
 
-auto decoded_message::type() const -> uint64_t {
-    return d->unpacked.get().via.array.ptr[1].as<uint64_t>();
+auto decoded_message::type() const -> std::uint64_t {
+    return d->unpacked.get().via.array.ptr[1].as<std::uint64_t>();
 }
 
 auto decoded_message::args() const -> const msgpack::object& {
