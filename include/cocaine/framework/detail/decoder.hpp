@@ -25,6 +25,10 @@ class decoded_message;
 
 namespace detail {
 
+/// The decoder represents streaming MessagePack decoding.
+///
+/// \note this class does explicit memory copying to the message_type object.
+/// \internal
 struct decoder_t {
     typedef decoded_message message_type;
 
