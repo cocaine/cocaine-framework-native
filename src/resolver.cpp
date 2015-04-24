@@ -121,7 +121,6 @@ auto resolver_t::resolve(std::string name) -> task<resolver_t::result_t>::future
         .then(scheduler, wrap(std::bind(&on_resolve, ph::_1, locator, name)));
 }
 
-
 serialized_resolver_t::serialized_resolver_t(std::vector<endpoint_type> endpoints, scheduler_t& scheduler) :
     resolver(scheduler),
     scheduler(scheduler)
