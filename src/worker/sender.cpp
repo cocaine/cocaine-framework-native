@@ -17,6 +17,7 @@
 #include "cocaine/framework/worker/sender.hpp"
 
 #include <cocaine/idl/rpc.hpp>
+#include <cocaine/idl/streaming.hpp>
 
 #include "cocaine/framework/sender.hpp"
 
@@ -24,6 +25,8 @@ namespace ph = std::placeholders;
 
 using namespace cocaine;
 using namespace cocaine::framework;
+
+typedef io::protocol<io::worker::rpc::invoke::upstream_type>::scope protocol;
 
 namespace {
 
@@ -59,20 +62,20 @@ worker::sender::~sender() {
 auto worker::sender::write(std::string message) -> task<worker::sender>::future_type {
     auto session = std::move(this->session);
 
-    return session->send<io::rpc::chunk>(std::move(message))
+    return session->send<protocol::chunk>(std::move(message))
         .then(std::bind(&on_write, ph::_1, session));
 }
 
 auto worker::sender::error(int id, std::string reason) -> task<void>::future_type {
     auto session = std::move(this->session);
 
-    return session->send<io::rpc::error>(id, std::move(reason))
+    return session->send<protocol::error>(id, std::move(reason))
         .then(std::bind(&on_error, ph::_1));
 }
 
 auto worker::sender::close() -> task<void>::future_type {
     auto session = std::move(this->session);
 
-    return session->send<io::rpc::choke>()
+    return session->send<protocol::choke>()
         .then(std::bind(&on_close, ph::_1));
 }

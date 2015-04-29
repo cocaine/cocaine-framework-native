@@ -17,6 +17,7 @@
 #include "cocaine/framework/worker/receiver.hpp"
 
 #include <cocaine/idl/rpc.hpp>
+#include <cocaine/idl/streaming.hpp>
 #include <cocaine/traits/tuple.hpp>
 
 #include "cocaine/framework/message.hpp"
@@ -29,6 +30,8 @@ using namespace cocaine;
 using namespace cocaine::framework;
 using namespace cocaine::framework::worker;
 
+typedef io::protocol<io::worker::rpc::invoke::upstream_type>::scope protocol;
+
 namespace {
 
 boost::optional<std::string>
@@ -36,22 +39,22 @@ on_recv(task<decoded_message>::future_move_type future) {
     const auto message = future.get();
     const auto id = message.type();
     switch (id) {
-    case io::event_traits<io::rpc::chunk>::id: {
+    case io::event_traits<protocol::chunk>::id: {
         std::string chunk;
         io::type_traits<
-            io::event_traits<io::rpc::chunk>::argument_type
+            io::event_traits<protocol::chunk>::argument_type
         >::unpack(message.args(), chunk);
         return chunk;
     }
-    case io::event_traits<io::rpc::error>::id: {
+    case io::event_traits<protocol::error>::id: {
         int id;
         std::string reason;
         io::type_traits<
-            io::event_traits<io::rpc::error>::argument_type
+            io::event_traits<protocol::error>::argument_type
         >::unpack(message.args(), id, reason);
         throw request_error(id, std::move(reason));
     }
-    case io::event_traits<io::rpc::choke>::id:
+    case io::event_traits<protocol::choke>::id:
         return boost::none;
     default:
         throw invalid_protocol_type(id);

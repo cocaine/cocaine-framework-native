@@ -17,6 +17,7 @@
 #include "cocaine/framework/detail/worker/session.hpp"
 
 #include <cocaine/traits/enum.hpp>
+#include <cocaine/idl/streaming.hpp>
 
 #include "cocaine/framework/scheduler.hpp"
 #include "cocaine/framework/worker/error.hpp"
@@ -96,13 +97,13 @@ void worker_session_t::connect(std::string endpoint, std::string uuid) {
 void worker_session_t::handshake(const std::string& uuid) {
     CF_DBG("<- Handshake");
 
-    push(io::encoded<io::rpc::handshake>(CONTROL_CHANNEL_ID, uuid));
+    push(io::encoded<io::worker::handshake>(CONTROL_CHANNEL_ID, uuid));
 }
 
-void worker_session_t::terminate(io::rpc::terminate::code code, std::string reason) {
+void worker_session_t::terminate(int code, std::string reason) {
     CF_DBG("<- Terminate [%d, %s]", code, reason.c_str());
 
-    push(io::encoded<io::rpc::terminate>(CONTROL_CHANNEL_ID, code, std::move(reason)))
+    push(io::encoded<io::worker::terminate>(CONTROL_CHANNEL_ID, code, std::move(reason)))
         .then(std::bind(&worker_session_t::on_terminate, shared_from_this(), ph::_1));
 }
 
@@ -125,7 +126,7 @@ void worker_session_t::exhale(const std::error_code& ec) {
 
     CF_DBG("<- ♥");
 
-    push(io::encoded<io::rpc::heartbeat>(CONTROL_CHANNEL_ID));
+    push(io::encoded<io::worker::heartbeat>(CONTROL_CHANNEL_ID));
 
     heartbeat_timer.expires_from_now(HEARTBEAT_TIMEOUT);
     heartbeat_timer.async_wait(std::bind(&worker_session_t::exhale, shared_from_this(), ph::_1));
@@ -199,37 +200,56 @@ void worker_session_t::revoke(std::uint64_t span) {
 void worker_session_t::process() {
     CF_DBG("event %llu, span %llu", CF_US(message.type()), CF_US(message.span()));
 
-    const auto id = message.type();
-    switch (id) {
-    case (io::event_traits<io::rpc::handshake>::id):
-        process_handshake();
-        break;
-    case (io::event_traits<io::rpc::heartbeat>::id):
-        process_heartbeat();
-        break;
-    case (io::event_traits<io::rpc::terminate>::id):
-        process_terminate();
-        break;
-    case (io::event_traits<io::rpc::invoke>::id):
-        process_invoke();
-        break;
-    case (io::event_traits<io::rpc::chunk>::id):
-        process_chunk();
-        break;
-    case (io::event_traits<io::rpc::error>::id):
-        process_error();
-        break;
-    case (io::event_traits<io::rpc::choke>::id):
-        process_choke();
-        break;
-    default:
-        throw invalid_protocol_type(id);
-    }
-}
+    const auto id   = message.type();
+    const auto span = message.span();
 
-void worker_session_t::process_handshake() {
-    CF_DBG("-> Handshake");
-    CF_WRN("invalid protocol: the runtime should never send handshake event");
+    if (span == 0) {
+        CF_DBG("dropping 0 channel message - the specified channel number is forbidden");
+    } else if (span == 1) {
+        switch (id) {
+        case (io::event_traits<io::worker::heartbeat>::id):
+            process_heartbeat();
+            break;
+        case (io::event_traits<io::worker::terminate>::id):
+            process_terminate();
+            break;
+        default:
+            throw invalid_protocol_type(id);
+        }
+    } else {
+        std::map<std::uint64_t, std::shared_ptr<shared_state_t>>::const_iterator lb, ub;
+        channels.apply([&](std::map<std::uint64_t, std::shared_ptr<shared_state_t>>& channels) {
+            std::tie(lb, ub) = channels.equal_range(span);
+            if (lb == channels.end() && ub == channels.end()) {
+                if (id == io::event_traits<io::worker::rpc::invoke>::id) {
+                    process_invoke(channels);
+                } else {
+                    throw invalid_protocol_type(id);
+                }
+            } else if (lb == ub) {
+                CF_DBG("dropping %d channel message - the specified channel was revoked", CF_US(span));
+                return;
+            } else {
+                typedef io::protocol<io::worker::rpc::invoke::upstream_type>::scope protocol;
+
+                switch (id) {
+                case (io::event_traits<protocol::chunk>::id):
+                    lb->second->put(std::move(message));
+                    break;
+                case (io::event_traits<protocol::error>::id):
+                    lb->second->put(std::move(message));
+                    channels.erase(lb);
+                    break;
+                case (io::event_traits<protocol::choke>::id):
+                    lb->second->put(std::move(message));
+                    channels.erase(lb);
+                    break;
+                default:
+                    throw invalid_protocol_type(id);
+                }
+            }
+        });
+    }
 }
 
 void worker_session_t::process_heartbeat() {
@@ -241,20 +261,21 @@ void worker_session_t::process_heartbeat() {
 
 void worker_session_t::process_terminate() {
     CF_DBG("-> Terminate");
-    terminate(io::rpc::terminate::normal, "confirmed");
+    terminate(0, "confirmed");
 }
 
-void worker_session_t::process_invoke() {
+void worker_session_t::process_invoke(std::map<std::uint64_t, std::shared_ptr<shared_state_t>>& channels) {
     std::string event;
     io::type_traits<
-        io::event_traits<io::rpc::invoke>::argument_type
+        io::event_traits<io::worker::rpc::invoke>::argument_type
     >::unpack(message.args(), event);
     CF_DBG("-> Invoke '%s'", event.c_str());
 
     auto handler = dispatch.get(event);
     if (!handler) {
         CF_DBG("event '%s' not found", event.c_str());
-        push(io::encoded<io::rpc::error>(message.span(), 1, "event '" + event + "' not found"));
+        typedef io::protocol<io::worker::rpc::invoke::upstream_type>::scope protocol;
+        push(io::encoded<protocol::error>(message.span(), 1, "event '" + event + "' not found"));
         return;
     }
 
@@ -263,37 +284,10 @@ void worker_session_t::process_invoke() {
     auto state = std::make_shared<shared_state_t>();
     auto rx = std::make_shared<basic_receiver_t<worker_session_t>>(id, shared_from_this(), state);
 
-    channels->insert(std::make_pair(id, state));
+    channels.insert(std::make_pair(id, state));
     executor([handler, tx, rx](){
         (*handler)(tx, rx);
     });
-}
-
-void worker_session_t::process_chunk() {
-    auto channels = this->channels.synchronize();
-    auto it = channels->find(message.span());
-    if (it == channels->end()) {
-        CF_DBG("received an orphan span %llu type %llu message", CF_US(message.span()), CF_US(message.type()));
-        return;
-    }
-
-    it->second->put(std::move(message));
-}
-
-void worker_session_t::process_error() {
-    auto channels = this->channels.synchronize();
-    auto it = channels->find(message.span());
-    if (it == channels->end()) {
-        CF_DBG("received an orphan span %llu type %llu message", CF_US(message.span()), CF_US(message.type()));
-        return;
-    }
-
-    it->second->put(std::move(message));
-    channels->erase(it);
-}
-
-void worker_session_t::process_choke() {
-    process_error();
 }
 
 #include "../sender.cpp"

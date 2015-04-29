@@ -18,6 +18,9 @@
 
 #include <csignal>
 
+#include <boost/algorithm/string/classification.hpp>
+#include <boost/algorithm/string/split.hpp>
+#include <boost/lexical_cast.hpp>
 #include <boost/thread/thread.hpp>
 
 #include <asio/local/stream_protocol.hpp>
@@ -86,18 +89,23 @@ worker_t::worker_t(options_t options) :
 {
     CF_DBG("initializing '%s' worker ...", d->options.name.c_str());
 
-    std::string host;
-    std::string port;
-    std::tie(host, port) = parse_endpoint(d->options.locator);
+    std::vector<std::string> splitted;
+    boost::algorithm::split(splitted, d->options.locator, boost::algorithm::is_any_of(","));
 
-    CF_DBG("resolving locator endpoints from '%s' ...", d->options.locator.c_str());
-    boost::asio::io_service loop;
-    boost::asio::ip::tcp::resolver resolver(loop);
-    boost::asio::ip::tcp::resolver::query query(host, port);
-    boost::asio::ip::tcp::resolver::iterator end;
-    const std::vector<session_t::endpoint_type> endpoints(resolver.resolve(query), end);
+    CF_DBG("parsing locator endpoints from '%s' ...", d->options.locator.c_str());
 
-    CF_DBG("resolving locator endpoints - done (%lu total):", endpoints.size());
+    std::vector<session_t::endpoint_type> endpoints;
+    std::transform(splitted.begin(), splitted.end(), std::back_inserter(endpoints), [](const std::string& endpoint) {
+        std::string address;
+        std::string port;
+        std::tie(address, port) = parse_endpoint(endpoint);
+        return boost::asio::ip::tcp::endpoint {
+            boost::asio::ip::address::from_string(address),
+            boost::lexical_cast<std::uint16_t>(port)
+        };
+    });
+
+    CF_DBG("locator endpoints (%lu total):", endpoints.size());
     for (__attribute__((unused)) const auto& endpoint : endpoints) {
         CF_DBG(" - %s", CF_MSG(endpoint).c_str());
     }

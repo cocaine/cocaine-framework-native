@@ -18,8 +18,8 @@
 
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <memory>
-#include <unordered_map>
 
 #include <asio/local/stream_protocol.hpp>
 
@@ -60,7 +60,7 @@ private:
 
     detail::decoder_t::message_type message;
     std::unique_ptr<channel_type> channel;
-    synchronized<std::unordered_map<std::uint64_t, std::shared_ptr<shared_state_t>>> channels;
+    synchronized<std::map<std::uint64_t, std::shared_ptr<shared_state_t>>> channels;
 
     // Health.
     asio::deadline_timer heartbeat_timer;
@@ -92,7 +92,7 @@ private:
     void handshake(const std::string& uuid);
 
     /// Sends a terminate protocol message to the runtime, then stops the event loop.
-    void terminate(io::rpc::terminate::code code, std::string reason);
+    void terminate(int code, std::string reason);
 
     /// Handles terminate event completion (i.e performs graceful shutdown).
     void on_terminate(task<void>::future_move_type);
@@ -108,10 +108,7 @@ private:
     void process_handshake();
     void process_heartbeat();
     void process_terminate();
-    void process_invoke();
-    void process_chunk();
-    void process_error();
-    void process_choke();
+    void process_invoke(std::map<std::uint64_t, std::shared_ptr<shared_state_t>>& channels);
 };
 
 }
