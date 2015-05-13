@@ -19,6 +19,8 @@
 #include <stddef.h>
 #include <system_error>
 
+#include <cocaine/rpc/asio/header.hpp>
+
 namespace cocaine { namespace framework {
 
 class decoded_message;
@@ -31,7 +33,8 @@ namespace detail {
 /// \internal
 struct decoder_t {
     typedef decoded_message message_type;
-
+    io::header_table_t header_table;
+    msgpack::zone zone;
     size_t decode(const char* data, size_t size, message_type& message, std::error_code& ec);
 };
 

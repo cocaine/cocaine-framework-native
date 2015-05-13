@@ -21,6 +21,8 @@
 #include <stddef.h>
 
 #include <boost/none_t.hpp>
+#include <boost/optional.hpp>
+#include <cocaine/rpc/asio/header.hpp>
 
 namespace msgpack { struct object; }
 
@@ -35,13 +37,7 @@ public:
     /// Constructs a null-initialized message object.
     explicit decoded_message(boost::none_t);
 
-    /// Constructs a message object from its raw parts.
-    ///
-    /// \pre the message should be valid MessagePack'ed Cocaine message, otherwise the behavior is
-    /// undefined.
-    /// \throws std::bad_alloc if unable to allocate the required memory chunk.
-    decoded_message(const char* data, std::size_t size);
-
+    decoded_message(msgpack::object, std::vector<char> storage, std::vector<io::header_t> headers);
     ~decoded_message();
 
     // TODO: Noexcept?
@@ -56,6 +52,8 @@ public:
 
     /// Returns the object representation of message arguments.
     auto args() const -> const msgpack::object&;
+
+    auto get_header(const io::header_key_t& key) const -> boost::optional<io::header_t>;
 };
 
 }} // namespace cocaine::framework

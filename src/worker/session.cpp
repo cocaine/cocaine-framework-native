@@ -304,6 +304,16 @@ void worker_session_t::process_invoke(std::map<std::uint64_t, std::shared_ptr<sh
         CF_DBG("event '%s' not found, invoking fallback handler", event.c_str());
         dispatch.fallback()(event, tx, rx);
     }
+	
+    //tracer::trace_restore_scope_t trace_scope;
+    auto trace_id = message.get_header(io::header_id::TRACE_ID);
+    auto span_id = message.get_header(io::header_id::SPAN_ID);
+    auto parent_id = message.get_header(io::header_id::PARENT_ID);
+
+    //if(trace_id && span_id && parent_id) {
+    //    trace_scope.restore("sr", event, trace_id->get_numeric_value(), span_id->get_numeric_value(), parent_id->get_numeric_value());
+    //}
+
 }
 
 #include "../sender.cpp"
