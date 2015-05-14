@@ -91,7 +91,7 @@ auto basic_session_t::connect(const endpoint_type& endpoint) -> task<std::error_
     return connect(std::vector<endpoint_type> {{ endpoint }});
 }
 
-future<std::error_code>
+framework::future<std::error_code>
 basic_session_t::connect(const std::vector<endpoint_type>& endpoints) {
     CF_CTX("bC");
     CF_DBG(">> connecting ...");
@@ -188,7 +188,7 @@ auto basic_session_t::invoke(std::function<io::encoder_t::message_type(std::uint
         }));
 }
 
-future<void>
+framework::future<void>
 basic_session_t::push(io::encoder_t::message_type&& message) {
     CF_CTX("bP");
     CF_DBG(">> writing message ...");
@@ -279,7 +279,7 @@ basic_session_t::on_error(const std::error_code& ec) {
 
     state = static_cast<std::uint8_t>(state_t::disconnected);
 
-    auto channels = this->channels.apply([&](channels_type& channels) {
+    auto channels = this->channels.apply([&](channels_type& channels) -> channels_type {
         auto copy = channels;
         channels.clear();
         return copy;
