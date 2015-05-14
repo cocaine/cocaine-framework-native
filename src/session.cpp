@@ -82,7 +82,7 @@ session<BasicSession>::session(scheduler_t& scheduler) :
 
 template<class BasicSession>
 session<BasicSession>::~session() {
-    d->sess->disconnect();
+    d->sess->cancel();
 }
 
 template<class BasicSession>

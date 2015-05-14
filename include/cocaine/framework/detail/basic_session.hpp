@@ -36,6 +36,7 @@ namespace cocaine {
 
 namespace framework {
 
+/// Represents resumable session implementation.
 /*!
  * \note I can't guarantee lifetime safety in other way than by making this class living as shared
  * pointer. The reason is: in particular case the connection's event loop runs in a separate
@@ -73,12 +74,11 @@ private:
         /// The session is connecting.
         connecting,
         /// The session is connected.
-        connected,
-        /// The session is disconnected state and no longer usable.
-        closed
+        connected
     };
 
     scheduler_t& scheduler;
+    std::atomic<bool> closed;
 
     std::atomic<int> state;
     std::atomic<std::uint64_t> counter;
@@ -117,14 +117,14 @@ public:
      *
      * \threadsafe
      */
-     auto endpoint() const -> boost::optional<endpoint_type>;
+    auto endpoint() const -> boost::optional<endpoint_type>;
 
-    /*!
-     * Emits a disconnection request to the current session.
-     *
-     * All pending requests should result in operation aborted error.
-     */
-    void disconnect();
+    /// Cancels the current session, moving it to the disconnected unrecoverable state.
+    ///
+    /// \warning the session becomes invalid after this call, its further external usage will
+    /// results in undefined behavior.
+    void
+    cancel();
 
     /*!
      * Sends an invocation event and creates a new channel accociated with it.
@@ -155,7 +155,9 @@ public:
     void revoke(std::uint64_t span);
 
 private:
-    void on_connect(const std::error_code& ec, task<std::error_code>::promise_move_type promise, std::unique_ptr<socket_type>& s);
+    /// Called on socket connect event.
+    void
+    on_connect(const std::error_code& ec, promise<std::error_code> pr, std::unique_ptr<socket_type>& socket);
 
     /// Called on socket read event.
     void

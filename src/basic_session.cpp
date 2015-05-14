@@ -75,6 +75,7 @@ private:
 
 basic_session_t::basic_session_t(scheduler_t& scheduler) noexcept :
     scheduler(scheduler),
+    closed(false),
     state(0),
     counter(1),
     message(boost::none)
@@ -151,10 +152,11 @@ auto basic_session_t::endpoint() const -> boost::optional<endpoint_type> {
     return boost::none;
 }
 
-void basic_session_t::disconnect() {
+void
+basic_session_t::cancel() {
     CF_DBG(">> disconnecting ...");
 
-    state = static_cast<std::uint8_t>(state_t::closed);
+    closed = true;
     if (channels->empty()) {
         CF_DBG("<< stop listening");
         transport.synchronize()->reset();
@@ -166,7 +168,9 @@ void basic_session_t::disconnect() {
 auto basic_session_t::invoke(std::function<io::encoder_t::message_type(std::uint64_t)> encoder)
     -> task<invoke_result>::future_type
 {
+    // Synchronization here is required to prevent channel id mixing in multi-threaded environment.
     std::lock_guard<std::mutex> lock(mutex);
+
     const auto span = counter++;
 
     CF_CTX("bI" + std::to_string(span));
@@ -208,7 +212,7 @@ void basic_session_t::revoke(std::uint64_t span) {
 
     auto channels = this->channels.synchronize();
     channels->erase(span);
-    if (channels->empty() && state == static_cast<std::uint8_t>(state_t::closed)) {
+    if (closed && channels->empty()) {
         // At this moment there are no references left to this session and also nobody is intrested
         // for data reading.
         CF_DBG("<< stop listening");
@@ -218,24 +222,25 @@ void basic_session_t::revoke(std::uint64_t span) {
     CF_DBG("<< revoke span %llu channel", CF_US(span));
 }
 
-void basic_session_t::on_connect(const std::error_code& ec, task<std::error_code>::promise_move_type promise, std::unique_ptr<socket_type>& s) {
+void
+basic_session_t::on_connect(const std::error_code& ec, promise<std::error_code> pr, std::unique_ptr<socket_type>& socket) {
     CF_DBG("<< connect: %s", CF_EC(ec));
 
     if (ec) {
-        transport.synchronize()->reset();
         state = static_cast<std::uint8_t>(state_t::disconnected);
+        transport.synchronize()->reset();
     } else {
         CF_CTX_POP();
         CF_CTX("bR");
         CF_DBG(">> listening for read events ...");
 
-        auto transport = this->transport.synchronize();
-        transport->reset(new channel_type(std::move(s)));
-        pull(*transport);
         state = static_cast<std::uint8_t>(state_t::connected);
+        auto transport = this->transport.synchronize();
+        transport->reset(new channel_type(std::move(socket)));
+        pull(*transport);
     }
 
-    promise.set_value(ec);
+    pr.set_value(ec);
 }
 
 void
@@ -247,23 +252,16 @@ basic_session_t::on_read(const std::error_code& ec) {
         return;
     }
 
-    if (!(*transport.synchronize())) {
-        CF_DBG("received message from disconnected channel");
-        on_error(asio::error::operation_aborted);
-        return;
-    }
-
     CF_DBG("received message [%llu, %llu, %s]", CF_US(message.span()), CF_US(message.type()), CF_MSG(message.args()).c_str());
-    std::shared_ptr<shared_state_t> state;
-    {
-        auto channels = this->channels.synchronize();
-        auto it = channels->find(message.span());
-        if (it == channels->end()) {
-            CF_DBG("dropping an orphan span %llu message", CF_US(message.span()));
-        } else {
-            state = it->second;
-        }
-    }
+    auto state = channels.apply([&](channels_type& channels) -> std::shared_ptr<shared_state_t> {
+         auto it = channels.find(message.span());
+         if (it == channels.end()) {
+             CF_DBG("dropping an orphan span %llu message", CF_US(message.span()));
+             return nullptr;
+         } else {
+             return it->second;
+         }
+    });
 
     if (state) {
         state->put(std::move(message));
