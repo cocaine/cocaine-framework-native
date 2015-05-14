@@ -63,11 +63,11 @@ public:
 private:
     typedef io::channel<protocol_type, io::encoder_t, detail::decoder_t> channel_type;
 
-    enum class state_t : std::uint8_t {
+    enum class state_t {
         disconnected = 0,
         connecting,
         connected,
-        dying
+        closed
     };
 
     std::mutex invoke_mutex;
@@ -77,8 +77,7 @@ private:
 
     std::unique_ptr<channel_type> channel;
 
-    mutable std::mutex state_mutex;
-    std::atomic<std::uint8_t> state;
+    std::atomic<int> state;
 
     std::atomic<std::uint64_t> counter;
 
@@ -96,16 +95,15 @@ public:
 
     ~basic_session_t();
 
-    /*!
-     * Checks whether the session is in connected state.
-     *
-     * \note the session does passive connection monitoring, e.g. it won't be immediately notified
-     * if the real connection has been lost, but after the next send/recv attempt.
-     */
+    /// Checks whether the session is in connected state.
+    ///
+    /// \note the session does passive connection monitoring, e.g. it won't be immediately notified
+    /// if the real connection has been lost, but after the next send/recv attempt.
     bool connected() const noexcept;
 
     /// \threadsafe
-    auto connect(const endpoint_type& endpoint) -> task<std::error_code>::future_type;
+    future<std::error_code>
+    connect(const endpoint_type& endpoint);
 
     /// \threadsafe
     auto connect(const std::vector<endpoint_type>& endpoints) -> task<std::error_code>::future_type;

@@ -91,50 +91,60 @@ auto basic_session_t::connect(const endpoint_type& endpoint) -> task<std::error_
     return connect(std::vector<endpoint_type> {{ endpoint }});
 }
 
-auto basic_session_t::connect(const std::vector<endpoint_type>& endpoints) -> task<std::error_code>::future_type {
+future<std::error_code>
+basic_session_t::connect(const std::vector<endpoint_type>& endpoints) {
     CF_CTX("bC");
     CF_DBG(">> connecting ...");
 
-    task<std::error_code>::promise_type promise;
-    auto future = promise.get_future();
+    promise<std::error_code> pr;
+    auto fr = pr.get_future();
 
-    std::unique_lock<std::mutex> lock(state_mutex);
-    switch (static_cast<state_t>(state.load())) {
-    case state_t::disconnected: {
-        std::unique_ptr<socket_type> socket(new socket_type(scheduler.loop().loop));
+    int expected(static_cast<int>(state_t::disconnected));
+    const bool exchanged = state.compare_exchange_strong(expected, static_cast<int>(state_t::connecting));
 
-        // The code above can throw std::bad_alloc, so here it is the right place to change
-        // current object's state.
-        state = static_cast<std::uint8_t>(state_t::connecting);
-        lock.unlock();
+    if (exchanged) {
+        // The transport is disconnected, perform connecting.
+        std::unique_ptr<socket_type> socket;
 
-        auto converted = endpoints_cast<asio::ip::tcp::endpoint>(endpoints);
-        socket_type* socket_ = socket.get();
+        try {
+            socket.reset(new socket_type(scheduler.loop().loop));
+        } catch (const std::exception& err) {
+            CF_DBG("<< failed: %s", err.what());
+
+            state = static_cast<int>(state_t::disconnected);
+            pr.set_exception(err);
+            return fr;
+        }
+
+        const auto converted = endpoints_cast<asio::ip::tcp::endpoint>(endpoints);
+
+        socket_type& socket_ref = *socket;
         asio::async_connect(
-            *socket_,
+            socket_ref,
             converted.begin(), converted.end(),
-            wrap(std::bind(&basic_session_t::on_connect, shared_from_this(), ph::_1, std::move(promise), std::move(socket)))
+            wrap(std::bind(
+                &basic_session_t::on_connect,
+                shared_from_this(), ph::_1, std::move(pr), std::move(socket)
+            ))
         );
+    } else {
+        // The transport was in other state.
 
-        break;
-    }
-    case state_t::connecting: {
-        lock.unlock();
-        CF_DBG("<< already in progress");
-        promise.set_value(asio::error::already_started);
-        break;
-    }
-    case state_t::connected: {
-        lock.unlock();
-        CF_DBG("<< already connected");
-        promise.set_value(asio::error::already_connected);
-        break;
-    }
-    default:
-        BOOST_ASSERT(false);
+        switch (static_cast<state_t>(expected)) {
+        case state_t::connecting:
+            CF_DBG("<< already in progress");
+            pr.set_value(asio::error::already_started);
+            break;
+        case state_t::connected:
+            CF_DBG("<< already connected");
+            pr.set_value(asio::error::already_connected);
+            break;
+        default:
+            BOOST_ASSERT(false);
+        }
     }
 
-    return future;
+    return fr;
 }
 
 auto basic_session_t::endpoint() const -> boost::optional<endpoint_type> {
@@ -145,7 +155,7 @@ auto basic_session_t::endpoint() const -> boost::optional<endpoint_type> {
 void basic_session_t::disconnect() {
     CF_DBG(">> disconnecting ...");
 
-    state = static_cast<std::uint8_t>(state_t::dying);
+    state = static_cast<std::uint8_t>(state_t::closed);
     if (channels->empty()) {
         CF_DBG("<< stop listening");
         std::lock_guard<std::mutex> channel_lock(channel_mutex);
@@ -194,7 +204,7 @@ void basic_session_t::revoke(std::uint64_t span) {
 
     auto channels = this->channels.synchronize();
     channels->erase(span);
-    if (channels->empty() && state == static_cast<std::uint8_t>(state_t::dying)) {
+    if (channels->empty() && state == static_cast<std::uint8_t>(state_t::closed)) {
         // At this moment there are no references left to this session and also nobody is intrested
         // for data reading.
         // TODO: But there can be pending writing events.
