@@ -52,6 +52,12 @@ class basic_session_t : public std::enable_shared_from_this<basic_session_t> {
 
     typedef std::shared_ptr<basic_sender_t<basic_session_t>> basic_sender_type;
 
+    typedef io::channel<protocol_type, io::encoder_t, detail::decoder_t> channel_type;
+
+    typedef std::unordered_map<std::uint64_t, std::shared_ptr<shared_state_t>> channels_type;
+
+    class push_t;
+
 public:
     typedef boost::asio::ip::tcp::endpoint endpoint_type;
 
@@ -61,36 +67,33 @@ public:
     > invoke_result;
 
 private:
-    typedef io::channel<protocol_type, io::encoder_t, detail::decoder_t> channel_type;
-
     enum class state_t {
+        /// The session is in resumable disconnected state.
         disconnected = 0,
+        /// The session is connecting.
         connecting,
+        /// The session is connected.
         connected,
+        /// The session is disconnected state and no longer usable.
         closed
     };
 
-    std::mutex invoke_mutex;
-    std::mutex channel_mutex;
-
     scheduler_t& scheduler;
 
-    std::unique_ptr<channel_type> channel;
-
     std::atomic<int> state;
-
     std::atomic<std::uint64_t> counter;
-
     decoded_message message;
-    synchronized<std::unordered_map<std::uint64_t, std::shared_ptr<shared_state_t>>> channels;
 
-    class push_t;
+    synchronized<std::shared_ptr<channel_type>> transport;
+    synchronized<channels_type> channels;
+
+    std::mutex mutex;
 
 public:
-    /*!
-     * \warning the scheduler reference should be valid until all asynchronous operations complete
-     * otherwise the behavior is undefined.
-     */
+    /// Constructs a disconnected session.
+    ///
+    /// \warning the scheduler reference should be valid until all asynchronous operations complete
+    /// otherwise the behavior is undefined.
     explicit basic_session_t(scheduler_t& scheduler) noexcept;
 
     ~basic_session_t();
@@ -140,10 +143,9 @@ public:
 
     /// TODO: Implement: invoke_mute - sends an invoke event without channel creation.
 
-    /*!
-     * Sends an event without creating a new channel.
-     */
-    auto push(io::encoder_t::message_type&& message) -> task<void>::future_type;
+    /// Sends an event without creating a new channel.
+    future<void>
+    push(io::encoder_t::message_type&& message);
 
     /*!
      * Unsubscribes a channel with the given span.
@@ -154,8 +156,17 @@ public:
 
 private:
     void on_connect(const std::error_code& ec, task<std::error_code>::promise_move_type promise, std::unique_ptr<socket_type>& s);
-    void on_read(const std::error_code& ec);
-    void on_error(const std::error_code& ec);
+
+    /// Called on socket read event.
+    void
+    on_read(const std::error_code& ec);
+
+    /// Called on socket error while handling read or write event.
+    void
+    on_error(const std::error_code& ec);
+
+    void
+    pull(std::shared_ptr<channel_type> transport);
 };
 
 }

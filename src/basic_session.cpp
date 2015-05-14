@@ -34,42 +34,41 @@ using namespace cocaine;
 using namespace cocaine::framework;
 using namespace cocaine::framework::detail;
 
-//! \note single shot.
+/// \note single shot.
 class basic_session_t::push_t : public std::enable_shared_from_this<push_t> {
-    io::encoder_t::message_type message;
-    std::shared_ptr<basic_session_t> connection;
-    task<void>::promise_type promise;
+    const io::encoder_t::message_type message;
+
+    // Keeps the session alive until all the operations are complete.
+    const std::shared_ptr<basic_session_t> session;
+
+    promise<void> pr;
 
 public:
-    push_t(io::encoder_t::message_type&& message, std::shared_ptr<basic_session_t> connection, task<void>::promise_type&& promise) :
+    push_t(io::encoder_t::message_type&& message,
+           std::shared_ptr<basic_session_t> session,
+           promise<void>&& pr) :
         message(std::move(message)),
-        connection(connection),
-        promise(std::move(promise))
+        session(std::move(session)),
+        pr(std::move(pr))
     {}
 
-    /*!
-     * \warning guaranteed to be called from the event loop thread, otherwise the behavior is
-     * undefined.
-     */
-    void operator()() {
-        if (connection->channel) {
-            CF_DBG("writing %lu bytes ...", message.size());
-            connection->channel->writer->write(message, wrap(std::bind(&push_t::on_write, shared_from_this(), ph::_1)));
-        } else {
-            CF_DBG("<< write aborted: not connected");
-            promise.set_exception(std::system_error(asio::error::not_connected));
-        }
+    void
+    operator()(std::shared_ptr<channel_type> transport) {
+        CF_DBG("writing %lu bytes ...", message.size());
+
+        transport->writer->write(message, wrap(std::bind(&push_t::on_write, shared_from_this(), ph::_1)));
     }
 
 private:
-    void on_write(const std::error_code& ec) {
+    void
+    on_write(const std::error_code& ec) {
         CF_DBG("<< write: %s", CF_EC(ec));
 
         if (ec) {
-            connection->on_error(ec);
-            promise.set_exception(std::system_error(ec));
+            session->on_error(ec);
+            pr.set_exception(std::system_error(ec));
         } else {
-            promise.set_value();
+            pr.set_value();
         }
     }
 };
@@ -84,7 +83,7 @@ basic_session_t::basic_session_t(scheduler_t& scheduler) noexcept :
 basic_session_t::~basic_session_t() {}
 
 bool basic_session_t::connected() const noexcept {
-    return state == static_cast<std::uint8_t>(state_t::connected);
+    return state == static_cast<int>(state_t::connected);
 }
 
 auto basic_session_t::connect(const endpoint_type& endpoint) -> task<std::error_code>::future_type {
@@ -158,8 +157,7 @@ void basic_session_t::disconnect() {
     state = static_cast<std::uint8_t>(state_t::closed);
     if (channels->empty()) {
         CF_DBG("<< stop listening");
-        std::lock_guard<std::mutex> channel_lock(channel_mutex);
-        channel.reset();
+        transport.synchronize()->reset();
     }
 
     CF_DBG("<< disconnected");
@@ -168,7 +166,7 @@ void basic_session_t::disconnect() {
 auto basic_session_t::invoke(std::function<io::encoder_t::message_type(std::uint64_t)> encoder)
     -> task<invoke_result>::future_type
 {
-    std::lock_guard<std::mutex> invoke_lock(invoke_mutex);
+    std::lock_guard<std::mutex> lock(mutex);
     const auto span = counter++;
 
     CF_CTX("bI" + std::to_string(span));
@@ -186,17 +184,23 @@ auto basic_session_t::invoke(std::function<io::encoder_t::message_type(std::uint
         }));
 }
 
-auto basic_session_t::push(io::encoder_t::message_type&& message) -> task<void>::future_type {
+future<void>
+basic_session_t::push(io::encoder_t::message_type&& message) {
     CF_CTX("bP");
     CF_DBG(">> writing message ...");
 
-    task<void>::promise_type promise;
-    auto future = promise.get_future();
-    auto action = std::make_shared<push_t>(std::move(message), shared_from_this(), std::move(promise));
+    promise<void> pr;
+    auto fr = pr.get_future();
 
-    std::lock_guard<std::mutex> channel_lock(channel_mutex);
-    (*action)();
-    return future;
+    auto transport = *this->transport.synchronize();
+    if (transport) {
+        auto pusher = std::make_shared<push_t>(std::move(message), shared_from_this(), std::move(pr));
+        (*pusher)(transport);
+    } else {
+        pr.set_exception(std::system_error(asio::error::not_connected));
+    }
+
+    return fr;
 }
 
 void basic_session_t::revoke(std::uint64_t span) {
@@ -207,36 +211,35 @@ void basic_session_t::revoke(std::uint64_t span) {
     if (channels->empty() && state == static_cast<std::uint8_t>(state_t::closed)) {
         // At this moment there are no references left to this session and also nobody is intrested
         // for data reading.
-        // TODO: But there can be pending writing events.
         CF_DBG("<< stop listening");
-        std::lock_guard<std::mutex> channel_lock(channel_mutex);
-        channel.reset();
+        transport.synchronize()->reset();
     }
+
     CF_DBG("<< revoke span %llu channel", CF_US(span));
 }
 
 void basic_session_t::on_connect(const std::error_code& ec, task<std::error_code>::promise_move_type promise, std::unique_ptr<socket_type>& s) {
     CF_DBG("<< connect: %s", CF_EC(ec));
 
-    std::unique_lock<std::mutex> channel_lock(channel_mutex);
     if (ec) {
-        channel.reset();
+        transport.synchronize()->reset();
         state = static_cast<std::uint8_t>(state_t::disconnected);
     } else {
         CF_CTX_POP();
         CF_CTX("bR");
         CF_DBG(">> listening for read events ...");
 
-        channel.reset(new channel_type(std::move(s)));
-        channel->reader->read(message, wrap(std::bind(&basic_session_t::on_read, shared_from_this(), ph::_1)));
+        auto transport = this->transport.synchronize();
+        transport->reset(new channel_type(std::move(s)));
+        pull(*transport);
         state = static_cast<std::uint8_t>(state_t::connected);
     }
-    channel_lock.unlock();
 
     promise.set_value(ec);
 }
 
-void basic_session_t::on_read(const std::error_code& ec) {
+void
+basic_session_t::on_read(const std::error_code& ec) {
     CF_DBG("<< read: %s", CF_EC(ec));
 
     if (ec) {
@@ -244,13 +247,11 @@ void basic_session_t::on_read(const std::error_code& ec) {
         return;
     }
 
-    std::unique_lock<std::mutex> channel_lock(channel_mutex);
-    if (!channel) {
+    if (!(*transport.synchronize())) {
         CF_DBG("received message from disconnected channel");
         on_error(asio::error::operation_aborted);
         return;
     }
-    channel_lock.unlock();
 
     CF_DBG("received message [%llu, %llu, %s]", CF_US(message.span()), CF_US(message.type()), CF_MSG(message.args()).c_str());
     std::shared_ptr<shared_state_t> state;
@@ -268,23 +269,34 @@ void basic_session_t::on_read(const std::error_code& ec) {
         state->put(std::move(message));
     }
 
-    channel_lock.lock();
-    if (channel) {
-        CF_DBG(">> listening for read events ...");
-        channel->reader->read(message, wrap(std::bind(&basic_session_t::on_read, shared_from_this(), ph::_1)));
+    auto transport = this->transport.synchronize();
+    if (*transport) {
+        pull(*transport);
     }
 }
 
-void basic_session_t::on_error(const std::error_code& ec) {
+void
+basic_session_t::on_error(const std::error_code& ec) {
     BOOST_ASSERT(ec);
 
     state = static_cast<std::uint8_t>(state_t::disconnected);
 
-    auto channels = this->channels.synchronize();
-    for (auto channel : *channels) {
+    auto channels = this->channels.apply([&](channels_type& channels) {
+        auto copy = channels;
+        channels.clear();
+        return copy;
+    });
+
+    for (auto channel : channels) {
         channel.second->put(ec);
     }
-    channels->clear();
+}
+
+void
+basic_session_t::pull(std::shared_ptr<channel_type> transport) {
+    CF_DBG(">> listening for read events ...");
+
+    transport->reader->read(message, wrap(std::bind(&basic_session_t::on_read, shared_from_this(), ph::_1)));
 }
 
 #include "sender.cpp"
