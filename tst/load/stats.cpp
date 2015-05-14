@@ -32,7 +32,7 @@ void testing::load::finalize(task<void>::future_move_type future, load_context c
     context.counter++;
 
     future.get();
-    CF_DBG("<<< %d.", context.id + 1);
+    CF_DBG("<<< %llu.", CF_US(context.id + 1));
 }
 
 
@@ -42,5 +42,5 @@ load_context::load_context(size_t id, std::atomic<int>& counter, stats_t& stats)
     counter(counter),
     stats(stats)
 {
-    CF_DBG(">>> %d.", id + 1);
+    CF_DBG(">>> %llu.", CF_US(id + 1));
 }
