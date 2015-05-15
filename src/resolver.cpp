@@ -129,13 +129,13 @@ serialized_resolver_t::serialized_resolver_t(std::vector<endpoint_type> endpoint
 }
 
 auto serialized_resolver_t::resolve(std::string name) -> task<result_type>::future_type {
-    std::lock_guard<std::mutex> lock(mutex);
+    std::unique_lock<std::mutex> lock(mutex);
 
     auto it = inprogress.find(name);
     if (it == inprogress.end()) {
         std::deque<task<result_type>::promise_type> queue;
         inprogress.insert(it, std::make_pair(name, queue));
-        // Use scheduler to avoid deadlock.
+        lock.unlock();
         return resolver.resolve(name)
             .then(scheduler, std::bind(&serialized_resolver_t::notify_all, shared_from_this(), ph::_1, name));
     } else {
