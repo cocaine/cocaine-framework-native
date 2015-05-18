@@ -1,3 +1,13 @@
+cocaine-framework-native (0.12.0-1) unstable; urgency=low
+
+  * Release version.
+  * Bug fix: fixed deadlock in resolver.
+  * Bug fix: fixed deadlock in reusable session.
+  * Optimization: slightly reduced compilation time by cleaning up unnecessary
+    header inclusion.
+
+ -- Evgeny Safronov <division494@gmail.com>  Mon, 18 May 2015 12:44:10 +0400
+
 cocaine-framework-native (0.12.0-rc2) unstable; urgency=low
 
   * [Feature] service manager can now scale its event loop processing.
