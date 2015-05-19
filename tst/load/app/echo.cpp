@@ -24,7 +24,8 @@ task<boost::optional<std::string>>::future_type
 on_send(task<channel<io::app::enqueue>::sender_type>::future_move_type future,
         channel<io::app::enqueue>::receiver_type rx)
 {
-    future.get();
+    auto tx = future.get();
+    tx.send<scope::choke>();
     return rx.recv();
 }
 

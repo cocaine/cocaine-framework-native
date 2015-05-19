@@ -86,7 +86,8 @@ TEST(service, Echo) {
     auto tx = std::move(channel.tx);
     auto rx = std::move(channel.rx);
 
-    tx.send<upstream::chunk>(std::string("le message")).get();
+    tx.send<upstream::chunk>(std::string("le message")).get()
+        .send<upstream::choke>().get();
     auto result = rx.recv().get();
 
     EXPECT_EQ("le message", *result);
