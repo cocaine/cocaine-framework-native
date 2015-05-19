@@ -106,6 +106,7 @@ void worker_session_t::terminate(int code, std::string reason) {
 
     push(io::encoded<io::worker::terminate>(CONTROL_CHANNEL_ID, code, std::move(reason)))
         .then(std::bind(&worker_session_t::on_terminate, shared_from_this(), ph::_1));
+    // TODO: This is shit!
 }
 
 void worker_session_t::on_terminate(task<void>::future_move_type) {
