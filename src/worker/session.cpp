@@ -77,6 +77,7 @@ worker_session_t::worker_session_t(dispatch_t& dispatch, scheduler_t& scheduler,
     scheduler(scheduler),
     executor(std::move(executor)),
     message(boost::none),
+    counter(0),
     heartbeat_timer(scheduler.loop().loop),
     disown_timer(scheduler.loop().loop)
 {}
@@ -203,53 +204,72 @@ void worker_session_t::process() {
     const auto id   = message.type();
     const auto span = message.span();
 
-    if (span == 0) {
+    switch (span) {
+    case 0:
         CF_DBG("dropping 0 channel message - the specified channel number is forbidden");
-    } else if (span == 1) {
-        switch (id) {
-        case (io::event_traits<io::worker::heartbeat>::id):
-            process_heartbeat();
-            break;
-        case (io::event_traits<io::worker::terminate>::id):
-            process_terminate();
-            break;
-        default:
-            throw invalid_protocol_type(id);
-        }
-    } else {
-        std::map<std::uint64_t, std::shared_ptr<shared_state_t>>::const_iterator lb, ub;
-        channels.apply([&](std::map<std::uint64_t, std::shared_ptr<shared_state_t>>& channels) {
-            std::tie(lb, ub) = channels.equal_range(span);
-            if (lb == channels.end() && ub == channels.end()) {
+        break;
+    case 1:
+        process_control(id);
+        break;
+    default:
+        process_rpc(id, span);
+    };
+}
+
+void
+worker_session_t::process_control(std::uint64_t id) {
+    switch (id) {
+    case (io::event_traits<io::worker::heartbeat>::id):
+        process_heartbeat();
+        break;
+    case (io::event_traits<io::worker::terminate>::id):
+        process_terminate();
+        break;
+    default:
+        throw invalid_protocol_type(id);
+    }
+}
+
+void
+worker_session_t::process_rpc(std::uint64_t id, std::uint64_t span) {
+    std::map<std::uint64_t, std::shared_ptr<shared_state_t>>::const_iterator lb, ub;
+
+    channels.apply([&](std::map<std::uint64_t, std::shared_ptr<shared_state_t>>& channels) {
+        std::tie(lb, ub) = channels.equal_range(span);
+
+        CF_DBG("%s %s", lb == channels.end() ? "end" : std::to_string(lb->first).c_str(), ub == channels.end() ? "end" : std::to_string(ub->first).c_str());
+
+        if (lb == ub) {
+            if (span <= counter) {
+                CF_DBG("dropping %llu channel message - the specified channel was revoked", CF_US(span));
+            } else {
                 if (id == io::event_traits<io::worker::rpc::invoke>::id) {
+                    counter = span;
                     process_invoke(channels);
                 } else {
                     throw invalid_protocol_type(id);
                 }
-            } else if (lb == ub) {
-                CF_DBG("dropping %d channel message - the specified channel was revoked", CF_US(span));
-                return;
-            } else {
-                typedef io::protocol<io::worker::rpc::invoke::upstream_type>::scope protocol;
-
-                switch (id) {
-                case (io::event_traits<protocol::chunk>::id):
-                    lb->second->put(std::move(message));
-                    break;
-                case (io::event_traits<protocol::error>::id):
-                    lb->second->put(std::move(message));
-                    channels.erase(lb);
-                    break;
-                case (io::event_traits<protocol::choke>::id):
-                    lb->second->put(std::move(message));
-                    channels.erase(lb);
-                    break;
-                default:
-                    throw invalid_protocol_type(id);
-                }
             }
-        });
-    }
+        } else {
+            typedef io::protocol<io::worker::rpc::invoke::upstream_type>::scope protocol;
+
+            switch (id) {
+            case (io::event_traits<protocol::chunk>::id):
+                lb->second->put(std::move(message));
+                break;
+            case (io::event_traits<protocol::error>::id):
+                lb->second->put(std::move(message));
+                channels.erase(lb);
+                break;
+            case (io::event_traits<protocol::choke>::id):
+                lb->second->put(std::move(message));
+                channels.erase(lb);
+                break;
+            default:
+                throw invalid_protocol_type(id);
+            }
+        }
+    });
 }
 
 void worker_session_t::process_heartbeat() {

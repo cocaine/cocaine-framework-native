@@ -60,6 +60,8 @@ private:
 
     detail::decoder_t::message_type message;
     std::unique_ptr<channel_type> channel;
+
+    std::atomic<std::uint64_t> counter;
     synchronized<std::map<std::uint64_t, std::shared_ptr<shared_state_t>>> channels;
 
     // Health.
@@ -105,6 +107,13 @@ private:
     void exhale(const std::error_code& ec = std::error_code());
 
     void process();
+
+    void
+    process_control(std::uint64_t id);
+
+    void
+    process_rpc(std::uint64_t id, std::uint64_t span);
+
     void process_handshake();
     void process_heartbeat();
     void process_terminate();
