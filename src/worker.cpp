@@ -121,7 +121,7 @@ worker_t::worker_t(options_t options) :
 
 worker_t::~worker_t() {}
 
-service_manager_t&worker_t::manager() {
+service_manager_t& worker_t::manager() {
     return d->manager;
 }
 
