@@ -238,8 +238,6 @@ worker_session_t::process_rpc(std::uint64_t id, std::uint64_t span) {
     channels.apply([&](std::map<std::uint64_t, std::shared_ptr<shared_state_t>>& channels) {
         std::tie(lb, ub) = channels.equal_range(span);
 
-        CF_DBG("%s %s", lb == channels.end() ? "end" : std::to_string(lb->first).c_str(), ub == channels.end() ? "end" : std::to_string(ub->first).c_str());
-
         if (lb == ub) {
             if (span <= counter) {
                 CF_DBG("dropping %llu channel message - the specified channel was revoked", CF_US(span));
