@@ -142,6 +142,7 @@ int worker_t::run() {
     try {
         d->loop.loop.run();
     } catch (const error_t& err) {
+        CF_DBG("shutdown: [%d] %s", err.code().value(), err.code().message().c_str());
         return err.code().value();
     }
 
