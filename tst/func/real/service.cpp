@@ -91,6 +91,9 @@ TEST(service, Echo) {
     auto result = rx.recv().get();
 
     EXPECT_EQ("le message", *result);
+
+    // Read the choke.
+    rx.recv().get();
 }
 
 namespace ph = std::placeholders;
