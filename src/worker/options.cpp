@@ -79,13 +79,25 @@ options_t::options_t(int argc, char** argv) {
         }
     }
 
-    if (vm["protocol"].as<std::uint32_t>() != 1) {
-        std::cerr << "ERROR: protocol version mismatch" << std::endl << std::endl;
-        std::exit(1);
+    std::uint32_t protocol = 0;
+    if (vm.count("protocol")) {
+        protocol = vm["protocol"].as<std::uint32_t>();
+
+        if (protocol > 2) {
+            std::cerr << "ERROR: protocol version mismatch" << std::endl << std::endl;
+            std::exit(1);
+        }
     }
 
     name     = vm["app"].as<std::string>();
     uuid     = vm["uuid"].as<std::string>();
     endpoint = vm["endpoint"].as<std::string>();
     locator  = vm["locator"].as<std::string>();
+
+    other["protocol"] = protocol;
+}
+
+std::uint32_t
+options_t::protocol() const {
+    return boost::any_cast<std::uint32_t>(other.at("protocol"));
 }
