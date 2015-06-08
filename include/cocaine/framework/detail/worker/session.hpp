@@ -50,9 +50,6 @@ class worker_session_t:
 public:
     typedef asio::local::stream_protocol protocol_type;
     typedef protocol_type::endpoint endpoint_type;
-    typedef io::channel<protocol_type, io::encoder_t, detail::decoder_t> transport_type;
-
-    typedef std::function<void(worker::sender, worker::receiver)> handler_type;
 
 private:
     /// Event dispatcher.
@@ -66,6 +63,7 @@ private:
     detail::decoder_t::message_type message;
 
     /// Underlying transport.
+    typedef io::channel<protocol_type, io::encoder_t, detail::decoder_t> transport_type;
     std::unique_ptr<transport_type> transport;
 
     std::atomic<std::uint64_t> counter;
@@ -93,10 +91,10 @@ public:
     run(const std::string& uuid);
 
     future<void>
-    push(std::uint64_t span, io::encoder_t::message_type&& message);
+    push(io::encoder_t::message_type&& message);
 
-    auto push(io::encoder_t::message_type&& message) -> task<void>::future_type;
-    void revoke(std::uint64_t span);
+    void
+    revoke(std::uint64_t span);
 
 private:
     /// Handle incoming protocol message.

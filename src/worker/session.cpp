@@ -99,25 +99,20 @@ worker_session_t::run(const std::string& uuid) {
 }
 
 future<void>
-worker_session_t::push(std::uint64_t span, io::encoder_t::message_type&& message) {
-    auto channels = this->channels.synchronize();
-    auto it = channels->find(span);
-    if (it == channels->end()) {
-        return make_ready_future<void>::error(
-            std::runtime_error("trying to send message through non-registered channel")
-        );
-    }
+worker_session_t::push(io::encoder_t::message_type&& message) {
+    promise<void> pr;
+    auto fr = pr.get_future();
 
-    return push(std::move(message));
-}
+    scheduler(
+        std::bind(
+            &push_t<worker_session_t>::operator(),
+            std::make_shared<push_t<worker_session_t>>(
+                std::move(message), shared_from_this(), std::move(pr)
+            )
+        )
+    );
 
-auto worker_session_t::push(io::encoder_t::message_type&& message) -> task<void>::future_type {
-    task<void>::promise_type promise;
-    auto future = promise.get_future();
-
-    scheduler(std::bind(&push_t<worker_session_t>::operator(),
-                        std::make_shared<push_t<worker_session_t>>(std::move(message), shared_from_this(), std::move(promise))));
-    return future;
+    return fr;
 }
 
 void worker_session_t::handshake(const std::string& uuid) {
