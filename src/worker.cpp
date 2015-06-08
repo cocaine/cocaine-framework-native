@@ -99,6 +99,11 @@ worker_t::worker_t(options_t options) :
         std::string address;
         std::string port;
         std::tie(address, port) = parse_endpoint(endpoint);
+
+        if (address.size() > 0 && address[0] == '[' && address[address.size() - 1] == ']') {
+            address = address.substr(1, address.size() - 2);
+        }
+
         return boost::asio::ip::tcp::endpoint {
             boost::asio::ip::address::from_string(address),
             boost::lexical_cast<std::uint16_t>(port)
