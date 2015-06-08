@@ -115,6 +115,13 @@ worker_session_t::push(io::encoder_t::message_type&& message) {
     return fr;
 }
 
+void
+worker_session_t::revoke(std::uint64_t span) {
+    CF_DBG("revoking span %llu channel", CF_US(span));
+
+    channels->erase(span);
+}
+
 void worker_session_t::handshake(const std::string& uuid) {
     CF_DBG("<- Handshake");
 
@@ -190,12 +197,6 @@ void worker_session_t::on_error(const std::error_code& ec) {
         channel.second->put(ec);
     }
     channels->clear();
-}
-
-void worker_session_t::revoke(std::uint64_t span) {
-    CF_DBG("revoking span %llu channel", CF_US(span));
-
-    channels->erase(span);
 }
 
 void worker_session_t::process() {
