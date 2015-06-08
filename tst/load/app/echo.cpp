@@ -95,3 +95,61 @@ TEST(load, app_echo) {
 
     EXPECT_EQ(iters, counter);
 }
+
+
+namespace testing { namespace load { namespace app { namespace echo { namespace version {
+
+void
+on_chunk(future<boost::optional<std::string>>& fr) {
+    if (auto result = fr.get()) {
+        EXPECT_EQ("1.0", *result);
+    } else {
+        throw std::runtime_error("the `result` must be true");
+    }
+}
+
+future<void>
+on_invoke(future<channel<io::app::enqueue>>& fr) {
+    auto ch = fr.get();
+    ch.tx.send<scope::choke>();
+
+    return ch.rx.recv()
+        .then(std::bind(&on_chunk, ph::_1));
+}
+
+}}}}} // namespace testing::load::app::echo::version
+
+TEST(load, app_version) {
+    uint iters        = 100;
+    std::string app   = "echo-cpp";
+    std::string event = "version";
+    load_config("load.app.echo", iters, app, event);
+
+    std::atomic<int> counter(0);
+
+    stats_guard_t stats(iters);
+
+    service_manager_t manager;
+    auto echo = manager.create<io::app_tag>(app);
+    echo.connect().get();
+
+    std::vector<task<void>::future_type> futures;
+    futures.reserve(iters);
+
+    for (uint id = 0; id < iters; ++id) {
+        load_context context(id, counter, stats.stats);
+
+        futures.emplace_back(
+            echo.invoke<io::app::enqueue>(std::string(event))
+                .then(std::bind(&app::echo::version::on_invoke, ph::_1))
+                .then(std::bind(&finalize, ph::_1, std::move(context)))
+        );
+    }
+
+    // Block here.
+    for (auto& future : futures) {
+        future.get();
+    }
+
+    EXPECT_EQ(iters, counter);
+}
