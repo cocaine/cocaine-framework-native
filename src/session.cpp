@@ -37,7 +37,9 @@ public:
     scheduler_t& scheduler;
     std::shared_ptr<basic_session_type> sess;
     synchronized<std::vector<endpoint_type>> endpoints;
-    std::vector<std::shared_ptr<task<void>::promise_type>> queue;
+
+    typedef std::vector<std::shared_ptr<task<void>::promise_type>> queue_type;
+    synchronized<queue_type> queue;
 
     explicit impl(scheduler_t& scheduler) :
         scheduler(scheduler),
@@ -51,25 +53,28 @@ public:
         if (ec) {
             switch (ec.value()) {
             case asio::error::already_started:
-                queue.push_back(promise);
+                queue->push_back(promise);
                 break;
             case asio::error::already_connected:
-                BOOST_ASSERT(queue.empty());
                 promise->set_value();
                 break;
             default:
                 promise->set_exception(std::system_error(ec));
-                for (auto it = queue.begin(); it != queue.end(); ++it) {
-                    (*it)->set_exception(std::system_error(ec));
-                }
-                queue.clear();
+                queue.apply([&](queue_type& queue) {
+                    for (auto it = queue.begin(); it != queue.end(); ++it) {
+                        (*it)->set_exception(std::system_error(ec));
+                    }
+                    queue.clear();
+                });
             }
         } else {
             promise->set_value();
-            for (auto it = queue.begin(); it != queue.end(); ++it) {
-                (*it)->set_value();
-            }
-            queue.clear();
+            queue.apply([&](queue_type& queue) {
+                for (auto it = queue.begin(); it != queue.end(); ++it) {
+                    (*it)->set_value();
+                }
+                queue.clear();
+            });
         }
     }
 };
