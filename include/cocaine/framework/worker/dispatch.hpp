@@ -28,9 +28,7 @@
 #include "cocaine/framework/worker/sender.hpp"
 #include "cocaine/framework/worker/receiver.hpp"
 
-namespace cocaine {
-
-namespace framework {
+namespace cocaine { namespace framework {
 
 class dispatch_t {
 public:
@@ -40,11 +38,11 @@ private:
     std::unordered_map<std::string, handler_type> handlers;
 
 public:
-    boost::optional<handler_type> get(const std::string& event);
+    boost::optional<handler_type>
+    get(const std::string& event) const;
 
-    void on(std::string event, handler_type handler);
+    void
+    on(const std::string& event, handler_type handler);
 };
 
-}
-
-}
+}} // namespace cocaine::framework
