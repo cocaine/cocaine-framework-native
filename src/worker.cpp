@@ -141,7 +141,8 @@ auto worker_t::options() const -> const options_t& {
 int worker_t::run() {
     auto executor = std::bind(&detail::worker::executor_t::operator(), std::ref(d->executor), ph::_1);
     d->session.reset(new worker_session_t(d->dispatch, d->scheduler, executor));
-    d->session->connect(d->options.endpoint, d->options.uuid);
+    d->session->connect(d->options.endpoint);
+    d->session->run(d->options.uuid);
 
     // The main thread is guaranteed to work only with cocaine socket and timers.
     try {

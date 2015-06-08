@@ -52,8 +52,8 @@ public:
     {}
 
     void operator()() {
-        if (session->channel) {
-            session->channel->writer->write(message, std::bind(&push_t::on_write, this->shared_from_this(), ph::_1));
+        if (session->transport) {
+            session->transport->writer->write(message, std::bind(&push_t::on_write, this->shared_from_this(), ph::_1));
         } else {
             h.set_exception(std::system_error(asio::error::not_connected));
         }
@@ -81,18 +81,43 @@ worker_session_t::worker_session_t(dispatch_t& dispatch, scheduler_t& scheduler,
     heartbeat_timer(scheduler.loop().loop),
     disown_timer(scheduler.loop().loop)
 {}
-
-void worker_session_t::connect(std::string endpoint, std::string uuid) {
+void
+worker_session_t::connect(const endpoint_type& endpoint) {
     std::unique_ptr<protocol_type::socket> socket(new protocol_type::socket(scheduler.loop().loop));
-    socket->connect(protocol_type::endpoint(endpoint));
+    socket->connect(endpoint);
 
-    channel.reset(new channel_type(std::move(socket)));
+    transport.reset(new transport_type(std::move(socket)));
+}
 
+void
+worker_session_t::run(const std::string& uuid) {
     handshake(uuid);
     inhale();
     exhale();
 
-    channel->reader->read(message, std::bind(&worker_session_t::on_read, shared_from_this(), ph::_1));
+    transport->reader->read(message, std::bind(&worker_session_t::on_read, shared_from_this(), ph::_1));
+}
+
+future<void>
+worker_session_t::push(std::uint64_t span, io::encoder_t::message_type&& message) {
+    auto channels = this->channels.synchronize();
+    auto it = channels->find(span);
+    if (it == channels->end()) {
+        return make_ready_future<void>::error(
+            std::runtime_error("trying to send message through non-registered channel")
+        );
+    }
+
+    return push(std::move(message));
+}
+
+auto worker_session_t::push(io::encoder_t::message_type&& message) -> task<void>::future_type {
+    task<void>::promise_type promise;
+    auto future = promise.get_future();
+
+    scheduler(std::bind(&push_t<worker_session_t>::operator(),
+                        std::make_shared<push_t<worker_session_t>>(std::move(message), shared_from_this(), std::move(promise))));
+    return future;
 }
 
 void worker_session_t::handshake(const std::string& uuid) {
@@ -147,27 +172,6 @@ void worker_session_t::on_disown(const std::error_code& ec) {
     throw disowned_error(DISOWN_TIMEOUT.seconds());
 }
 
-auto worker_session_t::push(std::uint64_t span, io::encoder_t::message_type&& message) -> task<void>::future_type {
-    auto channels = this->channels.synchronize();
-    auto it = channels->find(span);
-    if (it == channels->end()) {
-        return make_ready_future<void>::error(
-            std::runtime_error("trying to send message through non-registered channel")
-        );
-    }
-
-    return push(std::move(message));
-}
-
-auto worker_session_t::push(io::encoder_t::message_type&& message) -> task<void>::future_type {
-    task<void>::promise_type promise;
-    auto future = promise.get_future();
-
-    scheduler(std::bind(&push_t<worker_session_t>::operator(),
-                        std::make_shared<push_t<worker_session_t>>(std::move(message), shared_from_this(), std::move(promise))));
-    return future;
-}
-
 void worker_session_t::on_read(const std::error_code& ec) {
     CF_DBG("read event: %s", CF_EC(ec));
 
@@ -179,7 +183,7 @@ void worker_session_t::on_read(const std::error_code& ec) {
     process();
 
     CF_DBG("waiting for more data ...");
-    channel->reader->read(message, std::bind(&worker_session_t::on_read, this, ph::_1));
+    transport->reader->read(message, std::bind(&worker_session_t::on_read, this, ph::_1));
 }
 
 void worker_session_t::on_error(const std::error_code& ec) {

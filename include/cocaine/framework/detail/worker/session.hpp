@@ -38,42 +38,63 @@ namespace cocaine {
 
 namespace framework {
 
-/*!
- * \brief The worker_session_t class - implementation heart of any worker.
- *
- * \internal
- */
-class worker_session_t : public std::enable_shared_from_this<worker_session_t> {
-    template<class>
-    class push_t;
+/// The worker session class - implementation heart of any worker.
+///
+/// \internal
+/// \reentrant
+class worker_session_t:
+    public std::enable_shared_from_this<worker_session_t>
+{
+    template<class> class push_t;
 
 public:
     typedef asio::local::stream_protocol protocol_type;
-    typedef io::channel<protocol_type, io::encoder_t, detail::decoder_t> channel_type;
+    typedef protocol_type::endpoint endpoint_type;
+    typedef io::channel<protocol_type, io::encoder_t, detail::decoder_t> transport_type;
 
     typedef std::function<void(worker::sender, worker::receiver)> handler_type;
 
 private:
-    dispatch_t& dispatch;
+    /// Event dispatcher.
+    const dispatch_t& dispatch;
+
     scheduler_t& scheduler;
+
+    /// Userspace event handler executor.
     executor_t executor;
 
     detail::decoder_t::message_type message;
-    std::unique_ptr<channel_type> channel;
+
+    /// Underlying transport.
+    std::unique_ptr<transport_type> transport;
 
     std::atomic<std::uint64_t> counter;
     synchronized<std::map<std::uint64_t, std::shared_ptr<shared_state_t>>> channels;
 
-    // Health.
+    /// Health.
     asio::deadline_timer heartbeat_timer;
     asio::deadline_timer disown_timer;
 
 public:
     worker_session_t(dispatch_t& dispatch, scheduler_t& scheduler, executor_t executor);
 
-    void connect(std::string endpoint, std::string uuid);
+    /// Performs synchronous connection to the given endpoint.
+    void
+    connect(const endpoint_type& endpoint);
 
-    auto push(std::uint64_t span, io::encoder_t::message_type&& message) -> task<void>::future_type;
+    /// Runs the session event processing by sending a handshake message with the given uuid and
+    /// starting to listen incoming messages.
+    ///
+    /// \pre !!transport.
+    ///
+    /// \warning do not call this method more than once using single transport socket, otherwise
+    /// the behavior is undefined.
+    void
+    run(const std::string& uuid);
+
+    future<void>
+    push(std::uint64_t span, io::encoder_t::message_type&& message);
+
     auto push(io::encoder_t::message_type&& message) -> task<void>::future_type;
     void revoke(std::uint64_t span);
 
