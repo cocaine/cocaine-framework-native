@@ -22,6 +22,7 @@
 
 #include "cocaine/framework/sender.hpp"
 #include "cocaine/framework/scheduler.hpp"
+#include "cocaine/framework/trace.hpp"
 
 #include "cocaine/framework/detail/log.hpp"
 #include "cocaine/framework/detail/loop.hpp"
@@ -56,7 +57,10 @@ public:
     operator()(std::shared_ptr<channel_type> transport) {
         CF_DBG("writing %lu bytes ...", message.size());
 
-        transport->writer->write(message, wrap(std::bind(&push_t::on_write, shared_from_this(), ph::_1)));
+        transport->writer->write(
+            message,
+            trace::wrap(std::bind(&push_t::on_write, shared_from_this(), ph::_1))
+        );
     }
 
 private:
@@ -122,7 +126,7 @@ basic_session_t::connect(const std::vector<endpoint_type>& endpoints) {
         asio::async_connect(
             socket_ref,
             converted.begin(), converted.end(),
-            wrap(std::bind(
+            trace::wrap(std::bind(
                 &basic_session_t::on_connect,
                 shared_from_this(), ph::_1, std::move(pr), std::move(socket)
             ))
@@ -187,7 +191,7 @@ auto basic_session_t::invoke(std::function<io::encoder_t::message_type(std::uint
 
     channels->insert(std::make_pair(span, std::move(state)));
     return push(encoder(span))
-        .then(scheduler, wrap([tx, rx](task<void>::future_move_type future) -> invoke_result {
+        .then(scheduler, trace::wrap([tx, rx](task<void>::future_move_type future) -> invoke_result {
             future.get();
             return std::make_tuple(tx, rx);
         }));
@@ -299,7 +303,10 @@ void
 basic_session_t::pull(std::shared_ptr<channel_type> transport) {
     CF_DBG(">> listening for read events ...");
 
-    transport->reader->read(message, wrap(std::bind(&basic_session_t::on_read, shared_from_this(), ph::_1)));
+    transport->reader->read(
+        message,
+        trace::wrap(std::bind(&basic_session_t::on_read, shared_from_this(), ph::_1))
+    );
 }
 
 #include "sender.cpp"

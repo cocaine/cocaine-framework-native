@@ -105,8 +105,8 @@ basic_service_t::connect() {
     }
 
     return d->resolver->resolve(d->name)
-        .then(wrap(std::bind(&::on_resolve, ph::_1, d->version, session)))
-        .then(wrap(std::bind(&::on_connect, ph::_1)));
+        .then(trace::wrap(std::bind(&::on_resolve, ph::_1, d->version, session)))
+        .then(trace::wrap(std::bind(&::on_connect, ph::_1)));
 }
 
 boost::optional<session_t::endpoint_type>

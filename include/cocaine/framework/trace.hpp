@@ -14,14 +14,12 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "cocaine/framework/scheduler.hpp"
+#pragma once
 
-#include "cocaine/framework/detail/loop.hpp"
+#include "cocaine/framework/config.hpp"
 
-using namespace cocaine::framework;
-
-void
-scheduler_t::operator()(closure_type fn) {
-    ev.userloop.post(std::move(fn));
-}
-
+#ifdef COCAINE_FRAMEWORK_HAS_INTERNAL_TRACING
+#include "cocaine/framework/trace/enabled.hpp"
+#else
+#include "cocaine/framework/trace/disabled.hpp"
+#endif

@@ -18,9 +18,9 @@
 
 #include "cocaine/framework/forwards.hpp"
 #include "cocaine/framework/receiver.hpp"
-#include "cocaine/framework/scheduler.hpp"
 #include "cocaine/framework/service.inl.hpp"
 #include "cocaine/framework/session.hpp"
+#include "cocaine/framework/trace.hpp"
 
 /// This module provides access to the client part of the Framework.
 ///
@@ -86,10 +86,11 @@ public:
     invoke(Args&&... args) {
         namespace ph = std::placeholders;
 
-        context_holder holder("SI");
+        trace::context_holder holder("SI");
+
         return connect()
-            .then(scheduler, wrap(std::bind(&basic_service_t::on_connect<Event, Args...>, ph::_1, session, std::forward<Args>(args)...)))
-            .then(scheduler, wrap(std::bind(&basic_service_t::on_invoke<Event>, ph::_1)));
+            .then(scheduler, trace::wrap(std::bind(&basic_service_t::on_connect<Event, Args...>, ph::_1, session, std::forward<Args>(args)...)))
+            .then(scheduler, trace::wrap(std::bind(&basic_service_t::on_invoke<Event>, ph::_1)));
     }
 
 private:
