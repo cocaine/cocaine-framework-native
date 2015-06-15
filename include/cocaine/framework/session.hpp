@@ -38,7 +38,12 @@ class session {
 public:
     typedef BasicSession basic_session_type;
     typedef boost::asio::ip::tcp::endpoint endpoint_type;
+
+#if BOOST_VERSION > 104800
     typedef boost::asio::ip::tcp::socket::native_handle_type native_handle_type;
+#else
+    typedef boost::asio::ip::tcp::socket::native_type native_handle_type;
+#endif
 
     typedef std::tuple<
         std::shared_ptr<basic_sender_t<basic_session_t>>,
