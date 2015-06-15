@@ -18,17 +18,15 @@
 
 #include "cocaine/framework/forwards.hpp"
 #include "cocaine/framework/receiver.hpp"
-#include "cocaine/framework/scheduler.hpp"
 #include "cocaine/framework/service.inl.hpp"
 #include "cocaine/framework/session.hpp"
+#include "cocaine/framework/trace.hpp"
 
 /// This module provides access to the client part of the Framework.
 ///
 /// \unstable because it needs some user experience.
 
-namespace cocaine {
-
-namespace framework {
+namespace cocaine { namespace framework {
 
 /// The basic service class represents an untyped Cocaine service.
 ///
@@ -36,6 +34,7 @@ namespace framework {
 /// this purposes.
 class basic_service_t {
 public:
+    typedef session_t::native_handle_type native_handle_type;
     typedef std::vector<session_t::endpoint_type> endpoints_t;
 
 private:
@@ -59,27 +58,39 @@ public:
     ~basic_service_t();
 
     /// Returns the name of this service given at the construction.
-    auto name() const noexcept -> const std::string&;
+    const std::string&
+    name() const noexcept;
 
     /// Returns the protocol version number of this service given at the construction.
-    auto version() const noexcept -> uint;
+    uint
+    version() const noexcept;
 
     /// Tries to connect to the service through the Locator.
     ///
     /// \returns a future which is set after the connection is established.
-    auto connect() -> task<void>::future_type;
+    future<void>
+    connect();
 
-    auto endpoint() const -> boost::optional<session_t::endpoint_type>;
+    boost::optional<session_t::endpoint_type>
+    endpoint() const;
+
+    /// Get the native socket representation.
+    ///
+    /// This function may be used to obtain the underlying representation of the socket. This is
+    /// intended to allow access to native socket functionality that is not otherwise provided.
+    native_handle_type
+    native_handle() const;
 
     template<class Event, class... Args>
     typename task<typename invocation_result<Event>::type>::future_type
     invoke(Args&&... args) {
         namespace ph = std::placeholders;
 
-        context_holder holder("SI");
+        trace::context_holder holder("SI");
+
         return connect()
-            .then(scheduler, wrap(std::bind(&basic_service_t::on_connect<Event, Args...>, ph::_1, session, std::forward<Args>(args)...)))
-            .then(scheduler, wrap(std::bind(&basic_service_t::on_invoke<Event>, ph::_1)));
+            .then(scheduler, trace::wrap(std::bind(&basic_service_t::on_connect<Event, Args...>, ph::_1, session, std::forward<Args>(args)...)))
+            .then(scheduler, trace::wrap(std::bind(&basic_service_t::on_invoke<Event>, ph::_1)));
     }
 
 private:
@@ -101,6 +112,10 @@ private:
     }
 };
 
+/// The service class represents a typed Cocaine service.
+///
+/// You are restricted to create instances of this class directly, use \sa service_manager_t for
+/// this purposes.
 template<class T>
 class service : public basic_service_t {
 public:
@@ -109,6 +124,5 @@ public:
     {}
 };
 
-} // namespace framework
+}} // namespace cocaine::framework
 
-} // namespace cocaine
