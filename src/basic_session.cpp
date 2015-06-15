@@ -152,6 +152,11 @@ auto basic_session_t::endpoint() const -> boost::optional<endpoint_type> {
     return boost::none;
 }
 
+basic_session_t::native_handle_type
+basic_session_t::native_handle() const {
+    return (*transport.synchronize())->socket->native_handle();
+}
+
 void
 basic_session_t::cancel() {
     CF_DBG(">> disconnecting ...");

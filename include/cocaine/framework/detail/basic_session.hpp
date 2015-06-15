@@ -62,6 +62,8 @@ class basic_session_t : public std::enable_shared_from_this<basic_session_t> {
 public:
     typedef boost::asio::ip::tcp::endpoint endpoint_type;
 
+    typedef socket_type::native_handle_type native_handle_type;
+
     typedef std::tuple<
         basic_sender_type,
         std::shared_ptr<basic_receiver_t<basic_session_t>>
@@ -118,6 +120,9 @@ public:
      * \threadsafe
      */
     auto endpoint() const -> boost::optional<endpoint_type>;
+
+    native_handle_type
+    native_handle() const;
 
     /// Cancels the current session, moving it to the disconnected unrecoverable state.
     ///

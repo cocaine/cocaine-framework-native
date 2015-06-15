@@ -118,6 +118,12 @@ auto session<BasicSession>::endpoint() const -> boost::optional<endpoint_type> {
 }
 
 template<class BasicSession>
+typename session<BasicSession>::native_handle_type
+session<BasicSession>::native_handle() const {
+    return d->sess->native_handle();
+}
+
+template<class BasicSession>
 auto session<BasicSession>::invoke(std::function<io::encoder_t::message_type(std::uint64_t)> encoder)
     -> task<basic_invoke_result>::future_type
 {

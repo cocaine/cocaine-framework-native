@@ -38,6 +38,7 @@ class session {
 public:
     typedef BasicSession basic_session_type;
     typedef boost::asio::ip::tcp::endpoint endpoint_type;
+    typedef boost::asio::ip::tcp::socket::native_handle_type native_handle_type;
 
     typedef std::tuple<
         std::shared_ptr<basic_sender_t<basic_session_t>>,
@@ -59,6 +60,9 @@ public:
     auto connect(const std::vector<endpoint_type>& endpoints) -> task<void>::future_type;
 
     auto endpoint() const -> boost::optional<endpoint_type>;
+
+    native_handle_type
+    native_handle() const;
 
     template<class Event, class... Args>
     typename task<channel<Event>>::future_type

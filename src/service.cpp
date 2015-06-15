@@ -109,3 +109,8 @@ auto basic_service_t::connect() -> task<void>::future_type {
 auto basic_service_t::endpoint() const -> boost::optional<session_t::endpoint_type> {
     return session->endpoint();
 }
+
+basic_service_t::native_handle_type
+basic_service_t::native_handle() const {
+    return session->native_handle();
+}

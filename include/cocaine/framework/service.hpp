@@ -36,6 +36,7 @@ namespace framework {
 /// this purposes.
 class basic_service_t {
 public:
+    typedef session_t::native_handle_type native_handle_type;
     typedef std::vector<session_t::endpoint_type> endpoints_t;
 
 private:
@@ -70,6 +71,13 @@ public:
     auto connect() -> task<void>::future_type;
 
     auto endpoint() const -> boost::optional<session_t::endpoint_type>;
+
+    /// Get the native socket representation.
+    ///
+    /// This function may be used to obtain the underlying representation of the socket. This is
+    /// intended to allow access to native socket functionality that is not otherwise provided.
+    native_handle_type
+    native_handle() const;
 
     template<class Event, class... Args>
     typename task<typename invocation_result<Event>::type>::future_type
