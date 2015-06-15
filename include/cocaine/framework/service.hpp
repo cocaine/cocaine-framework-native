@@ -26,9 +26,7 @@
 ///
 /// \unstable because it needs some user experience.
 
-namespace cocaine {
-
-namespace framework {
+namespace cocaine { namespace framework {
 
 /// The basic service class represents an untyped Cocaine service.
 ///
@@ -60,17 +58,21 @@ public:
     ~basic_service_t();
 
     /// Returns the name of this service given at the construction.
-    auto name() const noexcept -> const std::string&;
+    const std::string&
+    name() const noexcept;
 
     /// Returns the protocol version number of this service given at the construction.
-    auto version() const noexcept -> uint;
+    uint
+    version() const noexcept;
 
     /// Tries to connect to the service through the Locator.
     ///
     /// \returns a future which is set after the connection is established.
-    auto connect() -> task<void>::future_type;
+    future<void>
+    connect();
 
-    auto endpoint() const -> boost::optional<session_t::endpoint_type>;
+    boost::optional<session_t::endpoint_type>
+    endpoint() const;
 
     /// Get the native socket representation.
     ///
@@ -109,6 +111,10 @@ private:
     }
 };
 
+/// The service class represents a typed Cocaine service.
+///
+/// You are restricted to create instances of this class directly, use \sa service_manager_t for
+/// this purposes.
 template<class T>
 class service : public basic_service_t {
 public:
@@ -117,6 +123,5 @@ public:
     {}
 };
 
-} // namespace framework
+}} // namespace cocaine::framework
 
-} // namespace cocaine
