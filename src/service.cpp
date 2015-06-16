@@ -90,7 +90,7 @@ basic_service_t::version() const noexcept {
     return d->version;
 }
 
-future<void>
+cocaine::framework::future<void>
 basic_service_t::connect() {
     CF_CTX("SC");
     CF_DBG(">> connecting ...");
