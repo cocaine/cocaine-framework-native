@@ -32,9 +32,8 @@
 
 #include "cocaine/framework/detail/decoder.hpp"
 
-namespace cocaine {
+namespace cocaine { namespace framework {
 
-namespace framework {
 
 /// Represents resumable session implementation.
 /*!
@@ -176,6 +175,4 @@ private:
     pull(std::shared_ptr<channel_type> transport);
 };
 
-}
-
-}
+}} // namespace cocaine::framework

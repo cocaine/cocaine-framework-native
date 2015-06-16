@@ -36,7 +36,9 @@ using namespace cocaine::framework;
 using namespace cocaine::framework::detail;
 
 /// \note single shot.
-class basic_session_t::push_t : public std::enable_shared_from_this<push_t> {
+class basic_session_t::push_t :
+    public std::enable_shared_from_this<push_t>
+{
     const io::encoder_t::message_type message;
 
     // Keeps the session alive until all the operations are complete.
