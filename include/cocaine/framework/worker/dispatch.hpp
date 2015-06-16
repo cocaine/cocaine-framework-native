@@ -33,11 +33,17 @@ namespace cocaine { namespace framework {
 class dispatch_t {
 public:
     typedef std::function<void(worker::sender, worker::receiver)> handler_type;
+    typedef std::function<void(const std::string&, worker::sender, worker::receiver)> fallback_type;
 
 private:
     std::unordered_map<std::string, handler_type> handlers;
 
+    struct {
+        fallback_type fallback;
+    } data;
+
 public:
+    dispatch_t();
 
     boost::optional<handler_type>
     get(const std::string& event);
@@ -45,5 +51,11 @@ public:
     void
     on(std::string event, handler_type handler);
 
+    fallback_type
+    fallback() const;
+
+    void
+    fallback(fallback_type handler);
+};
 
 }} // namespace cocaine::framework

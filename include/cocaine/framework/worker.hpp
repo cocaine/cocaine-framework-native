@@ -45,6 +45,7 @@ class worker_t {
 public:
     typedef dispatch_t dispatch_type;
     typedef dispatch_type::handler_type handler_type;
+    typedef dispatch_type::fallback_type fallback_type;
 
 private:
     class impl;
@@ -68,6 +69,8 @@ public:
     void
     on(std::string event, handler_type handler);
 
+    void
+    fallback(fallback_type handler);
 
     auto
     options() const -> const options_t&;
