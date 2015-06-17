@@ -44,6 +44,7 @@ public:
 
     ~decoded_message();
 
+    // TODO: Noexcept?
     decoded_message(decoded_message&& other);
     decoded_message& operator=(decoded_message&& other);
 
