@@ -135,13 +135,19 @@ public:
  * The exception class, that is thrown by the Framework when it detects unspecified service's error.
  */
 class response_error : public error_t {
-    const int id_;
+    const std::error_code ec_;
 
 public:
-    explicit response_error(std::tuple<int, std::string>& err);
+    explicit
+    response_error(std::tuple<std::error_code, std::string>& err);
 
     /// Returns the response errno.
-    int id() const noexcept;
+    int
+    id() const noexcept;
+
+    /// Returns the response error code.
+    std::error_code
+    ec() const;
 };
 
 } // namespace framework

@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 
+#include <cocaine/common.hpp>
 #include <cocaine/idl/storage.hpp>
+#include <cocaine/traits/error_code.hpp>
 
 #include <cocaine/framework/manager.hpp>
 #include <cocaine/framework/service.hpp>
