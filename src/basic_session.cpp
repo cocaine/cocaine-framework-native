@@ -153,7 +153,7 @@ basic_session_t::connect(const std::vector<endpoint_type>& endpoints) {
     return fr;
 }
 
-boost::optional<endpoint_type>
+boost::optional<basic_session_t::endpoint_type>
 basic_session_t::endpoint() const {
     // TODO: Implement `basic_session_t::endpoint()`.
     return boost::none;
