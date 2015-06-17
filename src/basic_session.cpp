@@ -56,7 +56,7 @@ public:
     {}
 
     void
-    operator()(std::shared_ptr<channel_type> transport) {
+    operator()(std::shared_ptr<transport_type> transport) {
         CF_DBG("writing %lu bytes ...", message.size());
 
         transport->writer->write(
@@ -153,7 +153,8 @@ basic_session_t::connect(const std::vector<endpoint_type>& endpoints) {
     return fr;
 }
 
-auto basic_session_t::endpoint() const -> boost::optional<endpoint_type> {
+boost::optional<endpoint_type>
+basic_session_t::endpoint() const {
     // TODO: Implement `basic_session_t::endpoint()`.
     return boost::none;
 }
@@ -247,7 +248,7 @@ basic_session_t::on_connect(const std::error_code& ec, promise<std::error_code> 
 
         state = static_cast<std::uint8_t>(state_t::connected);
         auto transport = this->transport.synchronize();
-        transport->reset(new channel_type(std::move(socket)));
+        transport->reset(new transport_type(std::move(socket)));
         pull(*transport);
     }
 
@@ -264,7 +265,7 @@ basic_session_t::on_read(const std::error_code& ec) {
     }
 
     CF_DBG("received message [%llu, %llu, %s]", CF_US(message.span()), CF_US(message.type()), CF_MSG(message.args()).c_str());
-    auto state = channels.apply([&](channels_type& channels) -> std::shared_ptr<shared_state_t> {
+    auto state = channels.apply([&](channel_map_type& channels) -> std::shared_ptr<shared_state_t> {
          auto it = channels.find(message.span());
          if (it == channels.end()) {
              CF_DBG("dropping an orphan span %llu message", CF_US(message.span()));
@@ -290,7 +291,7 @@ basic_session_t::on_error(const std::error_code& ec) {
 
     state = static_cast<std::uint8_t>(state_t::disconnected);
 
-    auto channels = this->channels.apply([&](channels_type& channels) -> channels_type {
+    auto channels = this->channels.apply([&](channel_map_type& channels) -> channel_map_type {
         auto copy = channels;
         channels.clear();
         return copy;
@@ -302,7 +303,7 @@ basic_session_t::on_error(const std::error_code& ec) {
 }
 
 void
-basic_session_t::pull(std::shared_ptr<channel_type> transport) {
+basic_session_t::pull(std::shared_ptr<transport_type> transport) {
     CF_DBG(">> listening for read events ...");
 
     transport->reader->read(

@@ -49,12 +49,9 @@ namespace cocaine { namespace framework {
 class basic_session_t : public std::enable_shared_from_this<basic_session_t> {
     typedef asio::ip::tcp protocol_type;
     typedef protocol_type::socket socket_type;
+    typedef io::channel<protocol_type, io::encoder_t, detail::decoder_t> transport_type;
 
-    typedef std::shared_ptr<basic_sender_t<basic_session_t>> basic_sender_type;
-
-    typedef io::channel<protocol_type, io::encoder_t, detail::decoder_t> channel_type;
-
-    typedef std::unordered_map<std::uint64_t, std::shared_ptr<shared_state_t>> channels_type;
+    typedef std::unordered_map<std::uint64_t, std::shared_ptr<shared_state_t>> channel_map_type;
 
     class push_t;
 
@@ -64,7 +61,7 @@ public:
     typedef socket_type::native_handle_type native_handle_type;
 
     typedef std::tuple<
-        basic_sender_type,
+        std::shared_ptr<basic_sender_t<basic_session_t>>,
         std::shared_ptr<basic_receiver_t<basic_session_t>>
     > invoke_result;
 
@@ -85,8 +82,8 @@ private:
     std::atomic<std::uint64_t> counter;
     decoded_message message;
 
-    synchronized<std::shared_ptr<channel_type>> transport;
-    synchronized<channels_type> channels;
+    synchronized<std::shared_ptr<transport_type>> transport;
+    synchronized<channel_map_type> channels;
 
     std::mutex mutex;
 
@@ -95,7 +92,8 @@ public:
     ///
     /// \warning the scheduler reference should be valid until all asynchronous operations complete
     /// otherwise the behavior is undefined.
-    explicit basic_session_t(scheduler_t& scheduler) noexcept;
+    explicit
+    basic_session_t(scheduler_t& scheduler) noexcept;
 
     ~basic_session_t();
 
@@ -103,7 +101,8 @@ public:
     ///
     /// \note the session does passive connection monitoring, e.g. it won't be immediately notified
     /// if the real connection has been lost, but after the next send/recv attempt.
-    bool connected() const noexcept;
+    bool
+    connected() const noexcept;
 
     /// \threadsafe
     future<std::error_code>
@@ -112,13 +111,12 @@ public:
     /// \threadsafe
     auto connect(const std::vector<endpoint_type>& endpoints) -> task<std::error_code>::future_type;
 
-    /*!
-     * Returns the endpoint of the connected peer if the session is in connected state; otherwise
-     * returns none.
-     *
-     * \threadsafe
-     */
-    auto endpoint() const -> boost::optional<endpoint_type>;
+    /// Returns the endpoint of the connected peer if the session is in connected state; otherwise
+    /// returns none.
+    ///
+    /// \threadsafe
+    boost::optional<endpoint_type>
+    endpoint() const;
 
     native_handle_type
     native_handle() const;
@@ -172,7 +170,7 @@ private:
     on_error(const std::error_code& ec);
 
     void
-    pull(std::shared_ptr<channel_type> transport);
+    pull(std::shared_ptr<transport_type> transport);
 };
 
 }} // namespace cocaine::framework
