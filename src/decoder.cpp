@@ -22,7 +22,7 @@
 #include <msgpack/unpack.hpp>
 #include <msgpack/zone.hpp>
 
-#include <cocaine/rpc/asio/errors.hpp>
+#include <cocaine/errors.hpp>
 
 #include "cocaine/framework/message.hpp"
 

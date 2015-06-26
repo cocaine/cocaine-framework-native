@@ -17,17 +17,18 @@
 #include "cocaine/framework/detail/resolver.hpp"
 
 #include <cocaine/idl/locator.hpp>
-#include <cocaine/traits/graph.hpp>
 #include <cocaine/traits/endpoint.hpp>
+#include <cocaine/traits/error_code.hpp>
+#include <cocaine/traits/graph.hpp>
 #include <cocaine/traits/tuple.hpp>
 #include <cocaine/traits/vector.hpp>
 
-#include "cocaine/framework/detail/log.hpp"
 #include "cocaine/framework/scheduler.hpp"
 #include "cocaine/framework/session.hpp"
 #include "cocaine/framework/trace.hpp"
 
 #include "cocaine/framework/detail/basic_session.hpp"
+#include "cocaine/framework/detail/log.hpp"
 #include "cocaine/framework/detail/net.hpp"
 
 namespace ph = std::placeholders;

@@ -122,11 +122,22 @@ int version_mismatch::actual() const noexcept {
     return actual_;
 }
 
-response_error::response_error(std::tuple<int, std::string>& err) :
-    error_t(error::unspecified, cocaine::format("[%d]: %s", std::get<0>(err), std::get<1>(err))),
-    id_(std::get<0>(err))
+response_error::response_error(std::tuple<std::error_code, std::string>& err) :
+    error_t(error::unspecified,
+            std::get<1>(err).empty() ?
+                cocaine::format("[%d]: %s", std::get<0>(err).value(), std::get<0>(err).message()) :
+                cocaine::format("[%d]: %s - %s", std::get<0>(err).value(), std::get<0>(err).message(), std::get<1>(err))
+            ),
+    ec_(std::get<0>(err))
 {}
 
-int response_error::id() const noexcept {
-    return id_;
+int
+response_error::id() const noexcept {
+    return ec_.value();
+}
+
+std::error_code
+response_error::ec() const {
+    // TODO: Enable, when there will be consensus reached about worker category number.
+    throw std::runtime_error("`response_error::ec()`: not implemented yet");
 }

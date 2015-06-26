@@ -55,6 +55,7 @@ add_library(${PROJECT} SHARED ${SOURCES})
 
 target_link_libraries(${PROJECT}
     ${Boost_LIBRARIES}
+    cocaine-core # Temporary link until required.
     msgpack
 )
 
