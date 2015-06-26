@@ -18,6 +18,7 @@
 
 #include <cocaine/idl/rpc.hpp>
 #include <cocaine/idl/streaming.hpp>
+#include <cocaine/traits/error_code.hpp>
 
 #include "cocaine/framework/sender.hpp"
 
@@ -69,7 +70,7 @@ auto worker::sender::write(std::string message) -> task<worker::sender>::future_
 auto worker::sender::error(int id, std::string reason) -> task<void>::future_type {
     auto session = std::move(this->session);
 
-    return session->send<protocol::error>(id, std::move(reason))
+    return session->send<protocol::error>(std::error_code(id, std::system_category()), std::move(reason))
         .then(std::bind(&on_error, ph::_1));
 }
 

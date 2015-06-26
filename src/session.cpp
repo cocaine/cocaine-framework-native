@@ -21,6 +21,7 @@
 #include <cocaine/locked_ptr.hpp>
 
 #include "cocaine/framework/scheduler.hpp"
+#include "cocaine/framework/trace.hpp"
 
 #include "cocaine/framework/detail/log.hpp"
 #include "cocaine/framework/detail/loop.hpp"
@@ -112,7 +113,7 @@ auto session<BasicSession>::connect(const std::vector<session::endpoint_type>& e
     auto future = promise->get_future();
 
     d->sess->connect(endpoints)
-        .then(d->scheduler, wrap(std::bind(&impl::on_connect, d, ph::_1, promise)));
+        .then(d->scheduler, trace::wrap(std::bind(&impl::on_connect, d, ph::_1, promise)));
 
     return future;
 }
@@ -120,6 +121,12 @@ auto session<BasicSession>::connect(const std::vector<session::endpoint_type>& e
 template<class BasicSession>
 auto session<BasicSession>::endpoint() const -> boost::optional<endpoint_type> {
     return d->sess->endpoint();
+}
+
+template<class BasicSession>
+typename session<BasicSession>::native_handle_type
+session<BasicSession>::native_handle() const {
+    return d->sess->native_handle();
 }
 
 template<class BasicSession>

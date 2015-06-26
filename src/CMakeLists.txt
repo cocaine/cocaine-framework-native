@@ -32,6 +32,7 @@ set(SOURCES
     service
     shared_state
     receiver
+    trace.cpp
     worker.cpp
     worker/dispatch
     worker/error
@@ -54,6 +55,7 @@ add_library(${PROJECT} SHARED ${SOURCES})
 
 target_link_libraries(${PROJECT}
     ${Boost_LIBRARIES}
+    cocaine-core # Temporary link until required.
     msgpack
 )
 

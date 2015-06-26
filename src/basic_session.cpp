@@ -22,6 +22,7 @@
 
 #include "cocaine/framework/sender.hpp"
 #include "cocaine/framework/scheduler.hpp"
+#include "cocaine/framework/trace.hpp"
 
 #include "cocaine/framework/detail/log.hpp"
 #include "cocaine/framework/detail/loop.hpp"
@@ -35,7 +36,9 @@ using namespace cocaine::framework;
 using namespace cocaine::framework::detail;
 
 /// \note single shot.
-class basic_session_t::push_t : public std::enable_shared_from_this<push_t> {
+class basic_session_t::push_t :
+    public std::enable_shared_from_this<push_t>
+{
     const io::encoder_t::message_type message;
 
     // Keeps the session alive until all the operations are complete.
@@ -53,10 +56,13 @@ public:
     {}
 
     void
-    operator()(std::shared_ptr<channel_type> transport) {
+    operator()(std::shared_ptr<transport_type> transport) {
         CF_DBG("writing %lu bytes ...", message.size());
 
-        transport->writer->write(message, wrap(std::bind(&push_t::on_write, shared_from_this(), ph::_1)));
+        transport->writer->write(
+            message,
+            trace::wrap(std::bind(&push_t::on_write, shared_from_this(), ph::_1))
+        );
     }
 
 private:
@@ -122,7 +128,7 @@ basic_session_t::connect(const std::vector<endpoint_type>& endpoints) {
         asio::async_connect(
             socket_ref,
             converted.begin(), converted.end(),
-            wrap(std::bind(
+            trace::wrap(std::bind(
                 &basic_session_t::on_connect,
                 shared_from_this(), ph::_1, std::move(pr), std::move(socket)
             ))
@@ -147,9 +153,15 @@ basic_session_t::connect(const std::vector<endpoint_type>& endpoints) {
     return fr;
 }
 
-auto basic_session_t::endpoint() const -> boost::optional<endpoint_type> {
+boost::optional<basic_session_t::endpoint_type>
+basic_session_t::endpoint() const {
     // TODO: Implement `basic_session_t::endpoint()`.
     return boost::none;
+}
+
+basic_session_t::native_handle_type
+basic_session_t::native_handle() const {
+    return (*transport.synchronize())->socket->native_handle();
 }
 
 void
@@ -182,7 +194,7 @@ auto basic_session_t::invoke(std::function<io::encoder_t::message_type(std::uint
 
     channels->insert(std::make_pair(span, std::move(state)));
     return push(encoder(span))
-        .then(scheduler, wrap([tx, rx](task<void>::future_move_type future) -> invoke_result {
+        .then(scheduler, trace::wrap([tx, rx](task<void>::future_move_type future) -> invoke_result {
             future.get();
             return std::make_tuple(tx, rx);
         }));
@@ -236,7 +248,7 @@ basic_session_t::on_connect(const std::error_code& ec, promise<std::error_code> 
 
         state = static_cast<std::uint8_t>(state_t::connected);
         auto transport = this->transport.synchronize();
-        transport->reset(new channel_type(std::move(socket)));
+        transport->reset(new transport_type(std::move(socket)));
         pull(*transport);
     }
 
@@ -253,7 +265,7 @@ basic_session_t::on_read(const std::error_code& ec) {
     }
 
     CF_DBG("received message [%llu, %llu, %s]", CF_US(message.span()), CF_US(message.type()), CF_MSG(message.args()).c_str());
-    auto state = channels.apply([&](channels_type& channels) -> std::shared_ptr<shared_state_t> {
+    auto state = channels.apply([&](channel_map_type& channels) -> std::shared_ptr<shared_state_t> {
          auto it = channels.find(message.span());
          if (it == channels.end()) {
              CF_DBG("dropping an orphan span %llu message", CF_US(message.span()));
@@ -279,7 +291,7 @@ basic_session_t::on_error(const std::error_code& ec) {
 
     state = static_cast<std::uint8_t>(state_t::disconnected);
 
-    auto channels = this->channels.apply([&](channels_type& channels) -> channels_type {
+    auto channels = this->channels.apply([&](channel_map_type& channels) -> channel_map_type {
         auto copy = channels;
         channels.clear();
         return copy;
@@ -291,10 +303,13 @@ basic_session_t::on_error(const std::error_code& ec) {
 }
 
 void
-basic_session_t::pull(std::shared_ptr<channel_type> transport) {
+basic_session_t::pull(std::shared_ptr<transport_type> transport) {
     CF_DBG(">> listening for read events ...");
 
-    transport->reader->read(message, wrap(std::bind(&basic_session_t::on_read, shared_from_this(), ph::_1)));
+    transport->reader->read(
+        message,
+        trace::wrap(std::bind(&basic_session_t::on_read, shared_from_this(), ph::_1))
+    );
 }
 
 #include "sender.cpp"

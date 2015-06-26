@@ -80,15 +80,18 @@ basic_service_t::basic_service_t(basic_service_t&& other) :
 
 basic_service_t::~basic_service_t() {}
 
-auto basic_service_t::name() const noexcept -> const std::string& {
+const std::string&
+basic_service_t::name() const noexcept {
     return d->name;
 }
 
-uint basic_service_t::version() const noexcept {
+uint
+basic_service_t::version() const noexcept {
     return d->version;
 }
 
-auto basic_service_t::connect() -> task<void>::future_type {
+cocaine::framework::future<void>
+basic_service_t::connect() {
     CF_CTX("SC");
     CF_DBG(">> connecting ...");
 
@@ -102,10 +105,16 @@ auto basic_service_t::connect() -> task<void>::future_type {
     }
 
     return d->resolver->resolve(d->name)
-        .then(wrap(std::bind(&::on_resolve, ph::_1, d->version, session)))
-        .then(wrap(std::bind(&::on_connect, ph::_1)));
+        .then(trace::wrap(std::bind(&::on_resolve, ph::_1, d->version, session)))
+        .then(trace::wrap(std::bind(&::on_connect, ph::_1)));
 }
 
-auto basic_service_t::endpoint() const -> boost::optional<session_t::endpoint_type> {
+boost::optional<session_t::endpoint_type>
+basic_service_t::endpoint() const {
     return session->endpoint();
+}
+
+basic_service_t::native_handle_type
+basic_service_t::native_handle() const {
+    return session->native_handle();
 }

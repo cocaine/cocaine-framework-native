@@ -18,6 +18,22 @@
 
 using namespace cocaine::framework;
 
+namespace {
+
+void
+default_fallback(const std::string& event, worker::sender tx, worker::receiver) {
+    const auto id = 1;
+    const auto reason = "event '" + event + "' not found";
+
+    tx.error(id, reason);
+}
+
+} // namespace
+
+dispatch_t::dispatch_t() {
+    data.fallback = &::default_fallback;
+}
+
 boost::optional<dispatch_t::handler_type>
 dispatch_t::get(const std::string& event) const {
     auto it = handlers.find(event);
@@ -28,6 +44,17 @@ dispatch_t::get(const std::string& event) const {
     return boost::none;
 }
 
-void dispatch_t::on(const std::string& event, dispatch_t::handler_type handler) {
+void
+dispatch_t::on(std::string event, dispatch_t::handler_type handler) {
     handlers[event] = std::move(handler);
+}
+
+dispatch_t::fallback_type
+dispatch_t::fallback() const {
+    return data.fallback;
+}
+
+void
+dispatch_t::fallback(fallback_type handler) {
+    data.fallback = std::move(handler);
 }

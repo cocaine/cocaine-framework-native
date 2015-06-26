@@ -1,3 +1,26 @@
+cocaine-framework-native (0.12.1-0) unstable; urgency=low
+
+  * API: Error categories support.
+
+ -- Evgeny Safronov <division494@gmail.com>  Wed, 17 Jun 2015 15:33:07 +0400
+
+cocaine-framework-native (0.12.0-3) unstable; urgency=low
+
+  * API: Fallback handler.
+    Added ability to redefine the default fallback handler, when event name
+    mismatch occurred. The default handler still writes error to the upstream
+    given.
+
+ -- Evgeny Safronov <division494@gmail.com>  Tue, 16 Jun 2015 18:00:37 +0400
+
+cocaine-framework-native (0.12.0-2) unstable; urgency=low
+
+  * API: Extended session and service's API which now provides a native
+    socket handle to be able to allow access to native socket functionality
+    that is not otherwise provided.
+
+ -- Evgeny Safronov <division494@gmail.com>  Mon, 15 Jun 2015 14:37:47 +0400
+
 cocaine-framework-native (0.12.0-1) unstable; urgency=low
 
   * Release version.

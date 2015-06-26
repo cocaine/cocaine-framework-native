@@ -149,15 +149,14 @@ public:
     unexpected_eof();
 };
 
-/*!
- * The exception class, that is thrown by the Framework when it receives protocol message with
- * client's error.
- */
+
+/// The exception class, that is thrown by the Framework when it receives protocol message with
+/// client's error.
 class request_error : public error_t {
-    int id_;
+    std::error_code ec_;
 
 public:
-    request_error(int id, std::string reason);
+    request_error(std::error_code ec, std::string reason);
 
     /// Returns the request errno.
     int id() const noexcept;

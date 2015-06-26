@@ -17,16 +17,18 @@
 #include "cocaine/framework/detail/resolver.hpp"
 
 #include <cocaine/idl/locator.hpp>
-#include <cocaine/traits/graph.hpp>
 #include <cocaine/traits/endpoint.hpp>
+#include <cocaine/traits/error_code.hpp>
+#include <cocaine/traits/graph.hpp>
 #include <cocaine/traits/tuple.hpp>
 #include <cocaine/traits/vector.hpp>
 
-#include "cocaine/framework/detail/log.hpp"
 #include "cocaine/framework/scheduler.hpp"
 #include "cocaine/framework/session.hpp"
+#include "cocaine/framework/trace.hpp"
 
 #include "cocaine/framework/detail/basic_session.hpp"
+#include "cocaine/framework/detail/log.hpp"
 #include "cocaine/framework/detail/net.hpp"
 
 namespace ph = std::placeholders;
@@ -116,9 +118,9 @@ auto resolver_t::resolve(std::string name) -> task<resolver_t::result_t>::future
 
     CF_DBG(">> connecting to the locator ...");
     return locator->connect(endpoints())
-        .then(scheduler, wrap(std::bind(&on_connect, ph::_1, locator, name)))
-        .then(scheduler, wrap(std::bind(&on_invoke, ph::_1, locator)))
-        .then(scheduler, wrap(std::bind(&on_resolve, ph::_1, locator, name)));
+        .then(scheduler, trace::wrap(std::bind(&on_connect, ph::_1, locator, name)))
+        .then(scheduler, trace::wrap(std::bind(&on_invoke, ph::_1, locator)))
+        .then(scheduler, trace::wrap(std::bind(&on_resolve, ph::_1, locator, name)));
 }
 
 serialized_resolver_t::serialized_resolver_t(std::vector<endpoint_type> endpoints, scheduler_t& scheduler) :

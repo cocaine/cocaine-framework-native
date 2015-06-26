@@ -17,7 +17,7 @@
 #include "cocaine/framework/worker/receiver.hpp"
 
 #include <cocaine/idl/rpc.hpp>
-#include <cocaine/idl/streaming.hpp>
+#include <cocaine/traits/error_code.hpp>
 #include <cocaine/traits/tuple.hpp>
 
 #include "cocaine/framework/message.hpp"
@@ -47,12 +47,12 @@ on_recv(task<decoded_message>::future_move_type future) {
         return chunk;
     }
     case io::event_traits<protocol::error>::id: {
-        int id;
+        std::error_code ec;
         std::string reason;
         io::type_traits<
             io::event_traits<protocol::error>::argument_type
-        >::unpack(message.args(), id, reason);
-        throw request_error(id, std::move(reason));
+        >::unpack(message.args(), ec, reason);
+        throw request_error(std::move(ec), std::move(reason));
     }
     case io::event_traits<protocol::choke>::id:
         return boost::none;

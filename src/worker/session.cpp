@@ -290,23 +290,20 @@ void worker_session_t::process_invoke(std::map<std::uint64_t, std::shared_ptr<sh
     >::unpack(message.args(), event);
     CF_DBG("-> Invoke '%s'", event.c_str());
 
-    auto handler = dispatch.get(event);
-    if (!handler) {
-        CF_DBG("event '%s' not found", event.c_str());
-        typedef io::protocol<io::worker::rpc::invoke::upstream_type>::scope protocol;
-        push(io::encoded<protocol::error>(message.span(), 1, "event '" + event + "' not found"));
-        return;
-    }
-
     auto id = message.span();
     auto tx = std::make_shared<basic_sender_t<worker_session_t>>(id, shared_from_this());
     auto state = std::make_shared<shared_state_t>();
     auto rx = std::make_shared<basic_receiver_t<worker_session_t>>(id, shared_from_this(), state);
 
-    channels.insert(std::make_pair(id, state));
-    executor([handler, tx, rx](){
-        (*handler)(tx, rx);
-    });
+    if (auto handler = dispatch.get(event)) {
+        channels.insert(std::make_pair(id, state));
+        executor([handler, tx, rx](){
+            (*handler)(tx, rx);
+        });
+    } else {
+        CF_DBG("event '%s' not found, invoking fallback handler", event.c_str());
+        dispatch.fallback()(event, tx, rx);
+    }
 }
 
 #include "../sender.cpp"

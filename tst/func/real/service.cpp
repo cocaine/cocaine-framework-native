@@ -1,8 +1,10 @@
 #include <gtest/gtest.h>
 
+#include <cocaine/common.hpp>
 #include <cocaine/idl/storage.hpp>
 #include <cocaine/idl/streaming.hpp>
 #include <cocaine/idl/node.hpp>
+#include <cocaine/traits/error_code.hpp>
 
 #include <cocaine/framework/service.hpp>
 #include <cocaine/framework/scheduler.hpp>

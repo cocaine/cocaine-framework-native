@@ -134,6 +134,11 @@ void worker_t::on(std::string event, handler_type handler) {
     d->dispatch.on(event, std::move(handler));
 }
 
+void
+worker_t::fallback(fallback_type handler) {
+    d->dispatch.fallback(std::move(handler));
+}
+
 auto worker_t::options() const -> const options_t& {
     return d->options;
 }
