@@ -312,6 +312,10 @@ basic_session_t::pull(std::shared_ptr<transport_type> transport) {
     );
 }
 
+io::encoder_t& basic_session_t::get_encoder() {
+    return channel->writer->get_encoder();
+}
+
 #include "sender.cpp"
 template class cocaine::framework::basic_sender_t<basic_session_t>;
 

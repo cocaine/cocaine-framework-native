@@ -30,6 +30,12 @@ basic_sender_t<Session>::basic_sender_t(std::uint64_t id, std::shared_ptr<sessio
 {}
 
 template<class Session>
+cocaine::io::encoder_t&
+basic_sender_t<Session>::get_encoder() {
+    return session->get_encoder();
+}
+
+template<class Session>
 task<void>::future_type
 basic_sender_t<Session>::send(io::encoder_t::message_type&& message) {
     return session->push(std::move(message));

@@ -74,7 +74,7 @@ auto decoded_message::args() const -> const msgpack::object& {
     return d->obj.via.array.ptr[2];
 }
 
-auto decoded_message::get_header(const io::header_key_t& key) const -> boost::optional<io::header_t> {
+auto decoded_message::get_header(const io::header::data_t& key) const -> boost::optional<io::header_t> {
     for(auto& header : d->headers) {
         if(header.get_name() == key) {
             return boost::make_optional(header);

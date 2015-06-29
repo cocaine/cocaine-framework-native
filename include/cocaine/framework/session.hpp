@@ -56,6 +56,9 @@ private:
     std::shared_ptr<impl> d;
     scheduler_t& scheduler;
 
+    // Refrence to encoder of underlying session.
+    io::encoder_t& encoder;
+
 public:
     explicit session(scheduler_t& scheduler);
     ~session();
@@ -74,8 +77,8 @@ public:
     typename task<channel<Event>>::future_type
     invoke(Args&&... args) {
         namespace ph = std::placeholders;
-
-        return invoke(std::bind(&session::encode<Event, Args...>, ph::_1, std::forward<Args>(args)...))
+        // "this" should be safe to bind as far as it is called directly in non template function
+        return invoke(std::bind(&session::encode<Event, Args...>, this, ph::_1, std::forward<Args>(args)...))
             .then(scheduler, std::bind(&session::on_invoke<Event>, ph::_1));
     }
 
@@ -84,10 +87,9 @@ private:
     invoke(std::function<io::encoder_t::message_type(std::uint64_t)> encoder);
 
     template<class Event, class... Args>
-    static
     io::encoder_t::message_type
     encode(std::uint64_t span, Args&... args) {
-        return io::encoded<Event>(span, std::forward<Args>(args)...);
+        return encoder.encode<Event>(span, std::forward<Args>(args)...);
     }
 
     template<class Event>

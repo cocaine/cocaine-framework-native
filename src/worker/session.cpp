@@ -125,13 +125,13 @@ worker_session_t::revoke(std::uint64_t span) {
 void worker_session_t::handshake(const std::string& uuid) {
     CF_DBG("<- Handshake");
 
-    push(io::encoded<io::worker::handshake>(CONTROL_CHANNEL_ID, uuid));
+    push(get_encoder().encode<io::rpc::handshake>(CONTROL_CHANNEL_ID, uuid));
 }
 
 void worker_session_t::terminate(int code, std::string reason) {
     CF_DBG("<- Terminate [%d, %s]", code, reason.c_str());
 
-    push(io::encoded<io::worker::terminate>(CONTROL_CHANNEL_ID, code, std::move(reason)))
+    push(get_encoder().encode<io::rpc::terminate>(CONTROL_CHANNEL_ID, code, std::move(reason)))
         .then(std::bind(&worker_session_t::on_terminate, shared_from_this(), ph::_1));
     // TODO: This is shit!
 }
@@ -155,7 +155,7 @@ void worker_session_t::exhale(const std::error_code& ec) {
 
     CF_DBG("<- ♥");
 
-    push(io::encoded<io::worker::heartbeat>(CONTROL_CHANNEL_ID));
+    push(get_encoder().encode<io::rpc::heartbeat>(CONTROL_CHANNEL_ID));
 
     heartbeat_timer.expires_from_now(HEARTBEAT_TIMEOUT);
     heartbeat_timer.async_wait(std::bind(&worker_session_t::exhale, shared_from_this(), ph::_1));
@@ -197,6 +197,10 @@ void worker_session_t::on_error(const std::error_code& ec) {
         channel.second->put(ec);
     }
     channels->clear();
+}
+
+cocaine::io::encoder_t& worker_session_t::get_encoder() {
+    return channel->writer->get_encoder();
 }
 
 void worker_session_t::process() {
@@ -306,9 +310,9 @@ void worker_session_t::process_invoke(std::map<std::uint64_t, std::shared_ptr<sh
     }
 	
     //tracer::trace_restore_scope_t trace_scope;
-    auto trace_id = message.get_header(io::header_id::TRACE_ID);
-    auto span_id = message.get_header(io::header_id::SPAN_ID);
-    auto parent_id = message.get_header(io::header_id::PARENT_ID);
+    auto trace_id = message.get_header<cocaine::io::headers::trace_id<>>();
+    auto span_id = message.get_header<io::headers::span_id<>>();
+    auto parent_id = message.get_header<io::headers::parent_id<>>();
 
     //if(trace_id && span_id && parent_id) {
     //    trace_scope.restore("sr", event, trace_id->get_numeric_value(), span_id->get_numeric_value(), parent_id->get_numeric_value());

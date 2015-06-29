@@ -96,6 +96,10 @@ public:
     void
     revoke(std::uint64_t span);
 
+    auto push(std::uint64_t span, io::encoder_t::message_type&& message) -> task<void>::future_type;
+    auto push(io::encoder_t::message_type&& message) -> task<void>::future_type;
+    void revoke(std::uint64_t span);
+    io::encoder_t& get_encoder();
 private:
     /// Handle incoming protocol message.
     void on_read(const std::error_code& ec);

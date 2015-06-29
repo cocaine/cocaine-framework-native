@@ -83,7 +83,8 @@ public:
 template<class BasicSession>
 session<BasicSession>::session(scheduler_t& scheduler) :
     d(new impl(scheduler)),
-    scheduler(scheduler)
+    scheduler(scheduler),
+    encoder(d->sess->get_encoder())
 {}
 
 template<class BasicSession>

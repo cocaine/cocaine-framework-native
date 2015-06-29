@@ -53,7 +53,14 @@ public:
     /// Returns the object representation of message arguments.
     auto args() const -> const msgpack::object&;
 
-    auto get_header(const io::header_key_t& key) const -> boost::optional<io::header_t>;
+    template<class Header>
+    boost::optional<io::header_t>
+    get_header() const {
+        return get_header(Header::name());
+    }
+
+private:
+    auto get_header(const io::header::data_t& key) const -> boost::optional<io::header_t>;
 };
 
 }} // namespace cocaine::framework

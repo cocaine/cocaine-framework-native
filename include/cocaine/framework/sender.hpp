@@ -53,10 +53,11 @@ public:
     template<class Event, class... Args>
     auto
     send(Args&&... args) -> task<void>::future_type {
-        return send(io::encoded<Event>(id, std::forward<Args>(args)...));
+        return send(get_encoder().template encode<Event>(id, std::forward<Args>(args)...));
     }
 
 private:
+    auto get_encoder() -> io::encoder_t&;
     auto send(io::encoder_t::message_type&& message) -> task<void>::future_type;
 };
 

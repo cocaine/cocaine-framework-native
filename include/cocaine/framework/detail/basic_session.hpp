@@ -162,6 +162,11 @@ public:
      */
     void revoke(std::uint64_t span);
 
+    /*!
+     * Returns an encoder bound to session
+     */
+    io::encoder_t& get_encoder();
+
 private:
     /// Called on socket connect event.
     void
