@@ -55,7 +55,7 @@ add_executable(load
     load/app/echo
     load/app/http
 # Suppressed, because of echo service unavailability.
-#    load/service/echo
+    load/service/echo
     load/service/storage
     load/service/logging
 )
