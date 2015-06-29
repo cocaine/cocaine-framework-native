@@ -14,7 +14,7 @@ namespace testing { namespace load {
 typedef boost::accumulators::accumulator_set<
     double,
     boost::accumulators::stats<
-        boost::accumulators::tag::tail_quantile<boost::accumulators::right>
+        boost::accumulators::tag::extended_p_square
     >
 > stats_t;
 
