@@ -135,20 +135,19 @@ public:
     void
     cancel();
 
-    /*!
-     * Sends an invocation event and creates a new channel accociated with it.
-     *
-     * \note if the future returned throws an exception that means that the data will never be
-     * received, but if it doesn't - the data is not guaranteed to be received. It is possible for
-     * the other end of connection to hang up immediately after the future returns ok.
-     *
-     * If you send a **mute** event, there is no way to obtain guarantees of successful message
-     * transporting.
-     *
-     * \threadsafe
-     */
-    auto invoke(std::function<io::encoder_t::message_type(std::uint64_t)> encoder)
-        -> task<invoke_result>::future_type;
+
+    /// Sends an invocation event and creates a new channel accociated with it.
+    ///
+    /// \note if the future returned throws an exception that means that the data will never be
+    /// received, but if it doesn't - the data is not guaranteed to be received. It is possible for
+    /// the other end of connection to hang up immediately after the future returns ok.
+    ///
+    /// If you send a **mute** event, there is no way to obtain guarantees of successful message
+    /// transporting.
+    ///
+    /// \threadsafe
+    future<invoke_result>
+    invoke(std::function<io::encoder_t::message_type(std::uint64_t)> encoder);
 
     /// TODO: Implement: invoke_mute - sends an invoke event without channel creation.
 

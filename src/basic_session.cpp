@@ -36,7 +36,7 @@ using namespace cocaine::framework;
 using namespace cocaine::framework::detail;
 
 /// \note single shot.
-class basic_session_t::push_t :
+class basic_session_t::push_t:
     public std::enable_shared_from_this<push_t>
 {
     const io::encoder_t::message_type message;
@@ -177,9 +177,8 @@ basic_session_t::cancel() {
     CF_DBG("<< disconnected");
 }
 
-auto basic_session_t::invoke(std::function<io::encoder_t::message_type(std::uint64_t)> encoder)
-    -> task<invoke_result>::future_type
-{
+framework::future<basic_session_t::invoke_result>
+basic_session_t::invoke(std::function<io::encoder_t::message_type(std::uint64_t)> encoder) {
     // Synchronization here is required to prevent channel id mixing in multi-threaded environment.
     std::lock_guard<std::mutex> lock(mutex);
 
@@ -188,14 +187,14 @@ auto basic_session_t::invoke(std::function<io::encoder_t::message_type(std::uint
     CF_CTX("bI" + std::to_string(span));
     CF_DBG("invoking span %llu event ...", CF_US(span));
 
-    auto tx = std::make_shared<basic_sender_t<basic_session_t>>(span, shared_from_this());
+    auto tx    = std::make_shared<basic_sender_t<basic_session_t>>(span, shared_from_this());
     auto state = std::make_shared<shared_state_t>();
-    auto rx = std::make_shared<basic_receiver_t<basic_session_t>>(span, shared_from_this(), state);
+    auto rx    = std::make_shared<basic_receiver_t<basic_session_t>>(span, shared_from_this(), state);
 
     channels->insert(std::make_pair(span, std::move(state)));
     return push(encoder(span))
-        .then(scheduler, trace::wrap([tx, rx](task<void>::future_move_type future) -> invoke_result {
-            future.get();
+        .then(scheduler, trace::wrap([tx, rx](future<void>& fr) -> invoke_result {
+            fr.get();
             return std::make_tuple(tx, rx);
         }));
 }
@@ -219,7 +218,8 @@ basic_session_t::push(io::encoder_t::message_type&& message) {
     return fr;
 }
 
-void basic_session_t::revoke(std::uint64_t span) {
+void
+basic_session_t::revoke(std::uint64_t span) {
     CF_DBG(">> revoking span %llu channel", CF_US(span));
 
     auto channels = this->channels.synchronize();
