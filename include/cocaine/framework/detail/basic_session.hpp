@@ -36,22 +36,29 @@ namespace cocaine { namespace framework {
 
 
 /// Represents resumable session implementation.
-/*!
- * \note I can't guarantee lifetime safety in other way than by making this class living as shared
- * pointer. The reason is: in particular case the connection's event loop runs in a separate
- * thread, other in that the connection itself lives.
- * Thus no one can guarantee that all asynchronous operations are completed before the connection
- * instance be destroyed.
- *
- * \internal
- * \threadsafe
- */
-class basic_session_t : public std::enable_shared_from_this<basic_session_t> {
+///
+/// \note I can't guarantee lifetime safety in other way than by making this class living as shared
+/// pointer. The reason is: in particular case the connection's event loop runs in a separate
+/// thread, other in that the connection itself lives.
+/// Thus no one can guarantee that all asynchronous operations are completed before the connection
+/// instance be destroyed.
+///
+/// \internal
+/// \threadsafe
+class basic_session_t:
+    public std::enable_shared_from_this<basic_session_t>
+{
+    /// Transport types.
+    ///
+    /// We use the pure ASIO internally, because Cocaine API uses and exports it.
     typedef asio::ip::tcp protocol_type;
     typedef protocol_type::socket socket_type;
     typedef io::channel<protocol_type, io::encoder_t, detail::decoder_t> transport_type;
 
-    typedef std::unordered_map<std::uint64_t, std::shared_ptr<shared_state_t>> channel_map_type;
+    typedef std::unordered_map<
+        std::uint64_t,
+        std::shared_ptr<shared_state_t>
+    > channel_map_type;
 
     class push_t;
 
