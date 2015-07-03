@@ -178,7 +178,7 @@ basic_session_t::cancel() {
 }
 
 framework::future<basic_session_t::invoke_result>
-basic_session_t::invoke(std::function<io::encoder_t::message_type(std::uint64_t)> encoder) {
+basic_session_t::invoke(const std::function<io::encoder_t::message_type(std::uint64_t, io::encoder_t&)>& message_getter) {
     // Synchronization here is required to prevent channel id mixing in multi-threaded environment.
     std::lock_guard<std::mutex> lock(mutex);
 
@@ -192,15 +192,15 @@ basic_session_t::invoke(std::function<io::encoder_t::message_type(std::uint64_t)
     auto rx    = std::make_shared<basic_receiver_t<basic_session_t>>(span, shared_from_this(), state);
 
     channels->insert(std::make_pair(span, std::move(state)));
-    return push(encoder(span))
+    return push(std::bind(message_getter, span, std::placeholders::_1))
         .then(scheduler, trace::wrap([tx, rx](future<void>& fr) -> invoke_result {
-            fr.get();
+            future.get();
             return std::make_tuple(tx, rx);
         }));
 }
 
 framework::future<void>
-basic_session_t::push(io::encoder_t::message_type&& message) {
+basic_session_t::push(const std::function<io::encoder_t::message_type(io::encoder_t&)>& message_getter) {
     CF_CTX("bP");
     CF_DBG(">> writing message ...");
 
@@ -209,6 +209,7 @@ basic_session_t::push(io::encoder_t::message_type&& message) {
 
     auto transport = *this->transport.synchronize();
     if (transport) {
+        auto message = message_getter(transport->writer->get_encoder());
         auto pusher = std::make_shared<push_t>(std::move(message), shared_from_this(), std::move(pr));
         (*pusher)(transport);
     } else {
@@ -310,10 +311,6 @@ basic_session_t::pull(std::shared_ptr<transport_type> transport) {
         message,
         trace::wrap(std::bind(&basic_session_t::on_read, shared_from_this(), ph::_1))
     );
-}
-
-io::encoder_t& basic_session_t::get_encoder() {
-    return channel->writer->get_encoder();
 }
 
 #include "sender.cpp"

@@ -83,8 +83,7 @@ public:
 template<class BasicSession>
 session<BasicSession>::session(scheduler_t& scheduler) :
     d(new impl(scheduler)),
-    scheduler(scheduler),
-    encoder(d->sess->get_encoder())
+    scheduler(scheduler)
 {}
 
 template<class BasicSession>
@@ -131,10 +130,10 @@ session<BasicSession>::native_handle() const {
 }
 
 template<class BasicSession>
-auto session<BasicSession>::invoke(std::function<io::encoder_t::message_type(std::uint64_t)> encoder)
+auto session<BasicSession>::invoke(std::function<io::encoder_t::message_type(std::uint64_t, io::encoder_t&)> message_getter)
     -> task<basic_invoke_result>::future_type
 {
-    return d->sess->invoke(std::move(encoder));
+    return d->sess->invoke(message_getter);
 }
 
 #include "cocaine/framework/detail/basic_session.hpp"

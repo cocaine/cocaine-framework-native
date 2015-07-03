@@ -64,7 +64,7 @@ private:
 
     /// Underlying transport.
     typedef io::channel<protocol_type, io::encoder_t, detail::decoder_t> transport_type;
-    std::unique_ptr<transport_type> transport;
+    synchronized<std::unique_ptr<transport_type>> transport;
 
     std::atomic<std::uint64_t> counter;
     synchronized<std::map<std::uint64_t, std::shared_ptr<shared_state_t>>> channels;
@@ -91,16 +91,19 @@ public:
     run(const std::string& uuid);
 
     future<void>
-    push(io::encoder_t::message_type&& message);
+    push(const std::function<io::encoder_t::message_type(io::encoder_t&)>& message_getter);
 
     void
     revoke(std::uint64_t span);
 
-    auto push(std::uint64_t span, io::encoder_t::message_type&& message) -> task<void>::future_type;
-    auto push(io::encoder_t::message_type&& message) -> task<void>::future_type;
-    void revoke(std::uint64_t span);
-    io::encoder_t& get_encoder();
 private:
+    template<class Event, class... Args>
+    static
+    io::encoder_t::message_type
+    encode(std::uint64_t span, io::encoder_t& encoder, Args&... args) {
+        return encoder.encode<Event>(span, std::forward<Args>(args)...);
+    }
+
     /// Handle incoming protocol message.
     void on_read(const std::error_code& ec);
 

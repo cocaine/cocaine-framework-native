@@ -135,7 +135,6 @@ public:
     void
     cancel();
 
-
     /// Sends an invocation event and creates a new channel accociated with it.
     ///
     /// \note if the future returned throws an exception that means that the data will never be
@@ -147,13 +146,13 @@ public:
     ///
     /// \threadsafe
     future<invoke_result>
-    invoke(std::function<io::encoder_t::message_type(std::uint64_t)> encoder);
+    invoke(const std::function<io::encoder_t::message_type(std::uint64_t, io::encoder_t&)>& message_getter);
 
     /// TODO: Implement: invoke_mute - sends an invoke event without channel creation.
 
     /// Sends an event without creating a new channel.
     future<void>
-    push(io::encoder_t::message_type&& message);
+    push(const std::function<io::encoder_t::message_type(io::encoder_t&)>& message_getter);
 
     /*!
      * Unsubscribes a channel with the given span.
@@ -161,11 +160,6 @@ public:
      * \todo return operation result (revoked/notfound).
      */
     void revoke(std::uint64_t span);
-
-    /*!
-     * Returns an encoder bound to session
-     */
-    io::encoder_t& get_encoder();
 
 private:
     /// Called on socket connect event.
