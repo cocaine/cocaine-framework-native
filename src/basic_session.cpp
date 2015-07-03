@@ -194,7 +194,7 @@ basic_session_t::invoke(const std::function<io::encoder_t::message_type(std::uin
     channels->insert(std::make_pair(span, std::move(state)));
     return push(std::bind(message_getter, span, std::placeholders::_1))
         .then(scheduler, trace::wrap([tx, rx](future<void>& fr) -> invoke_result {
-            future.get();
+            fr.get();
             return std::make_tuple(tx, rx);
         }));
 }
