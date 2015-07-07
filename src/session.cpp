@@ -130,10 +130,10 @@ session<BasicSession>::native_handle() const {
 }
 
 template<class BasicSession>
-auto session<BasicSession>::invoke(std::function<io::encoder_t::message_type(std::uint64_t)> encoder)
+auto session<BasicSession>::invoke(encode_callback_t encode_callback)
     -> task<basic_invoke_result>::future_type
 {
-    return d->sess->invoke(std::move(encoder));
+    return d->sess->invoke(std::move(encode_callback));
 }
 
 #include "cocaine/framework/detail/basic_session.hpp"

@@ -29,6 +29,7 @@
 #include <cocaine/locked_ptr.hpp>
 #include <cocaine/rpc/asio/channel.hpp>
 
+#include "cocaine/framework/encoder.hpp"
 #include "cocaine/framework/message.hpp"
 #include "cocaine/framework/worker/dispatch.hpp"
 
@@ -64,7 +65,7 @@ private:
 
     /// Underlying transport.
     typedef io::channel<protocol_type, io::encoder_t, detail::decoder_t> transport_type;
-    std::unique_ptr<transport_type> transport;
+    synchronized<std::unique_ptr<transport_type>> transport;
 
     std::atomic<std::uint64_t> counter;
     synchronized<std::map<std::uint64_t, std::shared_ptr<shared_state_t>>> channels;
@@ -91,12 +92,19 @@ public:
     run(const std::string& uuid);
 
     future<void>
-    push(io::encoder_t::message_type&& message);
+    push(bound_encode_callback_t encode_callback);
 
     void
     revoke(std::uint64_t span);
 
 private:
+    template<class Event, class... Args>
+    static
+    io::encoder_t::message_type
+    encode(std::uint64_t span, io::encoder_t& encoder, Args&... args) {
+        return encoder.encode<Event>(span, std::forward<Args>(args)...);
+    }
+
     /// Handle incoming protocol message.
     void on_read(const std::error_code& ec);
 

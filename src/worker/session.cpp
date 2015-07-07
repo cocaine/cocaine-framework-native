@@ -40,20 +40,21 @@ const boost::posix_time::time_duration DISOWN_TIMEOUT = boost::posix_time::secon
 //! \note single shot.
 template<class Session>
 class worker_session_t::push_t : public std::enable_shared_from_this<push_t<Session>> {
-    io::encoder_t::message_type message;
+    bound_encode_callback_t encode_callback;
     std::shared_ptr<Session> session;
     task<void>::promise_type h;
 
 public:
-    explicit push_t(io::encoder_t::message_type&& message, std::shared_ptr<Session> session, task<void>::promise_type&& h) :
-        message(std::move(message)),
+    explicit push_t(bound_encode_callback_t _encode_callback, std::shared_ptr<Session> session, task<void>::promise_type&& h) :
+        encode_callback(std::move(_encode_callback)),
         session(session),
         h(std::move(h))
     {}
 
     void operator()() {
-        if (session->transport) {
-            session->transport->writer->write(message, std::bind(&push_t::on_write, this->shared_from_this(), ph::_1));
+        auto transport = session->transport.synchronize();
+        if (*transport) {
+            (*transport)->writer->write(encode_callback((*transport)->writer->get_encoder()), std::bind(&push_t::on_write, this->shared_from_this(), ph::_1));
         } else {
             h.set_exception(std::system_error(asio::error::not_connected));
         }
@@ -86,7 +87,7 @@ worker_session_t::connect(const endpoint_type& endpoint) {
     std::unique_ptr<protocol_type::socket> socket(new protocol_type::socket(scheduler.loop().loop));
     socket->connect(endpoint);
 
-    transport.reset(new transport_type(std::move(socket)));
+    transport->reset(new transport_type(std::move(socket)));
 }
 
 void
@@ -95,11 +96,11 @@ worker_session_t::run(const std::string& uuid) {
     inhale();
     exhale();
 
-    transport->reader->read(message, std::bind(&worker_session_t::on_read, shared_from_this(), ph::_1));
+    (*transport.synchronize())->reader->read(message, std::bind(&worker_session_t::on_read, shared_from_this(), ph::_1));
 }
 
 future<void>
-worker_session_t::push(io::encoder_t::message_type&& message) {
+worker_session_t::push(bound_encode_callback_t encode_callback) {
     promise<void> pr;
     auto fr = pr.get_future();
 
@@ -107,7 +108,7 @@ worker_session_t::push(io::encoder_t::message_type&& message) {
         std::bind(
             &push_t<worker_session_t>::operator(),
             std::make_shared<push_t<worker_session_t>>(
-                std::move(message), shared_from_this(), std::move(pr)
+                std::move(encode_callback), shared_from_this(), std::move(pr)
             )
         )
     );
@@ -125,13 +126,13 @@ worker_session_t::revoke(std::uint64_t span) {
 void worker_session_t::handshake(const std::string& uuid) {
     CF_DBG("<- Handshake");
 
-    push(io::encoded<io::worker::handshake>(CONTROL_CHANNEL_ID, uuid));
+    push(std::bind(&worker_session_t::encode<io::worker::handshake, std::string>, CONTROL_CHANNEL_ID, std::placeholders::_1, uuid));
 }
 
 void worker_session_t::terminate(int code, std::string reason) {
     CF_DBG("<- Terminate [%d, %s]", code, reason.c_str());
 
-    push(io::encoded<io::worker::terminate>(CONTROL_CHANNEL_ID, code, std::move(reason)))
+    push(std::bind(&worker_session_t::encode<io::worker::terminate, int, std::string>, CONTROL_CHANNEL_ID, std::placeholders::_1, code, std::move(reason)))
         .then(std::bind(&worker_session_t::on_terminate, shared_from_this(), ph::_1));
     // TODO: This is shit!
 }
@@ -155,7 +156,7 @@ void worker_session_t::exhale(const std::error_code& ec) {
 
     CF_DBG("<- ♥");
 
-    push(io::encoded<io::worker::heartbeat>(CONTROL_CHANNEL_ID));
+    push(std::bind(&worker_session_t::encode<io::worker::heartbeat>, CONTROL_CHANNEL_ID, std::placeholders::_1));
 
     heartbeat_timer.expires_from_now(HEARTBEAT_TIMEOUT);
     heartbeat_timer.async_wait(std::bind(&worker_session_t::exhale, shared_from_this(), ph::_1));
@@ -185,7 +186,7 @@ void worker_session_t::on_read(const std::error_code& ec) {
     process();
 
     CF_DBG("waiting for more data ...");
-    transport->reader->read(message, std::bind(&worker_session_t::on_read, this, ph::_1));
+    (*transport.synchronize())->reader->read(message, std::bind(&worker_session_t::on_read, this, ph::_1));
 }
 
 void worker_session_t::on_error(const std::error_code& ec) {
@@ -304,6 +305,16 @@ void worker_session_t::process_invoke(std::map<std::uint64_t, std::shared_ptr<sh
         CF_DBG("event '%s' not found, invoking fallback handler", event.c_str());
         dispatch.fallback()(event, tx, rx);
     }
+	
+    //tracer::trace_restore_scope_t trace_scope;
+    auto trace_id = message.get_header<cocaine::io::headers::trace_id<>>();
+    auto span_id = message.get_header<io::headers::span_id<>>();
+    auto parent_id = message.get_header<io::headers::parent_id<>>();
+
+    //if(trace_id && span_id && parent_id) {
+    //    trace_scope.restore("sr", event, trace_id->get_numeric_value(), span_id->get_numeric_value(), parent_id->get_numeric_value());
+    //}
+
 }
 
 #include "../sender.cpp"

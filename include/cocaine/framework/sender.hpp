@@ -19,8 +19,7 @@
 #include <cstdint>
 #include <memory>
 
-#include <cocaine/rpc/asio/encoder.hpp>
-
+#include "cocaine/framework/encoder.hpp"
 #include "cocaine/framework/forwards.hpp"
 
 namespace cocaine {
@@ -53,11 +52,11 @@ public:
     template<class Event, class... Args>
     auto
     send(Args&&... args) -> task<void>::future_type {
-        return send(io::encoded<Event>(id, std::forward<Args>(args)...));
+        return send(std::bind(&encode<Event, Args...>, id, std::placeholders::_1, std::forward<Args>(args)...));
     }
 
 private:
-    auto send(io::encoder_t::message_type&& message) -> task<void>::future_type;
+    auto send(bound_encode_callback_t encode_callback) -> task<void>::future_type;
 };
 
 template<class T, class Session>
