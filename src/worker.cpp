@@ -95,7 +95,12 @@ worker_t::worker_t(options_t options) :
     CF_DBG("parsing locator endpoints from '%s' ...", d->options.locator.c_str());
 
     std::vector<session_t::endpoint_type> endpoints;
-    std::transform(splitted.begin(), splitted.end(), std::back_inserter(endpoints), [](const std::string& endpoint) {
+    std::transform(
+        splitted.begin(),
+        splitted.end(),
+        std::back_inserter(endpoints),
+        [](const std::string& endpoint) -> boost::asio::ip::tcp::endpoint
+    {
         std::string address;
         std::string port;
         std::tie(address, port) = parse_endpoint(endpoint);
