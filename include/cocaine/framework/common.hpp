@@ -25,15 +25,16 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 #include <cassert>
 #include <exception>
 #include <stdexcept>
+#include <type_traits>
 #include <utility>
 
 #include <cocaine/common.hpp>
 #include <cocaine/traits.hpp>
 
 #if defined(__clang__) || defined(HAVE_GCC46) || __GNUC__ >= 5
-    #include <atomic>
+#include <atomic>
 #else
-    #include <cstdatomic>
+#include <cstdatomic>
 #endif
 
 namespace cocaine { namespace framework {
@@ -49,7 +50,7 @@ make_exception_ptr(Exception&& e) {
 }
 
 template<class T>
-T&&
+typename std::add_rvalue_reference<T>::type
 declval();
 
 }} // namespace cocaine::framework
