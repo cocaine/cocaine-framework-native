@@ -27,6 +27,7 @@
 #include <cocaine/locked_ptr.hpp>
 #include <cocaine/rpc/asio/channel.hpp>
 
+#include "cocaine/framework/encoder.hpp"
 #include "cocaine/framework/forwards.hpp"
 #include "cocaine/framework/receiver.hpp"
 
@@ -146,13 +147,13 @@ public:
     ///
     /// \threadsafe
     future<invoke_result>
-    invoke(const std::function<io::encoder_t::message_type(std::uint64_t, io::encoder_t&)>& message_getter);
+    invoke(encode_callback_t encode_callback);
 
     /// TODO: Implement: invoke_mute - sends an invoke event without channel creation.
 
     /// Sends an event without creating a new channel.
     future<void>
-    push(const std::function<io::encoder_t::message_type(io::encoder_t&)>& message_getter);
+    push(bound_encode_callback_t encode_callback);
 
     /*!
      * Unsubscribes a channel with the given span.

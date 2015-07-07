@@ -29,6 +29,7 @@
 #include <cocaine/locked_ptr.hpp>
 #include <cocaine/rpc/asio/channel.hpp>
 
+#include "cocaine/framework/encoder.hpp"
 #include "cocaine/framework/message.hpp"
 #include "cocaine/framework/worker/dispatch.hpp"
 
@@ -91,7 +92,7 @@ public:
     run(const std::string& uuid);
 
     future<void>
-    push(const std::function<io::encoder_t::message_type(io::encoder_t&)>& message_getter);
+    push(bound_encode_callback_t encode_callback);
 
     void
     revoke(std::uint64_t span);

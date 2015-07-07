@@ -32,7 +32,7 @@ class decoded_message::impl {
 public:
     impl() {}
 
-    impl(msgpack::object _obj, std::vector<char> _storage, std::vector<io::header_t> _headers) :
+    impl(msgpack::object _obj, std::vector<char>&& _storage, std::vector<io::header_t> _headers) :
         obj(std::move(_obj)),
         storage(std::move(_storage)),
         headers(std::move(_headers))
@@ -47,7 +47,7 @@ decoded_message::decoded_message(boost::none_t) :
     d(new impl)
 {}
 
-decoded_message::decoded_message(msgpack::object obj, std::vector<char> storage, std::vector<io::header_t> headers) :
+decoded_message::decoded_message(msgpack::object obj, std::vector<char>&& storage, std::vector<io::header_t> headers) :
     d(new impl(std::move(obj), std::move(storage), std::move(headers)))
 {}
 

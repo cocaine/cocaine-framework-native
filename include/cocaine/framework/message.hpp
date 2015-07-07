@@ -22,6 +22,7 @@
 
 #include <boost/none_t.hpp>
 #include <boost/optional.hpp>
+
 #include <cocaine/rpc/asio/header.hpp>
 
 namespace msgpack { struct object; }
@@ -37,7 +38,13 @@ public:
     /// Constructs a null-initialized message object.
     explicit decoded_message(boost::none_t);
 
-    decoded_message(msgpack::object, std::vector<char> storage, std::vector<io::header_t> headers);
+    /// Constructs a message object from msgpack object, which data is stored in 'storage' buffer
+    /// and header vector, which data is also owned by buffer.
+    ///
+    /// \pre object should represent valid MessagePack'ed Cocaine message, otherwise the behavior is
+    /// undefined.
+    decoded_message(msgpack::object, std::vector<char>&& storage, std::vector<io::header_t> headers);
+
     ~decoded_message();
 
     // TODO: Noexcept?

@@ -40,13 +40,13 @@ const boost::posix_time::time_duration DISOWN_TIMEOUT = boost::posix_time::secon
 //! \note single shot.
 template<class Session>
 class worker_session_t::push_t : public std::enable_shared_from_this<push_t<Session>> {
-    std::function<io::encoder_t::message_type(io::encoder_t&)> message_getter;
+    bound_encode_callback_t encode_callback;
     std::shared_ptr<Session> session;
     task<void>::promise_type h;
 
 public:
-    explicit push_t(const std::function<io::encoder_t::message_type(io::encoder_t&)>& message_getter, std::shared_ptr<Session> session, task<void>::promise_type&& h) :
-        message_getter(message_getter),
+    explicit push_t(bound_encode_callback_t _encode_callback, std::shared_ptr<Session> session, task<void>::promise_type&& h) :
+        encode_callback(std::move(_encode_callback)),
         session(session),
         h(std::move(h))
     {}
@@ -54,7 +54,7 @@ public:
     void operator()() {
         auto transport = session->transport.synchronize();
         if (*transport) {
-            (*transport)->writer->write(message_getter((*transport)->writer->get_encoder()), std::bind(&push_t::on_write, this->shared_from_this(), ph::_1));
+            (*transport)->writer->write(encode_callback((*transport)->writer->get_encoder()), std::bind(&push_t::on_write, this->shared_from_this(), ph::_1));
         } else {
             h.set_exception(std::system_error(asio::error::not_connected));
         }
@@ -100,7 +100,7 @@ worker_session_t::run(const std::string& uuid) {
 }
 
 future<void>
-worker_session_t::push(const std::function<io::encoder_t::message_type(io::encoder_t&)>& message_getter) {
+worker_session_t::push(bound_encode_callback_t encode_callback) {
     promise<void> pr;
     auto fr = pr.get_future();
 
@@ -108,7 +108,7 @@ worker_session_t::push(const std::function<io::encoder_t::message_type(io::encod
         std::bind(
             &push_t<worker_session_t>::operator(),
             std::make_shared<push_t<worker_session_t>>(
-                std::move(message_getter), shared_from_this(), std::move(pr)
+                std::move(encode_callback), shared_from_this(), std::move(pr)
             )
         )
     );

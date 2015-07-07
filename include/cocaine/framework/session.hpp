@@ -22,6 +22,7 @@
 
 #include "cocaine/framework/config.hpp"
 #include "cocaine/framework/channel.hpp"
+#include "cocaine/framework/encoder.hpp"
 #include "cocaine/framework/forwards.hpp"
 #include "cocaine/framework/receiver.hpp"
 #include "cocaine/framework/scheduler.hpp"
@@ -39,7 +40,7 @@ class session {
 public:
     typedef BasicSession basic_session_type;
     typedef boost::asio::ip::tcp::endpoint endpoint_type;
-
+    typedef std::function<io::encoder_t::message_type(std::uint64_t, io::encoder_t&)> encode_callback_t;
 #if BOOST_VERSION > 104800
     typedef boost::asio::ip::tcp::socket::native_handle_type native_handle_type;
 #else
@@ -73,21 +74,18 @@ public:
     template<class Event, class... Args>
     typename task<channel<Event>>::future_type
     invoke(Args&&... args) {
-        namespace ph = std::placeholders;
-        return invoke(std::bind(&session::encode<Event, Args...>, ph::_1, ph::_2, std::forward<Args>(args)...))
-            .then(scheduler, std::bind(&session::on_invoke<Event>, ph::_1));
+        auto encode_cb = std::bind(
+                    &encode<Event, Args...>,
+                    std::placeholders::_1,
+                    std::placeholders::_2,
+                    std::forward<Args>(args)...
+        );
+        return invoke(std::move(encode_cb)).then(scheduler, std::bind(&session::on_invoke<Event>, std::placeholders::_1));
     }
 
 private:
     task<basic_invoke_result>::future_type
-    invoke(std::function<io::encoder_t::message_type(std::uint64_t, io::encoder_t&)> encoder);
-
-    template<class Event, class... Args>
-    static
-    io::encoder_t::message_type
-    encode(std::uint64_t span, io::encoder_t& encoder, Args&... args) {
-        return encoder.encode<Event>(span, std::forward<Args>(args)...);
-    }
+    invoke(encode_callback_t encode_callback);
 
     template<class Event>
     static
