@@ -35,11 +35,15 @@ public:
     impl(msgpack::object _obj, std::vector<char>&& _storage, std::vector<io::header_t> _headers) :
         obj(std::move(_obj)),
         storage(std::move(_storage)),
+        header_zone(),
         headers(std::move(_headers))
-    {}
+    {
+        header_zone.rebind_headers(headers);
+    }
 
     msgpack::object obj;
     std::vector<char> storage;
+    io::header_t::zone_t header_zone;
     std::vector<io::header_t> headers;
 };
 
