@@ -139,7 +139,7 @@ auto serialized_resolver_t::resolve(std::string name) -> task<result_type>::futu
         inprogress.insert(it, std::make_pair(name, queue));
         lock.unlock();
         return resolver.resolve(name)
-            .then(scheduler, wrap(trace_t::bind(&serialized_resolver_t::notify_all, shared_from_this(), ph::_1, name)));
+            .then(scheduler, trace::wrap(trace_t::bind(&serialized_resolver_t::notify_all, shared_from_this(), ph::_1, name)));
     } else {
         task<result_type>::promise_type promise;
         auto future = promise.get_future();

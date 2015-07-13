@@ -31,6 +31,7 @@
 #include <cocaine/idl/primitive.hpp>
 #include <cocaine/idl/streaming.hpp>
 #include <cocaine/tuple.hpp>
+#include <cocaine/traits/error_code.hpp>
 #include <cocaine/utility.hpp>
 
 #include "cocaine/framework/forwards.hpp"

@@ -1,7 +1,7 @@
 #include <cocaine/framework/detail/log.hpp>
 #include "cocaine/framework/trace.hpp"
 
-#include "cocaine/framework/trace.hpp"
+#include "cocaine/framework/trace_logger.hpp"
 #include "cocaine/framework/service.hpp"
 #include "cocaine/framework/manager.hpp"
 

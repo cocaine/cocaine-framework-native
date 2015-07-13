@@ -23,7 +23,7 @@
 #include "cocaine/framework/trace.hpp"
 
 #include <cocaine/idl/logging.hpp>
-#include <cocaine/trace/trace_logger.hpp>
+#include <cocaine/trace/trace.hpp>
 
 /// This module provides access to the client part of the Framework.
 ///

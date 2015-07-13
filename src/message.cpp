@@ -86,24 +86,3 @@ auto decoded_message::get_header(const hpack::header::data_t& key) const -> boos
     }
     return boost::none;
 }
-
-auto decoded_message::trace_id() const ->uint64_t {
-    if(d->unpacked.get().via.array.size < 4) {
-        return 0;
-    }
-    return d->unpacked.get().via.array.ptr[3].via.array.ptr[0].as<uint64_t>();
-}
-
-auto decoded_message::span_id() const ->uint64_t {
-    if(d->unpacked.get().via.array.size < 4) {
-        return 0;
-    }
-    return d->unpacked.get().via.array.ptr[3].via.array.ptr[1].as<uint64_t>();
-}
-
-auto decoded_message::parent_id() const ->uint64_t {
-    if(d->unpacked.get().via.array.size < 4) {
-        return 0;
-    }
-    return d->unpacked.get().via.array.ptr[3].via.array.ptr[2].as<uint64_t>();
-}

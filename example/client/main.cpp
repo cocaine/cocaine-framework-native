@@ -1,7 +1,9 @@
+#include <cocaine/framework/detail/log.hpp>
 #include <cocaine/framework/service.hpp>
 #include <cocaine/framework/manager.hpp>
 #include <cocaine/idl/node.hpp>
-#include <cocaine/framework/detail/log.hpp>
+#include <cocaine/traits/error_code.hpp>
+
 using namespace cocaine;
 using namespace cocaine::framework;
 

@@ -18,12 +18,12 @@
 
 #include <queue>
 
-#include "cocaine/framework/trace.hpp"
-
 #include "cocaine/framework/forwards.hpp"
 #include "cocaine/framework/message.hpp"
 
 #include "cocaine/framework/detail/decoder.hpp"
+
+#include <cocaine/trace/trace.hpp>
 
 namespace cocaine {
 
