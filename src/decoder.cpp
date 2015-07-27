@@ -18,9 +18,6 @@
 
 #include <memory>
 
-#include <hpack-headers/header.hpp>
-#include <hpack-headers/msgpack_traits.hpp>
-
 #include <msgpack/object.hpp>
 #include <msgpack/unpack.hpp>
 #include <msgpack/zone.hpp>

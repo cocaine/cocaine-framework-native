@@ -20,8 +20,6 @@
 #include <type_traits>
 #include <vector>
 
-#include <hpack-headers/header.hpp>
-
 #include <msgpack/object.hpp>
 #include <msgpack/type/int.hpp>
 #include <msgpack/unpack.hpp>
