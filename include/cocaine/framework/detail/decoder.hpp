@@ -19,7 +19,9 @@
 #include <stddef.h>
 #include <system_error>
 
-#include <hpack-headers/header.hpp>
+#include <cocaine/hpack/header.hpp>
+
+#include <msgpack.hpp>
 
 #include <msgpack.hpp>
 namespace cocaine { namespace framework {

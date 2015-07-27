@@ -18,15 +18,14 @@
 
 #include <memory>
 
-#include <hpack-headers/header.hpp>
-#include <hpack-headers/msgpack_traits.hpp>
-
 #include <msgpack/object.hpp>
 #include <msgpack/unpack.hpp>
 #include <msgpack/zone.hpp>
 
 #include <cocaine/common.hpp>
 #include <cocaine/errors.hpp>
+
+#include <cocaine/hpack/header.hpp>
 
 #include <cocaine/rpc/asio/decoder.hpp>
 

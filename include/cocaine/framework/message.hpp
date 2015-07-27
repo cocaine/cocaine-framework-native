@@ -23,7 +23,7 @@
 #include <boost/none_t.hpp>
 #include <boost/optional.hpp>
 
-#include <hpack-headers/header.hpp>
+#include <cocaine/hpack/header.hpp>
 
 namespace msgpack { struct object; }
 

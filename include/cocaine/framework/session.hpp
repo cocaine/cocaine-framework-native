@@ -27,6 +27,9 @@
 #include "cocaine/framework/receiver.hpp"
 #include "cocaine/framework/scheduler.hpp"
 #include "cocaine/framework/sender.hpp"
+#include "cocaine/framework/trace.hpp"
+
+#include <cocaine/idl/logging.hpp>
 
 namespace cocaine {
 
@@ -80,7 +83,7 @@ public:
                     std::placeholders::_2,
                     std::forward<Args>(args)...
         );
-        return invoke(std::move(encode_cb)).then(scheduler, std::bind(&session::on_invoke<Event>, std::placeholders::_1));
+        return invoke(std::move(encode_cb)).then(scheduler, trace_t::bind(&session::on_invoke<Event>, std::placeholders::_1));
     }
 
 private:

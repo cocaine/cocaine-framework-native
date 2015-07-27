@@ -29,6 +29,8 @@
 #include "cocaine/framework/detail/net.hpp"
 #include "cocaine/framework/detail/shared_state.hpp"
 
+#include <cocaine/trace/trace.hpp>
+
 namespace ph = std::placeholders;
 
 using namespace cocaine;
@@ -128,10 +130,10 @@ basic_session_t::connect(const std::vector<endpoint_type>& endpoints) {
         asio::async_connect(
             socket_ref,
             converted.begin(), converted.end(),
-            trace::wrap(std::bind(
-                &basic_session_t::on_connect,
+            trace::wrap(trace_t::bind(
+				&basic_session_t::on_connect, 
                 shared_from_this(), ph::_1, std::move(pr), std::move(socket)
-            ))
+			))
         );
     } else {
         // The transport was in other state.

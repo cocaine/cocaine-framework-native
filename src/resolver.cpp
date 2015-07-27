@@ -118,9 +118,9 @@ auto resolver_t::resolve(std::string name) -> task<resolver_t::result_t>::future
 
     CF_DBG(">> connecting to the locator ...");
     return locator->connect(endpoints())
-        .then(scheduler, trace::wrap(std::bind(&on_connect, ph::_1, locator, name)))
-        .then(scheduler, trace::wrap(std::bind(&on_invoke, ph::_1, locator)))
-        .then(scheduler, trace::wrap(std::bind(&on_resolve, ph::_1, locator, name)));
+        .then(scheduler, trace::wrap(trace_t::bind(&on_connect, ph::_1, locator, name)))
+        .then(scheduler, trace::wrap(trace_t::bind(&on_invoke, ph::_1, locator)))
+        .then(scheduler, trace::wrap(trace_t::bind(&on_resolve, ph::_1, locator, name)));
 }
 
 serialized_resolver_t::serialized_resolver_t(std::vector<endpoint_type> endpoints, scheduler_t& scheduler) :
@@ -139,7 +139,7 @@ auto serialized_resolver_t::resolve(std::string name) -> task<result_type>::futu
         inprogress.insert(it, std::make_pair(name, queue));
         lock.unlock();
         return resolver.resolve(name)
-            .then(scheduler, std::bind(&serialized_resolver_t::notify_all, shared_from_this(), ph::_1, name));
+            .then(scheduler, trace::wrap(trace_t::bind(&serialized_resolver_t::notify_all, shared_from_this(), ph::_1, name)));
     } else {
         task<result_type>::promise_type promise;
         auto future = promise.get_future();

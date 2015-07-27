@@ -23,6 +23,8 @@
 
 #include "cocaine/framework/detail/decoder.hpp"
 
+#include <cocaine/trace/trace.hpp>
+
 namespace cocaine {
 
 namespace framework {
@@ -41,10 +43,14 @@ private:
     std::mutex mutex;
 
 public:
+    shared_state_t() :
+        trace(trace_t::current())
+    {}
     void put(value_type&& message);
     void put(const std::error_code& ec);
-
     auto get() -> task<value_type>::future_type;
+
+    trace_t trace;
 };
 
 } // namespace framework
