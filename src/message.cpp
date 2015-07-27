@@ -27,6 +27,8 @@
 #include <msgpack/unpack.hpp>
 #include <msgpack/zone.hpp>
 
+#include <cocaine/hpack/header.hpp>
+
 using namespace cocaine::framework;
 
 class decoded_message::impl {

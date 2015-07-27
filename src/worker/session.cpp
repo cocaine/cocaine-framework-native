@@ -298,9 +298,9 @@ void worker_session_t::process_invoke(std::map<std::uint64_t, std::shared_ptr<sh
     auto rx = std::make_shared<basic_receiver_t<worker_session_t>>(id, shared_from_this(), state);
 
     trace_t trace(
-                message.get_header<io::headers::trace_id<>>()->get_value().convert<uint64_t>(),
-                message.get_header<io::headers::span_id<>>()->get_value().convert<uint64_t>(),
-                message.get_header<io::headers::parent_id<>>()->get_value().convert<uint64_t>(),
+                message.get_header<hpack::headers::trace_id<>>()->get_value().convert<uint64_t>(),
+                message.get_header<hpack::headers::span_id<>>()->get_value().convert<uint64_t>(),
+                message.get_header<hpack::headers::parent_id<>>()->get_value().convert<uint64_t>(),
                 event,
                 "SERVICE"
     );
@@ -316,9 +316,9 @@ void worker_session_t::process_invoke(std::map<std::uint64_t, std::shared_ptr<sh
     }
 	
     //tracer::trace_restore_scope_t trace_scope;
-    auto trace_id = message.get_header<hpack::headers::trace_id<>>();
-    auto span_id = message.get_header<hpack::headers::span_id<>>();
-    auto parent_id = message.get_header<hpack::headers::parent_id<>>();
+    auto trace_id = message.get_header<cocaine::hpack::headers::trace_id<>>();
+    auto span_id = message.get_header<cocaine::hpack::headers::span_id<>>();
+    auto parent_id = message.get_header<cocaine::hpack::headers::parent_id<>>();
 
     //if(trace_id && span_id && parent_id) {
     //    trace_scope.restore("sr", event, trace_id->get_numeric_value(), span_id->get_numeric_value(), parent_id->get_numeric_value());
