@@ -23,7 +23,7 @@
 #include <boost/none_t.hpp>
 #include <boost/optional.hpp>
 
-#include <cocaine/rpc/asio/header.hpp>
+#include <hpack-headers/header.hpp>
 
 namespace msgpack { struct object; }
 
@@ -43,7 +43,7 @@ public:
     ///
     /// \pre object should represent valid MessagePack'ed Cocaine message, otherwise the behavior is
     /// undefined.
-    decoded_message(msgpack::object, std::vector<char>&& storage, std::vector<io::header_t> headers);
+    decoded_message(msgpack::object, std::vector<char>&& storage, std::vector<hpack::header_t> headers);
 
     ~decoded_message();
 
@@ -61,13 +61,13 @@ public:
     auto args() const -> const msgpack::object&;
 
     template<class Header>
-    boost::optional<io::header_t>
+    boost::optional<hpack::header_t>
     get_header() const {
         return get_header(Header::name());
     }
 
 private:
-    auto get_header(const io::header::data_t& key) const -> boost::optional<io::header_t>;
+    auto get_header(const hpack::header::data_t& key) const -> boost::optional<hpack::header_t>;
 };
 
 }} // namespace cocaine::framework

@@ -18,6 +18,9 @@
 
 #include <memory>
 
+#include <hpack-headers/header.hpp>
+#include <hpack-headers/msgpack_traits.hpp>
+
 #include <msgpack/object.hpp>
 #include <msgpack/unpack.hpp>
 #include <msgpack/zone.hpp>
@@ -26,7 +29,6 @@
 #include <cocaine/errors.hpp>
 
 #include <cocaine/rpc/asio/decoder.hpp>
-#include <cocaine/rpc/asio/header.hpp>
 
 #include "cocaine/framework/message.hpp"
 
@@ -41,7 +43,7 @@ size_t decoder_t::decode(const char* data, size_t size, message_type& message, s
     msgpack::unpack_return rv = msgpack::unpack(buffer.data(), size, &offset, &zone, &object);
 
     if(rv == msgpack::UNPACK_SUCCESS || rv == msgpack::UNPACK_EXTRA_BYTES) {
-        std::vector<io::header_t> headers;
+        std::vector<hpack::header_t> headers;
         bool error = false;
         error = error || object.type != msgpack::type::ARRAY;
         error = error || object.via.array.size < 3;
@@ -50,7 +52,7 @@ size_t decoder_t::decode(const char* data, size_t size, message_type& message, s
         error = error || object.via.array.ptr[2].type != msgpack::type::ARRAY;
         if(object.via.array.size > 3) {
             error = error || object.via.array.ptr[3].type != msgpack::type::ARRAY;
-            error = error || io::header_traits::unpack_vector(object.via.array.ptr[3], header_table, headers);
+            error = error || hpack::msgpack_traits::unpack_vector(object.via.array.ptr[3], header_table, headers);
         }
         if(error) {
             ec = error::frame_format_error;

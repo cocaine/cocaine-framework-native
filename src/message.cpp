@@ -20,19 +20,20 @@
 #include <type_traits>
 #include <vector>
 
+#include <hpack-headers/header.hpp>
+
 #include <msgpack/object.hpp>
 #include <msgpack/type/int.hpp>
 #include <msgpack/unpack.hpp>
 #include <msgpack/zone.hpp>
 
-#include <cocaine/rpc/asio/header.hpp>
 using namespace cocaine::framework;
 
 class decoded_message::impl {
 public:
     impl() {}
 
-    impl(msgpack::object _obj, std::vector<char>&& _storage, std::vector<io::header_t> _headers) :
+    impl(msgpack::object _obj, std::vector<char>&& _storage, std::vector<hpack::header_t> _headers) :
         obj(std::move(_obj)),
         storage(std::move(_storage)),
         headers(std::move(_headers)),
@@ -42,15 +43,15 @@ public:
 
     msgpack::object obj;
     std::vector<char> storage;
-    std::vector<io::header_t> headers;
-    io::header_t::zone_t header_zone;
+    std::vector<hpack::header_t> headers;
+    hpack::header_t::zone_t header_zone;
 };
 
 decoded_message::decoded_message(boost::none_t) :
     d(new impl)
 {}
 
-decoded_message::decoded_message(msgpack::object obj, std::vector<char>&& storage, std::vector<io::header_t> headers) :
+decoded_message::decoded_message(msgpack::object obj, std::vector<char>&& storage, std::vector<hpack::header_t> headers) :
     d(new impl(std::move(obj), std::move(storage), std::move(headers)))
 {}
 
@@ -77,7 +78,7 @@ auto decoded_message::args() const -> const msgpack::object& {
     return d->obj.via.array.ptr[2];
 }
 
-auto decoded_message::get_header(const io::header::data_t& key) const -> boost::optional<io::header_t> {
+auto decoded_message::get_header(const hpack::header::data_t& key) const -> boost::optional<hpack::header_t> {
     for(auto& header : d->headers) {
         if(header.get_name() == key) {
             return boost::make_optional(header);
