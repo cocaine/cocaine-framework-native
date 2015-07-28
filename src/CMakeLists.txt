@@ -35,7 +35,6 @@ set(SOURCES
     shared_state
     receiver
     trace.cpp
-    trace_logger.cpp
     worker.cpp
     worker/dispatch
     worker/error
