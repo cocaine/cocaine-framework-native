@@ -51,7 +51,7 @@ size_t decoder_t::decode(const char* data, size_t size, message_type& message, s
         error = error || object.via.array.ptr[2].type != msgpack::type::ARRAY;
         if(object.via.array.size > 3) {
             error = error || object.via.array.ptr[3].type != msgpack::type::ARRAY;
-            error = error || hpack::msgpack_traits::unpack_vector(object.via.array.ptr[3], header_table, headers);
+            error = error || !hpack::msgpack_traits::unpack_vector(object.via.array.ptr[3], header_table, headers);
         }
         if(error) {
             ec = error::frame_format_error;
