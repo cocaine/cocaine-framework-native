@@ -19,15 +19,24 @@
 #include <boost/optional.hpp>
 #include <boost/thread/thread.hpp>
 
+#include <cocaine/idl/logging.hpp>
+
 #include "cocaine/framework/scheduler.hpp"
+#include "cocaine/framework/service.hpp"
 
 #include "cocaine/framework/detail/loop.hpp"
 #include "cocaine/framework/detail/runnable.hpp"
 
+namespace io {
+    using cocaine::io::log_tag;
+} // namespace io
+
 using namespace cocaine::framework;
 using namespace cocaine::framework::detail;
 
-class cocaine::framework::execution_unit_t {
+namespace {
+
+class execution_unit_t {
 public:
     loop_t io;
 
@@ -49,6 +58,8 @@ public:
     }
 };
 
+} // namespace
+
 static const std::vector<session_t::endpoint_type> DEFAULT_LOCATIONS = {
     { boost::asio::ip::tcp::v6(), 10053 }
 };
@@ -64,52 +75,74 @@ public:
 
     std::vector<boost::thread> threads;
 
-    service_manager_data() :
+    std::shared_ptr<service<io::log_tag>> logger;
+
+    service_manager_data(std::vector<session_t::endpoint_type> locations_) :
         work(boost::optional<loop_t::work>(loop_t::work(io))),
         event_loop(io),
         scheduler(event_loop),
-        locations(DEFAULT_LOCATIONS)
+        locations(std::move(locations_)),
+        logger(std::make_shared<service<io::log_tag>>("logging", locations, scheduler))
     {}
 };
 
 service_manager_t::service_manager_t() :
-    d(new service_manager_data)
+    d(new service_manager_data(DEFAULT_LOCATIONS))
 {
-    auto threads = boost::thread::hardware_concurrency();
+    const auto threads = boost::thread::hardware_concurrency();
     start(threads != 0 ? threads : 1);
 }
 
-service_manager_t::service_manager_t(unsigned int threads) :
-    d(new service_manager_data)
+service_manager_t::service_manager_t(unsigned int threads):
+    d(new service_manager_data(DEFAULT_LOCATIONS))
 {
-    if (threads == 0) {
+    if (threads > 0) {
+        start(threads);
+    } else {
         throw std::invalid_argument("thread count must be a positive number");
     }
+}
 
-    start(threads);
+service_manager_t::service_manager_t(std::vector<endpoint_type> entries, unsigned int threads):
+    d(new service_manager_data(std::move(entries)))
+{
+    if (threads > 0) {
+        start(threads);
+    } else {
+        throw std::invalid_argument("thread count must be a positive number");
+    }
 }
 
 service_manager_t::~service_manager_t() {
+    // Reset an own copy of a logger shared pointer to be able to join threads gracefully.
+    // Otherwise they will wait forever until all asynchronous operations completes.
+    d->logger.reset();
+
     d->work.reset();
+
     for (auto& thread : d->threads) {
         thread.join();
     }
 }
 
-std::vector<session_t::endpoint_type> service_manager_t::endpoints() const {
+std::vector<session_t::endpoint_type>
+service_manager_t::endpoints() const {
     return d->locations;
 }
 
-void service_manager_t::endpoints(std::vector<session_t::endpoint_type> endpoints) {
-    d->locations = std::move(endpoints);
-}
-
-void service_manager_t::start(unsigned int threads) {
+void
+service_manager_t::start(unsigned int threads) {
     for (unsigned int i = 0; i < threads; ++i) {
         d->threads.emplace_back(named_runnable<loop_t>("[CF::M]", d->io));
     }
 }
 
-scheduler_t& service_manager_t::next() {
+scheduler_t&
+service_manager_t::next() {
     return d->scheduler;
+}
+
+std::shared_ptr<service<io::log_tag>>
+service_manager_t::logger() const {
+    return d->logger;
 }

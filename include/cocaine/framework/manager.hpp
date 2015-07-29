@@ -21,24 +21,34 @@
 #include "cocaine/framework/forwards.hpp"
 #include "cocaine/framework/session.hpp"
 
-namespace cocaine {
+namespace cocaine { namespace io {
+    struct log_tag;
+}} // namespace cocaine::io
 
-namespace framework {
-
-class execution_unit_t;
+namespace cocaine { namespace framework {
 
 class service_manager_data;
 class service_manager_t {
+public:
+    typedef session_t::endpoint_type endpoint_type;
+
+private:
     std::unique_ptr<service_manager_data> d;
 
 public:
+    /// Constructs the service manager using default settings.
     service_manager_t();
-    explicit service_manager_t(unsigned int threads);
+
+    /// Constructs the service manager using the given number of worker threads.
+    service_manager_t(unsigned int threads);
+
+    /// Constructs the service manager using the given entry points and number of worker threads.
+    service_manager_t(std::vector<endpoint_type> entries, unsigned int threads);
 
     ~service_manager_t();
 
-    std::vector<session_t::endpoint_type> endpoints() const;
-    void endpoints(std::vector<session_t::endpoint_type> endpoints);
+    std::vector<endpoint_type>
+    endpoints() const;
 
     template<class T>
     service<T>
@@ -46,12 +56,16 @@ public:
         return service<T>(std::move(name), endpoints(), next());
     }
 
-private:
-    void start(unsigned int threads);
+    /// Returns a shared pointer to the associated logger service.
+    std::shared_ptr<service<io::log_tag>>
+    logger() const;
 
-    scheduler_t& next();
+private:
+    void
+    start(unsigned int threads);
+
+    scheduler_t&
+    next();
 };
 
-} // namespace framework
-
-} // namespace cocaine
+}} // namespace cocaine::framework
