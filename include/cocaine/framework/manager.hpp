@@ -40,6 +40,7 @@ public:
     service_manager_t();
 
     /// Constructs the service manager using the given number of worker threads.
+    explicit
     service_manager_t(unsigned int threads);
 
     /// Constructs the service manager using the given entry points and number of worker threads.
