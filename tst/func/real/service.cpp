@@ -26,8 +26,7 @@ TEST(service, NotFound) {
 }
 
 TEST(service, ConnectionRefusedOnWrongLocator) {
-    service_manager_t manager(1);
-    manager.endpoints({{ boost::asio::ip::tcp::v6(), 10052 }});
+    service_manager_t manager({{ boost::asio::ip::tcp::v6(), 10052 }}, 1);
     auto service = manager.create<cocaine::io::app_tag>("node");
 
     EXPECT_THROW(service.connect().get(), std::system_error);

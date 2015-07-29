@@ -75,24 +75,22 @@ public:
 
     std::shared_ptr<worker_session_t> session;
 
-    impl(options_t options) :
+    impl(options_t options, std::vector<session_t::endpoint_type> entries) :
         loop(io),
         scheduler(loop),
         options(std::move(options)),
         executor(),
-        manager(1)
+        manager(std::move(entries), 1)
     {}
 };
 
-worker_t::worker_t(options_t options) :
-    d(new impl(std::move(options)))
-{
-    CF_DBG("initializing '%s' worker ...", d->options.name.c_str());
+worker_t::worker_t(options_t options) {
+    CF_DBG("initializing '%s' worker ...", options.name.c_str());
 
     std::vector<std::string> splitted;
-    boost::algorithm::split(splitted, d->options.locator, boost::algorithm::is_any_of(","));
+    boost::algorithm::split(splitted, options.locator, boost::algorithm::is_any_of(","));
 
-    CF_DBG("parsing locator endpoints from '%s' ...", d->options.locator.c_str());
+    CF_DBG("parsing locator endpoints from '%s' ...", options.locator.c_str());
 
     std::vector<session_t::endpoint_type> endpoints;
     std::transform(
@@ -120,7 +118,7 @@ worker_t::worker_t(options_t options) :
         CF_DBG(" - %s", CF_MSG(endpoint).c_str());
     }
 
-    d->manager.endpoints(std::move(endpoints));
+    d.reset(new impl(std::move(options), std::move(endpoints)));
 
     // Block the deprecated signals.
     sigset_t sigset;
