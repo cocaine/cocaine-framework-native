@@ -20,6 +20,7 @@
 
 #include "cocaine/framework/forwards.hpp"
 #include "cocaine/framework/session.hpp"
+#include "cocaine/framework/trace_logger.hpp"
 
 namespace cocaine { namespace io {
     struct log_tag;
@@ -54,7 +55,7 @@ public:
     template<class T>
     service<T>
     create(std::string name) {
-        return service<T>(std::move(name), endpoints(), next());
+        return service<T>(logger(), std::move(name), endpoints(), next());
     }
 
     /// Returns a shared pointer to the associated logger service.
