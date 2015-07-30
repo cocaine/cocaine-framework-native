@@ -194,7 +194,7 @@ basic_session_t::invoke(encode_callback_t encode_callback) {
     auto rx    = std::make_shared<basic_receiver_t<basic_session_t>>(span, shared_from_this(), state);
 
     channels->insert(std::make_pair(span, std::move(state)));
-    return push(std::bind(encode_callback, span, ph::_1))
+    return push(trace_t::bind(encode_callback, span, ph::_1))
         .then(scheduler, trace::wrap([tx, rx](future<void>& fr) -> invoke_result {
             fr.get();
             return std::make_tuple(tx, rx);
@@ -311,7 +311,7 @@ basic_session_t::pull(std::shared_ptr<transport_type> transport) {
 
     transport->reader->read(
         message,
-        trace::wrap(std::bind(&basic_session_t::on_read, shared_from_this(), ph::_1))
+        trace::wrap(trace_t::bind(&basic_session_t::on_read, shared_from_this(), ph::_1))
     );
 }
 

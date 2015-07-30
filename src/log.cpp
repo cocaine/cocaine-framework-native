@@ -57,7 +57,7 @@ static blackhole::verbose_logger_t<level_t> create() {
     blackhole::verbose_logger_t<level_t> logger(level_t::debug);
     auto formatter = blackhole::aux::util::make_unique<
         blackhole::formatter::string_t
-    >("[%(severity)s] [%(timestamp)s] [%(tid)s]: %(context:[:] )s%(message)s");
+    >("[%(severity)s] [%(timestamp)s] [%(tid)s] %(trace_id:[:\\:)s%(span_id::\\:)s%(parent_id::] )s: %(context:[:] )s%(message)s");
 
     blackhole::mapping::value_t mapper;
     mapper.add<blackhole::keyword::tag::timestamp_t>("%H:%M:%S.%f");
