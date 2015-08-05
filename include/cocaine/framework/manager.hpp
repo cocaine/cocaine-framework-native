@@ -20,7 +20,6 @@
 
 #include "cocaine/framework/forwards.hpp"
 #include "cocaine/framework/session.hpp"
-#include "cocaine/framework/trace_logger.hpp"
 
 namespace cocaine { namespace io {
     struct log_tag;
