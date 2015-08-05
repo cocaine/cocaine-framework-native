@@ -51,7 +51,7 @@ private:
 public:
     /// Constructs an instance of the service.
     ///
-    /// \param name internal logger object which is used for logging tracing events.
+    /// \param loger internal logger object which is used for logging tracing events.
     /// \param name a service's name, which is used by the Locator to resolve this service.
     /// \param version a protocol version number.
     /// \param locations list of the Locator endpoints which is usually well-known.
