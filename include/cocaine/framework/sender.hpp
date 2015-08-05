@@ -58,7 +58,6 @@ public:
     template<class Event, class... Args>
     auto
     send(Args&&... args) -> task<void>::future_type {
-        trace_t::push_scope_t scope("tx");
         return send(io::encoded<Event>(id, std::forward<Args>(args)...));
     }
 
