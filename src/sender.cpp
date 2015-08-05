@@ -31,6 +31,6 @@ basic_sender_t<Session>::basic_sender_t(std::uint64_t id, std::shared_ptr<sessio
 
 template<class Session>
 task<void>::future_type
-basic_sender_t<Session>::send(bound_encode_callback_t encode_callback) {
-    return session->push(std::move(encode_callback));
+basic_sender_t<Session>::send(io::encoder_t::message_type&& message) {
+    return session->push(std::move(message));
 }

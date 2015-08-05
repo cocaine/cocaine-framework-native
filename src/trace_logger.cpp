@@ -1,4 +1,4 @@
-#include <cocaine/framework/detail/log.hpp>
+#include "cocaine/framework/detail/log.hpp"
 #include "cocaine/framework/trace.hpp"
 
 #include "cocaine/framework/trace_logger.hpp"
@@ -13,7 +13,9 @@
 #include <cocaine/locked_ptr.hpp>
 
 #include <asio/io_service.hpp>
+
 #include <functional>
+#include <thread>
 namespace cocaine { namespace framework {
 namespace {
     void
@@ -26,8 +28,8 @@ namespace {
     class log_handler_t :
     public std::enable_shared_from_this<log_handler_t> {
     public:
-        log_handler_t(framework::service<io::log_tag>& _logger, std::string _message, blackhole::attribute::set_t _attributes) :
-            logger(_logger),
+        log_handler_t(std::shared_ptr<framework::service<io::log_tag>> _logger, std::string _message, blackhole::attribute::set_t _attributes) :
+            logger(std::move(_logger)),
             message(std::move(_message)),
             attributes(std::move(_attributes))
         {
@@ -37,7 +39,7 @@ namespace {
         void
         operator()() {
             CF_DBG("SENDING %s ", message.c_str());
-            logger.invoke<io::log::emit>(
+            logger->invoke<io::log::emit>(
                 logging::info,
                 std::string("app/trace"),
                 std::move(message),
@@ -55,16 +57,16 @@ namespace {
         }
 
     private:
-        framework::service<io::log_tag>& logger;
+        std::shared_ptr<framework::service<io::log_tag>> logger;
         std::string message;
         blackhole::attribute::set_t attributes;
     };
 }
 
-class service_logger_t::impl {
+class internal_logger_t::impl {
 public:
-    impl(framework::service_manager_t& manager, std::string service_name) :
-        logger(manager.create<io::log_tag>(std::move(service_name))),
+    impl(std::shared_ptr<service<io::log_tag>> logger_service) :
+        logger(std::move(logger_service)),
         loop(),
         work(boost::optional<asio::io_service::work>(asio::io_service::work(loop))),
         chamber(run_asio, std::ref(loop))
@@ -75,27 +77,39 @@ public:
         chamber.join();
     }
 
-    framework::service<io::log_tag> logger;
+    std::shared_ptr<framework::service<io::log_tag>> logger;
     asio::io_service loop;
     boost::optional<asio::io_service::work> work;
     std::thread chamber;
 };
 
 void
-service_logger_t::log(std::string message, blackhole::attribute::set_t attributes) {
+internal_logger_t::log(std::string message) {
+    if(!d) {
+        return;
+    }
     //std::bind here is intentional. We don't want to pass trace there.
     d->loop.post(std::bind(
         &log_handler_t::operator(),
-        std::make_shared<log_handler_t>(d->logger, std::move(message), std::move(attributes))
+        std::make_shared<log_handler_t>(d->logger, std::move(message), trace_t::current().attributes<blackhole::attribute::set_t>())
     ));
 }
 
-service_logger_t::service_logger_t(framework::service_manager_t& manager, std::string service_name) :
-    d(new impl(manager, std::move(service_name)))
+internal_logger_t::internal_logger_t(std::shared_ptr<service<io::log_tag>> logger_service) :
+    d(new impl(std::move(logger_service)))
 {
 }
 
-service_logger_t::~service_logger_t()
+internal_logger_t::internal_logger_t():
+    d(nullptr)
+{}
+
+internal_logger_t::internal_logger_t(internal_logger_t&& other) :
+    d(std::move(other.d))
+{
+}
+
+internal_logger_t::~internal_logger_t()
 {}
 
 }}

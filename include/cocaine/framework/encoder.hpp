@@ -18,24 +18,19 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-
-#ifndef ENCODER_HPP
-#define ENCODER_HPP
+#pragma once
 
 #include <cocaine/rpc/asio/encoder.hpp>
 
 namespace cocaine { namespace framework {
 
-typedef std::function<io::encoder_t::message_type(std::uint64_t, io::encoder_t&)> encode_callback_t;
-typedef std::function<io::encoder_t::message_type(io::encoder_t&)> bound_encode_callback_t;
+typedef std::function<io::encoder_t::message_type(std::uint64_t)> encode_callback_t;
 
 template<class Event, class... Args>
 static
 io::encoder_t::message_type
-encode(std::uint64_t span, io::encoder_t& encoder, Args&... args) {
-    return encoder.encode<Event>(span, std::forward<Args>(args)...);
+encode(std::uint64_t span, Args&... args) {
+    return io::encoded<Event>(span, std::forward<Args>(args)...);
 }
 
 }}
-#endif // ENCODER_HPP
-

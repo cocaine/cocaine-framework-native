@@ -20,6 +20,8 @@
 
 #ifdef COCAINE_FRAMEWORK_HAS_INTERNAL_TRACING
 
+#include <cocaine/trace/trace.hpp>
+
 #include <boost/preprocessor/slot/counter.hpp>
 
 #define BLACKHOLE_HAS_ATTRIBUTE_LWP
@@ -71,7 +73,10 @@ inline std::string ser_msg(const T& from) {
 #define CF_US(sized) static_cast<unsigned long long>(sized)
 
 #   define CF_EC(ec) ec ? ec.message().c_str() : "ok"
-#   define CF_LOG BH_LOG
+#   define CF_LOG(__log__, __level__, ...) \
+    if (auto __record__ = (__log__).open_record((__level__), cocaine::trace_t::current().attributes<blackhole::attribute::set_t>())) \
+        if (blackhole::aux::syntax_check(__VA_ARGS__)) \
+            blackhole::aux::logger::make_pusher((__log__), __record__, __VA_ARGS__)
 #   define CF_DBG(...) CF_LOG(::cocaine::framework::detail::logger(), ::cocaine::framework::detail::debug, __VA_ARGS__)
 #   define CF_WRN(...) CF_LOG(::cocaine::framework::detail::logger(), ::cocaine::framework::detail::warn, __VA_ARGS__)
 

@@ -59,7 +59,7 @@ public:
 
     void
     operator()(std::shared_ptr<transport_type> transport) {
-        CF_DBG("writing %lu bytes ...", message.size());
+        CF_DBG("writing message ...");
 
         transport->writer->write(
             message,
@@ -194,7 +194,7 @@ basic_session_t::invoke(encode_callback_t encode_callback) {
     auto rx    = std::make_shared<basic_receiver_t<basic_session_t>>(span, shared_from_this(), state);
 
     channels->insert(std::make_pair(span, std::move(state)));
-    return push(std::bind(encode_callback, span, ph::_1))
+    return push(encode_callback(span))
         .then(scheduler, trace::wrap([tx, rx](future<void>& fr) -> invoke_result {
             fr.get();
             return std::make_tuple(tx, rx);
@@ -202,7 +202,7 @@ basic_session_t::invoke(encode_callback_t encode_callback) {
 }
 
 framework::future<void>
-basic_session_t::push(bound_encode_callback_t encode_callback) {
+basic_session_t::push(io::encoder_t::message_type&& message) {
     CF_CTX("bP");
     CF_DBG(">> writing message ...");
 
@@ -211,7 +211,6 @@ basic_session_t::push(bound_encode_callback_t encode_callback) {
 
     auto transport = *this->transport.synchronize();
     if (transport) {
-        auto message = encode_callback(transport->writer->get_encoder());
         auto pusher = std::make_shared<push_t>(std::move(message), shared_from_this(), std::move(pr));
         (*pusher)(transport);
     } else {
@@ -311,7 +310,7 @@ basic_session_t::pull(std::shared_ptr<transport_type> transport) {
 
     transport->reader->read(
         message,
-        trace::wrap(std::bind(&basic_session_t::on_read, shared_from_this(), ph::_1))
+        trace::wrap(trace_t::bind(&basic_session_t::on_read, shared_from_this(), ph::_1))
     );
 }
 

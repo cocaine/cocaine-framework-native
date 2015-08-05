@@ -153,7 +153,7 @@ public:
 
     /// Sends an event without creating a new channel.
     future<void>
-    push(bound_encode_callback_t encode_callback);
+    push(io::encoder_t::message_type&& message);
 
     /*!
      * Unsubscribes a channel with the given span.

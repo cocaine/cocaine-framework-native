@@ -92,19 +92,12 @@ public:
     run(const std::string& uuid);
 
     future<void>
-    push(bound_encode_callback_t encode_callback);
+    push(io::encoder_t::message_type&& message);
 
     void
     revoke(std::uint64_t span);
 
 private:
-    template<class Event, class... Args>
-    static
-    io::encoder_t::message_type
-    encode(std::uint64_t span, io::encoder_t& encoder, Args&... args) {
-        return encoder.encode<Event>(span, std::forward<Args>(args)...);
-    }
-
     /// Handle incoming protocol message.
     void on_read(const std::error_code& ec);
 

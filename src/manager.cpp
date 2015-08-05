@@ -82,7 +82,7 @@ public:
         event_loop(io),
         scheduler(event_loop),
         locations(std::move(locations_)),
-        logger(std::make_shared<service<io::log_tag>>("logging", locations, scheduler))
+        logger(std::make_shared<service<io::log_tag>>(internal_logger_t(), "logging", locations, scheduler))
     {}
 };
 
