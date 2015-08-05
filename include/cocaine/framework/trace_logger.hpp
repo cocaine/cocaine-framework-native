@@ -1,6 +1,5 @@
 #pragma once
 #include <cocaine/trace/trace.hpp>
-#include "cocaine/framework/detail/log.hpp"
 #include "cocaine/framework/forwards.hpp"
 
 namespace cocaine { namespace io {
