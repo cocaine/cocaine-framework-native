@@ -1,4 +1,4 @@
-#include <cocaine/framework/detail/log.hpp>
+#include "cocaine/framework/detail/log.hpp"
 #include "cocaine/framework/trace.hpp"
 
 #include "cocaine/framework/trace_logger.hpp"
@@ -13,7 +13,9 @@
 #include <cocaine/locked_ptr.hpp>
 
 #include <asio/io_service.hpp>
+
 #include <functional>
+#include <thread>
 namespace cocaine { namespace framework {
 namespace {
     void
