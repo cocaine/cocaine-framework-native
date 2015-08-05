@@ -59,11 +59,11 @@ public:
     auto
     send(Args&&... args) -> task<void>::future_type {
         trace_t::push_scope_t scope("tx");
-        return send(trace_t::bind(&encode<Event, Args...>, id, std::placeholders::_1, std::forward<Args>(args)...));
+        return send(io::encoded<Event>(id, std::forward<Args>(args)...));
     }
 
 private:
-    auto send(bound_encode_callback_t encode_callback) -> task<void>::future_type;
+    auto send(io::encoder_t::message_type&& message) -> task<void>::future_type;
 };
 
 template<class T, class Session>

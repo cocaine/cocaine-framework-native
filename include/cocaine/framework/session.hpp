@@ -43,7 +43,6 @@ class session {
 public:
     typedef BasicSession basic_session_type;
     typedef boost::asio::ip::tcp::endpoint endpoint_type;
-    typedef std::function<io::encoder_t::message_type(std::uint64_t, io::encoder_t&)> encode_callback_t;
 #if BOOST_VERSION > 104800
     typedef boost::asio::ip::tcp::socket::native_handle_type native_handle_type;
 #else
@@ -80,7 +79,6 @@ public:
         auto encode_cb = std::bind(
                     &encode<Event, Args...>,
                     std::placeholders::_1,
-                    std::placeholders::_2,
                     std::forward<Args>(args)...
         );
         return invoke(std::move(encode_cb)).then(scheduler, trace_t::bind(&session::on_invoke<Event>, std::placeholders::_1));

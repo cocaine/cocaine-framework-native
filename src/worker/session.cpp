@@ -41,13 +41,13 @@ const boost::posix_time::time_duration DISOWN_TIMEOUT = boost::posix_time::secon
 //! \note single shot.
 template<class Session>
 class worker_session_t::push_t : public std::enable_shared_from_this<push_t<Session>> {
-    bound_encode_callback_t encode_callback;
+    io::encoder_t::message_type message;
     std::shared_ptr<Session> session;
     task<void>::promise_type h;
 
 public:
-    explicit push_t(bound_encode_callback_t _encode_callback, std::shared_ptr<Session> session, task<void>::promise_type&& h) :
-        encode_callback(std::move(_encode_callback)),
+    explicit push_t(io::encoder_t::message_type _message, std::shared_ptr<Session> session, task<void>::promise_type&& h) :
+        message(std::move(_message)),
         session(session),
         h(std::move(h))
     {}
@@ -55,7 +55,7 @@ public:
     void operator()() {
         auto transport = session->transport.synchronize();
         if (*transport) {
-            (*transport)->writer->write(encode_callback((*transport)->writer->get_encoder()), std::bind(&push_t::on_write, this->shared_from_this(), ph::_1));
+            (*transport)->writer->write(message, std::bind(&push_t::on_write, this->shared_from_this(), ph::_1));
         } else {
             h.set_exception(std::system_error(asio::error::not_connected));
         }
@@ -101,7 +101,7 @@ worker_session_t::run(const std::string& uuid) {
 }
 
 future<void>
-worker_session_t::push(bound_encode_callback_t encode_callback) {
+worker_session_t::push(io::encoder_t::message_type&& message) {
     promise<void> pr;
     auto fr = pr.get_future();
 
@@ -109,7 +109,7 @@ worker_session_t::push(bound_encode_callback_t encode_callback) {
         std::bind(
             &push_t<worker_session_t>::operator(),
             std::make_shared<push_t<worker_session_t>>(
-                std::move(encode_callback), shared_from_this(), std::move(pr)
+                std::move(message), shared_from_this(), std::move(pr)
             )
         )
     );
@@ -127,13 +127,13 @@ worker_session_t::revoke(std::uint64_t span) {
 void worker_session_t::handshake(const std::string& uuid) {
     CF_DBG("<- Handshake");
 
-    push(std::bind(&worker_session_t::encode<io::worker::handshake, std::string>, CONTROL_CHANNEL_ID, std::placeholders::_1, uuid));
+    push(io::encoded<io::worker::handshake>(CONTROL_CHANNEL_ID, uuid));
 }
 
 void worker_session_t::terminate(int code, std::string reason) {
     CF_DBG("<- Terminate [%d, %s]", code, reason.c_str());
 
-    push(std::bind(&worker_session_t::encode<io::worker::terminate, int, std::string>, CONTROL_CHANNEL_ID, std::placeholders::_1, code, std::move(reason)))
+    push(io::encoded<io::worker::terminate>(CONTROL_CHANNEL_ID, code, std::move(reason)))
         .then(std::bind(&worker_session_t::on_terminate, shared_from_this(), ph::_1));
     // TODO: This is shit!
 }
@@ -157,7 +157,7 @@ void worker_session_t::exhale(const std::error_code& ec) {
 
     CF_DBG("<- ♥");
 
-    push(std::bind(&worker_session_t::encode<io::worker::heartbeat>, CONTROL_CHANNEL_ID, std::placeholders::_1));
+    push(io::encoded<io::worker::heartbeat>(CONTROL_CHANNEL_ID));
 
     heartbeat_timer.expires_from_now(HEARTBEAT_TIMEOUT);
     heartbeat_timer.async_wait(std::bind(&worker_session_t::exhale, shared_from_this(), ph::_1));
