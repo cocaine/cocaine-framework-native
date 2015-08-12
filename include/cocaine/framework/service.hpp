@@ -95,7 +95,7 @@ public:
         trace::context_holder holder("SI");
 
         return connect()
-            .then(scheduler, trace::wrap(trace_t::bind(&basic_service_t::on_connect<Event, Args...>, ph::_1, session, std::forward<Args>(args)...)))
+            .then(scheduler, trace::wrap(trace_t::bind(&basic_service_t::on_connect<Event, typename std::decay<Args>::type...>, ph::_1, session, std::forward<Args>(args)...)))
             .then(scheduler, trace::wrap(trace_t::bind(&basic_service_t::on_invoke<Event>, ph::_1)));
     }
 
@@ -131,4 +131,3 @@ public:
 };
 
 }} // namespace cocaine::framework
-
