@@ -18,12 +18,12 @@ using namespace cocaine::framework;
 TEST(service, Logging) {
     service_manager_t manager(1);
     auto logger = manager.create<io::log_tag>("logging");
-    logger.invoke<io::log::emit>(logging::info, std::string("app/testing"), std::string("le message")).get();
+    logger.invoke<io::log::emit>(logging::info, "app/testing", "le message").get();
 
     logger.invoke<io::log::emit>(
         logging::info,
-        std::string("app/testing"),
-        std::string("le message"),
+        "app/testing",
+        "le message",
         blackhole::attribute::set_t({{ "key", blackhole::attribute::value_t(42) }})
     ).get();
 }

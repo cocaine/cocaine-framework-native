@@ -54,7 +54,7 @@ future<void>
 on_invoke(future<channel<io::app::enqueue>>& fr) {
     auto channel = fr.get();
 
-    channel.tx.send<scope::chunk>(std::string("le message"))
+    channel.tx.send<scope::chunk>("le message")
         .then([](future<framework::channel<io::app::enqueue>::sender_type>& fr2)
     {
         auto tx = fr2.get();
@@ -91,7 +91,7 @@ TEST(load, app_echo) {
         load_context context(id, counter, stats.stats);
 
         futures.emplace_back(
-            echo.invoke<io::app::enqueue>(std::string(event))
+            echo.invoke<io::app::enqueue>(event)
                 .then(std::bind(&app::echo::on_invoke, ph::_1))
                 .then(std::bind(&finalize, ph::_1, std::move(context)))
         );
@@ -152,7 +152,7 @@ TEST(load, app_version) {
         load_context context(id, counter, stats.stats);
 
         futures.emplace_back(
-            echo.invoke<io::app::enqueue>(std::string(event))
+            echo.invoke<io::app::enqueue>(event)
                 .then(std::bind(&app::echo::version::on_invoke, ph::_1))
                 .then(std::bind(&finalize, ph::_1, std::move(context)))
         );
