@@ -41,7 +41,7 @@ on_invoke(task<channel<io::app::enqueue>>::future_move_type future) {
     auto channel = future.get();
     auto tx = std::move(channel.tx);
     auto rx = std::move(channel.rx);
-    return tx.send<scope::chunk>(std::string("le message"))
+    return tx.send<scope::chunk>("le message")
         .then(trace_t::bind(&on_send, std::placeholders::_1, rx))
         .then(trace_t::bind(&on_chunk, std::placeholders::_1, rx))
         .then(trace_t::bind(&on_choke, std::placeholders::_1));
@@ -71,7 +71,7 @@ int main(int argc, char** argv) {
 
         for (uint id = 0; id < iters; ++id) {
             futures.emplace_back(
-                    echo.invoke<cocaine::io::app::enqueue>(std::string(event))
+                    echo.invoke<cocaine::io::app::enqueue>(event)
                 .then(trace_t::bind(&app::on_invoke, std::placeholders::_1))
                 .then(trace_t::bind(&app::on_finalize, std::placeholders::_1))
             );

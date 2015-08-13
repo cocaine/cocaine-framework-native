@@ -47,7 +47,7 @@ TEST(load, service_storage) {
         load_context context(id, counter, stats.stats);
 
         futures.emplace_back(
-            storage.invoke<io::storage::read>(std::string("collection"), std::string("key"))
+            storage.invoke<io::storage::read>("collection", "key")
                 .then(std::bind(&load::service::storage::on_invoke, ph::_1))
                 .then(std::bind(&finalize, ph::_1, std::ref(context)))
         );
@@ -60,5 +60,3 @@ TEST(load, service_storage) {
 
     EXPECT_EQ(iters, counter);
 }
-
-

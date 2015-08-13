@@ -49,7 +49,7 @@ TEST(load, service_echo) {
         load_context context(id, counter, stats.stats);
 
         futures.emplace_back(
-            echo.invoke<io::echo::ping>(std::string("le message"))
+            echo.invoke<io::echo::ping>("le message")
                 .then(std::bind(&load::service::echo::on_invoke, ph::_1))
                 .then(std::bind(&finalize, ph::_1, context))
         );
@@ -84,7 +84,7 @@ TEST(load, service_echo_with_timeout) {
         load_context context(id, counter, stats.stats);
 
         futures.emplace_back(
-            echo.invoke<io::echo::ping_with_timeout>(std::string("le message"), 100)
+            echo.invoke<io::echo::ping_with_timeout>("le message", 100)
                 .then(std::bind(&load::service::echo::on_invoke, ph::_1))
                 .then(std::bind(&finalize, ph::_1, context))
         );
