@@ -62,7 +62,7 @@ int main(int argc, char** argv) {
 
 
     auto echo = manager.create<cocaine::io::app_tag>("echo-cpp");
-    trace_t trace = trace_t::generate("main", app);
+    trace_t trace = trace_t::generate("main");
     trace_t::restore_scope_t scope(trace);
     try {
         echo.connect().get();

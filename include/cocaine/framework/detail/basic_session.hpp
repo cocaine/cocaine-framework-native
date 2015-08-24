@@ -25,7 +25,7 @@
 
 #include <cocaine/common.hpp>
 #include <cocaine/locked_ptr.hpp>
-#include <cocaine/rpc/asio/channel.hpp>
+#include <cocaine/rpc/asio/transport.hpp>
 
 #include "cocaine/framework/encoder.hpp"
 #include "cocaine/framework/forwards.hpp"
@@ -54,7 +54,7 @@ class basic_session_t:
     /// We use the pure ASIO internally, because Cocaine API uses and exports it.
     typedef asio::ip::tcp protocol_type;
     typedef protocol_type::socket socket_type;
-    typedef io::channel<protocol_type, io::encoder_t, detail::decoder_t> transport_type;
+    typedef io::transport<protocol_type, io::encoder_t, detail::decoder_t> transport_type;
 
     typedef std::unordered_map<
         std::uint64_t,

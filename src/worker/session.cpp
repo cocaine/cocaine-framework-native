@@ -301,8 +301,7 @@ void worker_session_t::process_invoke(std::map<std::uint64_t, std::shared_ptr<sh
         message.get_header<hpack::headers::trace_id<>>()->get_value().convert<uint64_t>(),
         message.get_header<hpack::headers::span_id<>>()->get_value().convert<uint64_t>(),
         message.get_header<hpack::headers::parent_id<>>()->get_value().convert<uint64_t>(),
-        event,
-        "SERVICE"
+        event
     );
     trace_t::restore_scope_t scope(trace);
     if (auto handler = dispatch.get(event)) {

@@ -27,7 +27,7 @@
 #include <cocaine/forwards.hpp>
 #include <cocaine/idl/rpc.hpp>
 #include <cocaine/locked_ptr.hpp>
-#include <cocaine/rpc/asio/channel.hpp>
+#include <cocaine/rpc/asio/transport.hpp>
 
 #include "cocaine/framework/encoder.hpp"
 #include "cocaine/framework/message.hpp"
@@ -64,7 +64,7 @@ private:
     detail::decoder_t::message_type message;
 
     /// Underlying transport.
-    typedef io::channel<protocol_type, io::encoder_t, detail::decoder_t> transport_type;
+    typedef io::transport<protocol_type, io::encoder_t, detail::decoder_t> transport_type;
     synchronized<std::unique_ptr<transport_type>> transport;
 
     std::atomic<std::uint64_t> counter;
