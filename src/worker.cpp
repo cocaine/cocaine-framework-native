@@ -18,6 +18,9 @@
 
 #include <csignal>
 
+#include <boost/algorithm/string/classification.hpp>
+#include <boost/algorithm/string/split.hpp>
+#include <boost/lexical_cast.hpp>
 #include <boost/thread/thread.hpp>
 
 #include <asio/local/stream_protocol.hpp>
@@ -72,37 +75,50 @@ public:
 
     std::shared_ptr<worker_session_t> session;
 
-    impl(options_t options) :
+    impl(options_t options, std::vector<session_t::endpoint_type> entries) :
         loop(io),
         scheduler(loop),
         options(std::move(options)),
         executor(),
-        manager(1)
+        manager(std::move(entries), 1)
     {}
 };
 
-worker_t::worker_t(options_t options) :
-    d(new impl(std::move(options)))
-{
-    CF_DBG("initializing '%s' worker ...", d->options.name.c_str());
+worker_t::worker_t(options_t options) {
+    CF_DBG("initializing '%s' worker ...", options.name.c_str());
 
-    std::string host;
-    std::string port;
-    std::tie(host, port) = parse_endpoint(d->options.locator);
+    std::vector<std::string> splitted;
+    boost::algorithm::split(splitted, options.locator, boost::algorithm::is_any_of(","));
 
-    CF_DBG("resolving locator endpoints from '%s' ...", d->options.locator.c_str());
-    boost::asio::io_service loop;
-    boost::asio::ip::tcp::resolver resolver(loop);
-    boost::asio::ip::tcp::resolver::query query(host, port);
-    boost::asio::ip::tcp::resolver::iterator end;
-    const std::vector<session_t::endpoint_type> endpoints(resolver.resolve(query), end);
+    CF_DBG("parsing locator endpoints from '%s' ...", options.locator.c_str());
 
-    CF_DBG("resolving locator endpoints - done (%lu total):", endpoints.size());
+    std::vector<session_t::endpoint_type> endpoints;
+    std::transform(
+        splitted.begin(),
+        splitted.end(),
+        std::back_inserter(endpoints),
+        [](const std::string& endpoint) -> boost::asio::ip::tcp::endpoint
+    {
+        std::string address;
+        std::string port;
+        std::tie(address, port) = parse_endpoint(endpoint);
+
+        if (address.size() > 0 && address[0] == '[' && address[address.size() - 1] == ']') {
+            address = address.substr(1, address.size() - 2);
+        }
+
+        return boost::asio::ip::tcp::endpoint {
+            boost::asio::ip::address::from_string(address),
+            boost::lexical_cast<std::uint16_t>(port)
+        };
+    });
+
+    CF_DBG("locator endpoints (%lu total):", endpoints.size());
     for (__attribute__((unused)) const auto& endpoint : endpoints) {
         CF_DBG(" - %s", CF_MSG(endpoint).c_str());
     }
 
-    d->manager.endpoints(std::move(endpoints));
+    d.reset(new impl(std::move(options), std::move(endpoints)));
 
     // Block the deprecated signals.
     sigset_t sigset;
@@ -113,7 +129,7 @@ worker_t::worker_t(options_t options) :
 
 worker_t::~worker_t() {}
 
-service_manager_t&worker_t::manager() {
+service_manager_t& worker_t::manager() {
     return d->manager;
 }
 
@@ -133,12 +149,14 @@ auto worker_t::options() const -> const options_t& {
 int worker_t::run() {
     auto executor = std::bind(&detail::worker::executor_t::operator(), std::ref(d->executor), ph::_1);
     d->session.reset(new worker_session_t(d->dispatch, d->scheduler, executor));
-    d->session->connect(d->options.endpoint, d->options.uuid);
+    d->session->connect(d->options.endpoint);
+    d->session->run(d->options.uuid);
 
     // The main thread is guaranteed to work only with cocaine socket and timers.
     try {
         d->loop.loop.run();
     } catch (const error_t& err) {
+        CF_DBG("shutdown: [%d] %s", err.code().value(), err.code().message().c_str());
         return err.code().value();
     }
 

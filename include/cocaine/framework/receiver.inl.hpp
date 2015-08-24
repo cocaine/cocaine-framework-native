@@ -31,6 +31,7 @@
 #include <cocaine/idl/primitive.hpp>
 #include <cocaine/idl/streaming.hpp>
 #include <cocaine/tuple.hpp>
+#include <cocaine/traits/error_code.hpp>
 #include <cocaine/utility.hpp>
 
 #include "cocaine/framework/forwards.hpp"
@@ -95,6 +96,17 @@ struct packable<U, 1> {
     typedef typename boost::mpl::front<U>::type type;
 };
 
+// TODO: Review. Document.
+template<class T>
+struct expand_optional {
+    typedef T type;
+};
+
+template<class T>
+struct expand_optional<cocaine::io::optional<T>> {
+    typedef T type;
+};
+
 /// Transforms event argument types (which is usually boost::mpl sequence) into a tuple.
 ///
 /// into_tuple<primitive_tag<T>>::type -> std::tuple<T>
@@ -103,7 +115,11 @@ struct packable<U, 1> {
 template<class Event>
 struct into_tuple {
     typedef typename tuple::fold<
-        typename io::event_traits<Event>::argument_type
+        typename boost::mpl::transform<
+            typename io::event_traits<Event>::argument_type,
+            // TODO: Review.
+            expand_optional<boost::mpl::_1>
+        >::type
     >::type type;
 };
 
@@ -150,7 +166,13 @@ private:
         typedef typename io::event_traits<Event>::argument_type argument_type;
         typedef typename io::event_traits<Event>::dispatch_type dispatch_type;
 
-        typedef typename tuple::fold<argument_type>::type tuple_type;
+        // TODO: Review.
+        typedef typename tuple::fold<
+            typename boost::mpl::transform<
+                argument_type,
+                expand_optional<boost::mpl::_1>
+            >::type
+        >::type tuple_type;
 
     public:
         typedef typename std::conditional<

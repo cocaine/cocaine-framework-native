@@ -2,6 +2,8 @@ if(APPLE)
     set(CMAKE_MACOSX_RPATH ON)
 endif()
 
+include(AddCXXCompilerFlag)
+
 find_package(Boost 1.40 REQUIRED COMPONENTS system thread program_options)
 find_package(Cocaine 0.12 REQUIRED)
 
@@ -33,6 +35,7 @@ set(SOURCES
     shared_state
     receiver
     trace.cpp
+    trace_logger.cpp
     worker.cpp
     worker/dispatch
     worker/error
@@ -55,15 +58,34 @@ add_library(${PROJECT} SHARED ${SOURCES})
 
 target_link_libraries(${PROJECT}
     ${Boost_LIBRARIES}
+    cocaine-core # Temporary link until required.
     msgpack
 )
 
+# Try and enable C++11.
+add_cxx_compiler_flag(-std=c++11)
+IF(NOT HAVE_CXX_FLAG_STD_CXX11)
+  add_cxx_compiler_flag(-std=c++0x)
+ENDIF()
+
+# Turn compiler warnings.
+add_cxx_compiler_flag(-Wall)
+add_cxx_compiler_flag(-Wextra)
+add_cxx_compiler_flag(-Werror RELEASE)
+add_cxx_compiler_flag(-Winit-self)
+add_cxx_compiler_flag(-Wconversion)
+add_cxx_compiler_flag(-Wno-sign-conversion)
+add_cxx_compiler_flag(-Wold-style-cast)
+add_cxx_compiler_flag(-Woverloaded-virtual)
+add_cxx_compiler_flag(-Wctor-dtor-privacy)
+add_cxx_compiler_flag(-Wnon-virtual-dtor)
+add_cxx_compiler_flag(-Wunreachable-code)
+add_cxx_compiler_flag(-pedantic)
+add_cxx_compiler_flag(-pedantic-errors)
+
 set_target_properties(${PROJECT} PROPERTIES
     VERSION 1
-    COMPILE_FLAGS "-Wall -pedantic -Wextra -Winit-self -Wconversion -Wno-sign-conversion -Wold-style-cast -Woverloaded-virtual -Wctor-dtor-privacy -Wnon-virtual-dtor -Wunreachable-code"
 )
-
-add_definitions(-std=c++0x)
 
 # Install section.
 install(

@@ -75,3 +75,4 @@ context_holder::~context_holder()
 
 }}} // namespace cocaine::framework::trace
 #endif
+

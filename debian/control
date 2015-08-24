@@ -8,6 +8,7 @@ Build-Depends: cmake, cdbs, debhelper (>= 7.0.13),
  libboost-thread-dev,
  libboost-program-options-dev,
  libcocaine-dev (>= 0.12),
+ libcocaine-plugin-node-dev (>= 0.12.3),
  libmsgpack-dev,
  blackhole5-dev
 Standards-Version: 3.9.3
@@ -25,6 +26,7 @@ Architecture: any
 Section: libdevel
 Depends: ${shlibs:Depends}, ${misc:Depends},
  libcocaine-dev (>= 0.12),
+ libcocaine-plugin-node-dev (>= 0.12.3),
  libcocaine-framework-native1 (= ${binary:Version})
 Description: Cocaine - C++ Framework Development Headers
  Cocaine C++ Framework development header files.

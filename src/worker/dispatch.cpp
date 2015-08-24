@@ -35,7 +35,7 @@ dispatch_t::dispatch_t() {
 }
 
 boost::optional<dispatch_t::handler_type>
-dispatch_t::get(const std::string& event) {
+dispatch_t::get(const std::string& event) const {
     auto it = handlers.find(event);
     if (it != handlers.end()) {
         return it->second;

@@ -119,11 +119,12 @@ unexpected_eof::unexpected_eof() :
     error_t(error::unexpected_eof, ERROR_UNEXPECTED_EOF)
 {}
 
-request_error::request_error(int id, std::string description) :
+request_error::request_error(std::error_code ec, std::string description) :
+    // TODO: Temporarily left unspecified.
     error_t(error::unspecified, std::move(description)),
-    id_(id)
+    ec_(std::move(ec))
 {}
 
 int request_error::id() const noexcept {
-    return id_;
+    return ec_.value();
 }

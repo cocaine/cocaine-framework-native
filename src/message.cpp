@@ -25,38 +25,34 @@
 #include <msgpack/unpack.hpp>
 #include <msgpack/zone.hpp>
 
+#include <cocaine/hpack/header.hpp>
+
 using namespace cocaine::framework;
 
 class decoded_message::impl {
 public:
     impl() {}
 
-    impl(const char* data, std::size_t size) {
-        storage.resize(size);
-        std::copy(data, data + size, storage.begin());
-
-        size_t offset = 0;
-        msgpack::object object;
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-        std::auto_ptr<msgpack::zone> zone(new msgpack::zone);
-#pragma GCC diagnostic pop
-        msgpack::unpack(storage.data(), storage.size(), &offset, zone.get(), &object);
-
-        unpacked.zone() = zone;
-        unpacked.get() = object;
+    impl(msgpack::object _obj, std::vector<char>&& _storage, std::vector<hpack::header_t> _headers) :
+        obj(std::move(_obj)),
+        storage(std::move(_storage)),
+        headers(std::move(_headers)),
+        header_zone(headers)
+    {
     }
 
+    msgpack::object obj;
     std::vector<char> storage;
-    msgpack::unpacked unpacked;
+    std::vector<hpack::header_t> headers;
+    hpack::header_t::zone_t header_zone;
 };
 
 decoded_message::decoded_message(boost::none_t) :
     d(new impl)
 {}
 
-decoded_message::decoded_message(const char* data, std::size_t size) :
-    d(new impl(data, size))
+decoded_message::decoded_message(msgpack::object obj, std::vector<char>&& storage, std::vector<hpack::header_t> headers) :
+    d(new impl(std::move(obj), std::move(storage), std::move(headers)))
 {}
 
 decoded_message::~decoded_message() {}
@@ -70,14 +66,23 @@ decoded_message& decoded_message::operator=(decoded_message&& other) {
     return *this;
 }
 
-auto decoded_message::span() const -> std::uint64_t {
-    return d->unpacked.get().via.array.ptr[0].as<std::uint64_t>();
+auto decoded_message::span() const -> uint64_t {
+    return d->obj.via.array.ptr[0].as<uint64_t>();
 }
 
-auto decoded_message::type() const -> std::uint64_t {
-    return d->unpacked.get().via.array.ptr[1].as<std::uint64_t>();
+auto decoded_message::type() const -> uint64_t {
+    return d->obj.via.array.ptr[1].as<uint64_t>();
 }
 
 auto decoded_message::args() const -> const msgpack::object& {
-    return d->unpacked.get().via.array.ptr[2];
+    return d->obj.via.array.ptr[2];
+}
+
+auto decoded_message::get_header(const hpack::header::data_t& key) const -> boost::optional<hpack::header_t> {
+    for(auto& header : d->headers) {
+        if(header.get_name() == key) {
+            return boost::make_optional(header);
+        }
+    }
+    return boost::none;
 }

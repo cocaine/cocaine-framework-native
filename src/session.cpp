@@ -27,6 +27,8 @@
 #include "cocaine/framework/detail/loop.hpp"
 #include "cocaine/framework/detail/net.hpp"
 
+#include <cocaine/trace/trace.hpp>
+
 namespace ph = std::placeholders;
 
 using namespace cocaine;
@@ -38,7 +40,9 @@ public:
     scheduler_t& scheduler;
     std::shared_ptr<basic_session_type> sess;
     synchronized<std::vector<endpoint_type>> endpoints;
-    std::vector<std::shared_ptr<task<void>::promise_type>> queue;
+
+    typedef std::vector<std::shared_ptr<task<void>::promise_type>> queue_type;
+    synchronized<queue_type> queue;
 
     explicit impl(scheduler_t& scheduler) :
         scheduler(scheduler),
@@ -52,25 +56,28 @@ public:
         if (ec) {
             switch (ec.value()) {
             case asio::error::already_started:
-                queue.push_back(promise);
+                queue->push_back(promise);
                 break;
             case asio::error::already_connected:
-                BOOST_ASSERT(queue.empty());
                 promise->set_value();
                 break;
             default:
                 promise->set_exception(std::system_error(ec));
-                for (auto it = queue.begin(); it != queue.end(); ++it) {
-                    (*it)->set_exception(std::system_error(ec));
-                }
-                queue.clear();
+                queue.apply([&](queue_type& queue) {
+                    for (auto it = queue.begin(); it != queue.end(); ++it) {
+                        (*it)->set_exception(std::system_error(ec));
+                    }
+                    queue.clear();
+                });
             }
         } else {
             promise->set_value();
-            for (auto it = queue.begin(); it != queue.end(); ++it) {
-                (*it)->set_value();
-            }
-            queue.clear();
+            queue.apply([&](queue_type& queue) {
+                for (auto it = queue.begin(); it != queue.end(); ++it) {
+                    (*it)->set_value();
+                }
+                queue.clear();
+            });
         }
     }
 };
@@ -108,7 +115,7 @@ auto session<BasicSession>::connect(const std::vector<session::endpoint_type>& e
     auto future = promise->get_future();
 
     d->sess->connect(endpoints)
-        .then(d->scheduler, trace::wrap(std::bind(&impl::on_connect, d, ph::_1, promise)));
+        .then(d->scheduler, trace::wrap(trace_t::bind(&impl::on_connect, d, ph::_1, promise)));
 
     return future;
 }
@@ -125,10 +132,10 @@ session<BasicSession>::native_handle() const {
 }
 
 template<class BasicSession>
-auto session<BasicSession>::invoke(std::function<io::encoder_t::message_type(std::uint64_t)> encoder)
+auto session<BasicSession>::invoke(encode_callback_t encode_callback)
     -> task<basic_invoke_result>::future_type
 {
-    return d->sess->invoke(std::move(encoder));
+    return d->sess->invoke(std::move(encode_callback));
 }
 
 #include "cocaine/framework/detail/basic_session.hpp"

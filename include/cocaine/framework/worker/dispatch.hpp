@@ -46,7 +46,7 @@ public:
     dispatch_t();
 
     boost::optional<handler_type>
-    get(const std::string& event);
+    get(const std::string& event) const;
 
     void
     on(std::string event, handler_type handler);

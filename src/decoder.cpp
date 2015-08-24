@@ -22,7 +22,12 @@
 #include <msgpack/unpack.hpp>
 #include <msgpack/zone.hpp>
 
-#include <cocaine/rpc/asio/errors.hpp>
+#include <cocaine/common.hpp>
+#include <cocaine/errors.hpp>
+
+#include <cocaine/hpack/header.hpp>
+
+#include <cocaine/rpc/asio/decoder.hpp>
 
 #include "cocaine/framework/message.hpp"
 
@@ -32,23 +37,26 @@ size_t decoder_t::decode(const char* data, size_t size, message_type& message, s
     size_t offset = 0;
 
     msgpack::object object;
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-    std::auto_ptr<msgpack::zone> zone(new msgpack::zone);
-#pragma GCC diagnostic pop
-    msgpack::unpack_return rv = msgpack::unpack(data, size, &offset, zone.get(), &object);
+    std::vector<char> buffer(size);
+    memcpy(buffer.data(), data, size);
+    msgpack::unpack_return rv = msgpack::unpack(buffer.data(), size, &offset, &zone, &object);
 
     if(rv == msgpack::UNPACK_SUCCESS || rv == msgpack::UNPACK_EXTRA_BYTES) {
-        if (object.type != msgpack::type::ARRAY || object.via.array.size < 3) {
-            ec = error::frame_format_error;
-        } else if(object.via.array.ptr[0].type != msgpack::type::POSITIVE_INTEGER ||
-                  object.via.array.ptr[1].type != msgpack::type::POSITIVE_INTEGER ||
-                  object.via.array.ptr[2].type != msgpack::type::ARRAY)
-        {
-            ec = error::frame_format_error;
-        } else {
-            message = message_type(data, offset);
+        std::vector<hpack::header_t> headers;
+        bool error = false;
+        error = error || object.type != msgpack::type::ARRAY;
+        error = error || object.via.array.size < 3;
+        error = error || object.via.array.ptr[0].type != msgpack::type::POSITIVE_INTEGER;
+        error = error || object.via.array.ptr[1].type != msgpack::type::POSITIVE_INTEGER;
+        error = error || object.via.array.ptr[2].type != msgpack::type::ARRAY;
+        if(object.via.array.size > 3) {
+            error = error || object.via.array.ptr[3].type != msgpack::type::ARRAY;
+            error = error || !hpack::msgpack_traits::unpack_vector(object.via.array.ptr[3], header_table, headers);
         }
+        if(error) {
+            ec = error::frame_format_error;
+        }
+        message = message_type(std::move(object), std::move(buffer), std::move(headers));
     } else if(rv == msgpack::UNPACK_CONTINUE) {
         ec = error::insufficient_bytes;
     } else if(rv == msgpack::UNPACK_PARSE_ERROR) {

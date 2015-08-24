@@ -1,3 +1,23 @@
+cocaine-framework-native (0.12.3-1) unstable; urgency=low
+
+  * Minor: fixed string literal forwarding.
+    Now it's possible to use string literals in service and channels API
+    instead of wrapping them into `std::string`.
+
+ -- Evgeny Safronov <division494@gmail.com>  Wed, 12 Aug 2015 10:13:06 +0300
+
+cocaine-framework-native (0.12.3-0) unstable; urgency=low
+
+  * Debian: fix dependencies from Node plugin.
+
+ -- Evgeny Safronov <division494@gmail.com>  Fri, 07 Aug 2015 16:22:39 +0300
+
+cocaine-framework-native (0.12.1-0) unstable; urgency=low
+
+  * API: Error categories support.
+
+ -- Evgeny Safronov <division494@gmail.com>  Wed, 17 Jun 2015 15:33:07 +0400
+
 cocaine-framework-native (0.12.0-3) unstable; urgency=low
 
   * API: Fallback handler.

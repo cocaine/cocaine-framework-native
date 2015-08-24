@@ -18,8 +18,8 @@
 
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <memory>
-#include <unordered_map>
 
 #include <asio/local/stream_protocol.hpp>
 
@@ -27,8 +27,9 @@
 #include <cocaine/forwards.hpp>
 #include <cocaine/idl/rpc.hpp>
 #include <cocaine/locked_ptr.hpp>
-#include <cocaine/rpc/asio/channel.hpp>
+#include <cocaine/rpc/asio/transport.hpp>
 
+#include "cocaine/framework/encoder.hpp"
 #include "cocaine/framework/message.hpp"
 #include "cocaine/framework/worker/dispatch.hpp"
 
@@ -38,42 +39,63 @@ namespace cocaine {
 
 namespace framework {
 
-/*!
- * \brief The worker_session_t class - implementation heart of any worker.
- *
- * \internal
- */
-class worker_session_t : public std::enable_shared_from_this<worker_session_t> {
-    template<class>
-    class push_t;
+/// The worker session class - implementation heart of any worker.
+///
+/// \internal
+/// \reentrant
+class worker_session_t:
+    public std::enable_shared_from_this<worker_session_t>
+{
+    template<class> class push_t;
 
 public:
     typedef asio::local::stream_protocol protocol_type;
-    typedef io::channel<protocol_type, io::encoder_t, detail::decoder_t> channel_type;
-
-    typedef std::function<void(worker::sender, worker::receiver)> handler_type;
+    typedef protocol_type::endpoint endpoint_type;
 
 private:
-    dispatch_t& dispatch;
+    /// Event dispatcher.
+    const dispatch_t& dispatch;
+
     scheduler_t& scheduler;
+
+    /// Userspace event handler executor.
     executor_t executor;
 
     detail::decoder_t::message_type message;
-    std::unique_ptr<channel_type> channel;
-    synchronized<std::unordered_map<std::uint64_t, std::shared_ptr<shared_state_t>>> channels;
 
-    // Health.
+    /// Underlying transport.
+    typedef io::transport<protocol_type, io::encoder_t, detail::decoder_t> transport_type;
+    synchronized<std::unique_ptr<transport_type>> transport;
+
+    std::atomic<std::uint64_t> counter;
+    synchronized<std::map<std::uint64_t, std::shared_ptr<shared_state_t>>> channels;
+
+    /// Health.
     asio::deadline_timer heartbeat_timer;
     asio::deadline_timer disown_timer;
 
 public:
     worker_session_t(dispatch_t& dispatch, scheduler_t& scheduler, executor_t executor);
 
-    void connect(std::string endpoint, std::string uuid);
+    /// Performs synchronous connection to the given endpoint.
+    void
+    connect(const endpoint_type& endpoint);
 
-    auto push(std::uint64_t span, io::encoder_t::message_type&& message) -> task<void>::future_type;
-    auto push(io::encoder_t::message_type&& message) -> task<void>::future_type;
-    void revoke(std::uint64_t span);
+    /// Runs the session event processing by sending a handshake message with the given uuid and
+    /// starting to listen incoming messages.
+    ///
+    /// \pre !!transport.
+    ///
+    /// \warning do not call this method more than once using single transport socket, otherwise
+    /// the behavior is undefined.
+    void
+    run(const std::string& uuid);
+
+    future<void>
+    push(io::encoder_t::message_type&& message);
+
+    void
+    revoke(std::uint64_t span);
 
 private:
     /// Handle incoming protocol message.
@@ -92,7 +114,7 @@ private:
     void handshake(const std::string& uuid);
 
     /// Sends a terminate protocol message to the runtime, then stops the event loop.
-    void terminate(io::rpc::terminate::code code, std::string reason);
+    void terminate(int code, std::string reason);
 
     /// Handles terminate event completion (i.e performs graceful shutdown).
     void on_terminate(task<void>::future_move_type);
@@ -105,13 +127,17 @@ private:
     void exhale(const std::error_code& ec = std::error_code());
 
     void process();
+
+    void
+    process_control(std::uint64_t id);
+
+    void
+    process_rpc(std::uint64_t id, std::uint64_t span);
+
     void process_handshake();
     void process_heartbeat();
     void process_terminate();
-    void process_invoke();
-    void process_chunk();
-    void process_error();
-    void process_choke();
+    void process_invoke(std::map<std::uint64_t, std::shared_ptr<shared_state_t>>& channels);
 };
 
 }

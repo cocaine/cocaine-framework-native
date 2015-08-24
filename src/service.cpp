@@ -19,6 +19,7 @@
 #include "cocaine/framework/detail/basic_session.hpp"
 #include "cocaine/framework/detail/log.hpp"
 #include "cocaine/framework/detail/resolver.hpp"
+#include "cocaine/framework/trace.hpp"
 
 namespace ph = std::placeholders;
 
@@ -66,16 +67,18 @@ public:
     {}
 };
 
-basic_service_t::basic_service_t(std::string name, uint version, endpoints_t locations, scheduler_t& scheduler) :
+basic_service_t::basic_service_t(internal_logger_t logger_, std::string name, uint version, endpoints_t locations, scheduler_t& scheduler) :
     d(new impl(std::move(name), version, std::move(locations), scheduler)),
     session(std::make_shared<session_t>(scheduler)),
-    scheduler(scheduler)
+    scheduler(scheduler),
+    logger(std::move(logger_))
 {}
 
 basic_service_t::basic_service_t(basic_service_t&& other) :
     d(std::move(other.d)),
     session(std::move(other.session)),
-    scheduler(other.scheduler)
+    scheduler(other.scheduler),
+    logger(std::move(other.logger))
 {}
 
 basic_service_t::~basic_service_t() {}
@@ -105,8 +108,8 @@ basic_service_t::connect() {
     }
 
     return d->resolver->resolve(d->name)
-        .then(trace::wrap(std::bind(&::on_resolve, ph::_1, d->version, session)))
-        .then(trace::wrap(std::bind(&::on_connect, ph::_1)));
+        .then(trace::wrap(trace_t::bind(&::on_resolve, ph::_1, d->version, session)))
+        .then(trace::wrap(trace_t::bind(&::on_connect, ph::_1)));
 }
 
 boost::optional<session_t::endpoint_type>

@@ -38,10 +38,11 @@ void help(const char* program, const boost::program_options::options_description
 options_t::options_t(int argc, char** argv) {
     boost::program_options::options_description options("Configuration");
     options.add_options()
-        ("app",      boost::program_options::value<std::string>(), "application name")
-        ("uuid",     boost::program_options::value<std::string>(), "worker uuid")
-        ("endpoint", boost::program_options::value<std::string>(), "cocaine-runtime endpoint")
-        ("locator",  boost::program_options::value<std::string>(), "locator endpoint");
+        ("app",      boost::program_options::value<std::string>(),   "application name")
+        ("uuid",     boost::program_options::value<std::string>(),   "worker uuid")
+        ("endpoint", boost::program_options::value<std::string>(),   "cocaine-runtime endpoint")
+        ("locator",  boost::program_options::value<std::string>(),   "locator endpoints")
+        ("protocol", boost::program_options::value<std::uint32_t>(), "protocol version");
 
     boost::program_options::options_description general("General options");
     general.add(options);
@@ -78,8 +79,25 @@ options_t::options_t(int argc, char** argv) {
         }
     }
 
+    std::uint32_t protocol = 0;
+    if (vm.count("protocol")) {
+        protocol = vm["protocol"].as<std::uint32_t>();
+
+        if (protocol > 2) {
+            std::cerr << "ERROR: protocol version mismatch" << std::endl << std::endl;
+            std::exit(1);
+        }
+    }
+
     name     = vm["app"].as<std::string>();
     uuid     = vm["uuid"].as<std::string>();
     endpoint = vm["endpoint"].as<std::string>();
     locator  = vm["locator"].as<std::string>();
+
+    other["protocol"] = protocol;
+}
+
+std::uint32_t
+options_t::protocol() const {
+    return boost::any_cast<std::uint32_t>(other.at("protocol"));
 }

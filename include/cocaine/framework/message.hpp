@@ -21,6 +21,9 @@
 #include <stddef.h>
 
 #include <boost/none_t.hpp>
+#include <boost/optional.hpp>
+
+#include <cocaine/hpack/header.hpp>
 
 namespace msgpack { struct object; }
 
@@ -35,15 +38,16 @@ public:
     /// Constructs a null-initialized message object.
     explicit decoded_message(boost::none_t);
 
-    /// Constructs a message object from its raw parts.
+    /// Constructs a message object from msgpack object, which data is stored in 'storage' buffer
+    /// and header vector, which data is also owned by buffer.
     ///
-    /// \pre the message should be valid MessagePack'ed Cocaine message, otherwise the behavior is
+    /// \pre object should represent valid MessagePack'ed Cocaine message, otherwise the behavior is
     /// undefined.
-    /// \throws std::bad_alloc if unable to allocate the required memory chunk.
-    decoded_message(const char* data, std::size_t size);
+    decoded_message(msgpack::object, std::vector<char>&& storage, std::vector<hpack::header_t> headers);
 
     ~decoded_message();
 
+    // TODO: Noexcept?
     decoded_message(decoded_message&& other);
     decoded_message& operator=(decoded_message&& other);
 
@@ -55,6 +59,15 @@ public:
 
     /// Returns the object representation of message arguments.
     auto args() const -> const msgpack::object&;
+
+    template<class Header>
+    boost::optional<hpack::header_t>
+    get_header() const {
+        return get_header(Header::name());
+    }
+
+private:
+    auto get_header(const hpack::header::data_t& key) const -> boost::optional<hpack::header_t>;
 };
 
 }} // namespace cocaine::framework

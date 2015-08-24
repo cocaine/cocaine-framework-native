@@ -17,6 +17,9 @@
 #pragma once
 
 #include <string>
+#include <unordered_map>
+
+#include <boost/any.hpp>
 
 namespace cocaine {
 
@@ -34,6 +37,12 @@ struct options_t {
     /// Can internally terminate the program on invalid command-line arguments, providing an help
     /// message and returning a proper exit code.
     options_t(int argc, char** argv);
+
+    std::uint32_t
+    protocol() const;
+
+private:
+    std::unordered_map<std::string, boost::any> other;
 };
 
 } // namespace framework

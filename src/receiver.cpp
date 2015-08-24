@@ -39,3 +39,9 @@ task<decoded_message>::future_type
 basic_receiver_t<Session>::recv() {
     return state->get();
 }
+
+template<class Session>
+cocaine::trace_t
+basic_receiver_t<Session>::get_trace() const {
+    return state->trace;
+}

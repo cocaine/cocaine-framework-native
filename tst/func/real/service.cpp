@@ -1,8 +1,10 @@
 #include <gtest/gtest.h>
 
+#include <cocaine/common.hpp>
 #include <cocaine/idl/storage.hpp>
 #include <cocaine/idl/streaming.hpp>
 #include <cocaine/idl/node.hpp>
+#include <cocaine/traits/error_code.hpp>
 
 #include <cocaine/framework/service.hpp>
 #include <cocaine/framework/scheduler.hpp>
@@ -24,8 +26,7 @@ TEST(service, NotFound) {
 }
 
 TEST(service, ConnectionRefusedOnWrongLocator) {
-    service_manager_t manager(1);
-    manager.endpoints({{ boost::asio::ip::tcp::v6(), 10052 }});
+    service_manager_t manager({{ boost::asio::ip::tcp::v6(), 10052 }}, 1);
     auto service = manager.create<cocaine::io::app_tag>("node");
 
     EXPECT_THROW(service.connect().get(), std::system_error);
@@ -64,7 +65,7 @@ TEST(service, VersionMismatch) {
 TEST(service, Storage) {
     service_manager_t manager(1);
     auto storage = manager.create<cocaine::io::storage_tag>("storage");
-    auto result = storage.invoke<cocaine::io::storage::read>(std::string("collection"), std::string("key")).get();
+    auto result = storage.invoke<cocaine::io::storage::read>("collection", "key").get();
 
     EXPECT_EQ("le value", result);
 }
@@ -73,7 +74,7 @@ TEST(service, StorageError) {
     service_manager_t manager(1);
     auto storage = manager.create<cocaine::io::storage_tag>("storage");
 
-    EXPECT_THROW(storage.invoke<cocaine::io::storage::read>(std::string("i-collection"), std::string("key")).get(), response_error);
+    EXPECT_THROW(storage.invoke<cocaine::io::storage::read>("i-collection", "key").get(), response_error);
 }
 
 TEST(service, Echo) {
@@ -82,14 +83,18 @@ TEST(service, Echo) {
     service_manager_t manager(1);
     auto echo = manager.create<cocaine::io::storage_tag>("echo-cpp");
 
-    auto channel = echo.invoke<cocaine::io::app::enqueue>(std::string("ping")).get();
+    auto channel = echo.invoke<cocaine::io::app::enqueue>("ping").get();
     auto tx = std::move(channel.tx);
     auto rx = std::move(channel.rx);
 
-    tx.send<upstream::chunk>(std::string("le message")).get();
+    tx.send<upstream::chunk>("le message").get()
+        .send<upstream::choke>().get();
     auto result = rx.recv().get();
 
     EXPECT_EQ("le message", *result);
+
+    // Read the choke.
+    rx.recv().get();
 }
 
 namespace ph = std::placeholders;
@@ -126,7 +131,7 @@ on_invoke(task<invocation_result<cocaine::io::app::enqueue>::type>::future_move_
     auto channel = future.get();
     auto tx = std::move(channel.tx);
     auto rx = std::move(channel.rx);
-    return tx.send<upstream::chunk>(std::string("le message"))
+    return tx.send<upstream::chunk>("le message")
         .then(std::bind(&on_send, ph::_1, rx))
         .then(std::bind(&on_recv, ph::_1, rx))
         .then(std::bind(&on_choke, ph::_1));
@@ -138,7 +143,7 @@ TEST(service, EchoAsynchronous) {
     service_manager_t manager(1);
     auto echo = manager.create<cocaine::io::storage_tag>("echo-cpp");
 
-    echo.invoke<cocaine::io::app::enqueue>(std::string("ping"))
+    echo.invoke<cocaine::io::app::enqueue>("ping")
         .then(std::bind(&on_invoke, ph::_1))
         .get();
 }

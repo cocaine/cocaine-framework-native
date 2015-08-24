@@ -21,6 +21,10 @@
 #include "cocaine/framework/service.inl.hpp"
 #include "cocaine/framework/session.hpp"
 #include "cocaine/framework/trace.hpp"
+#include "cocaine/framework/trace_logger.hpp"
+
+#include <cocaine/idl/logging.hpp>
+#include <cocaine/trace/trace.hpp>
 
 /// This module provides access to the client part of the Framework.
 ///
@@ -42,15 +46,17 @@ private:
     std::unique_ptr<impl> d;
     std::shared_ptr<session_t> session;
     scheduler_t& scheduler;
+    internal_logger_t logger;
 
 public:
     /// Constructs an instance of the service.
     ///
+    /// \param loger internal logger object which is used for logging tracing events.
     /// \param name a service's name, which is used by the Locator to resolve this service.
     /// \param version a protocol version number.
     /// \param locations list of the Locator endpoints which is usually well-known.
     /// \param scheduler an object which incapsulates an IO event loop inside itself.
-    basic_service_t(std::string name, uint version, endpoints_t locations, scheduler_t& scheduler);
+    basic_service_t(internal_logger_t logger, std::string name, uint version, endpoints_t locations, scheduler_t& scheduler);
 
     /// Constructs an instance of the service via moving already existing instance.
     basic_service_t(basic_service_t&& other);
@@ -89,8 +95,8 @@ public:
         trace::context_holder holder("SI");
 
         return connect()
-            .then(scheduler, trace::wrap(std::bind(&basic_service_t::on_connect<Event, Args...>, ph::_1, session, std::forward<Args>(args)...)))
-            .then(scheduler, trace::wrap(std::bind(&basic_service_t::on_invoke<Event>, ph::_1)));
+            .then(scheduler, trace::wrap(trace_t::bind(&basic_service_t::on_connect<Event, typename std::decay<Args>::type...>, ph::_1, session, std::forward<Args>(args)...)))
+            .then(scheduler, trace::wrap(trace_t::bind(&basic_service_t::on_invoke<Event>, ph::_1)));
     }
 
 private:
@@ -119,10 +125,9 @@ private:
 template<class T>
 class service : public basic_service_t {
 public:
-    service(std::string name, endpoints_t locations, scheduler_t& scheduler) :
-        basic_service_t(std::move(name), io::protocol<T>::version::value, std::move(locations), scheduler)
+    service(internal_logger_t logger, std::string name, endpoints_t locations, scheduler_t& scheduler) :
+        basic_service_t(std::move(logger), std::move(name), io::protocol<T>::version::value, std::move(locations), scheduler)
     {}
 };
 
 }} // namespace cocaine::framework
-
