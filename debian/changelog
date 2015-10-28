@@ -1,3 +1,9 @@
+cocaine-framework-native (0.12.4-1) unstable; urgency=low
+
+  * fix(worker): fix deadlock on receiver drop
+
+ -- Evgeny Safronov <division494@gmail.com>  Wed, 28 Oct 2015 18:04:15 +0300
+
 cocaine-framework-native (0.12.3-1) unstable; urgency=low
 
   * Minor: fixed string literal forwarding.
