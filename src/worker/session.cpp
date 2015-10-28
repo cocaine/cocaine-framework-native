@@ -121,7 +121,9 @@ void
 worker_session_t::revoke(std::uint64_t span) {
     CF_DBG("revoking span %llu channel", CF_US(span));
 
-    channels->erase(span);
+    scheduler.loop().loop.post([=]() {
+        channels->erase(span);
+    });
 }
 
 void worker_session_t::handshake(const std::string& uuid) {
