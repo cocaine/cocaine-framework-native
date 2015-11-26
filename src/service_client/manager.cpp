@@ -127,9 +127,9 @@ service_manager_t::~service_manager_t() {
         }
     }
 
+    m_logger.reset();
     m_reactors.clear();
     m_resolver.reset();
-    m_logger.reset();
 }
 
 void
