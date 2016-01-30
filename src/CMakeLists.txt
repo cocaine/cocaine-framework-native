@@ -60,6 +60,7 @@ target_link_libraries(${PROJECT}
     ${Boost_LIBRARIES}
     cocaine-core # Temporary link until required.
     msgpack
+    blackhole
 )
 
 # Try and enable C++11.

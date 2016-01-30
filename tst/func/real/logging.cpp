@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <blackhole/attribute.hpp>
+#include <blackhole/extensions/writer.hpp>
 
 #include <cocaine/common.hpp>
 #include <cocaine/idl/logging.hpp>
@@ -24,6 +25,6 @@ TEST(service, Logging) {
         logging::info,
         "app/testing",
         "le message",
-        blackhole::attribute::set_t({{ "key", blackhole::attribute::value_t(42) }})
+        blackhole::attributes_t({{ "key", blackhole::attribute::value_t(42)}})
     ).get();
 }
