@@ -1,3 +1,6 @@
+#include <blackhole/attribute.hpp>
+#include <blackhole/extensions/writer.hpp>
+
 #include "cocaine/framework/detail/log.hpp"
 #include "cocaine/framework/trace.hpp"
 
@@ -28,12 +31,12 @@ namespace {
     class log_handler_t :
     public std::enable_shared_from_this<log_handler_t> {
     public:
-        log_handler_t(std::shared_ptr<framework::service<io::log_tag>> _logger, std::string _message, blackhole::attribute::set_t _attributes) :
+        log_handler_t(std::shared_ptr<framework::service<io::log_tag>> _logger, std::string _message, blackhole::attributes_t _attributes) :
             logger(std::move(_logger)),
             message(std::move(_message)),
             attributes(std::move(_attributes))
         {
-            attributes.push_back(blackhole::attribute::make("real_timestamp", current_time()));
+            attributes.push_back({"real_timestamp", current_time()});
         }
 
         void
@@ -59,7 +62,7 @@ namespace {
     private:
         std::shared_ptr<framework::service<io::log_tag>> logger;
         std::string message;
-        blackhole::attribute::set_t attributes;
+        blackhole::attributes_t attributes;
     };
 }
 
@@ -91,7 +94,7 @@ internal_logger_t::log(std::string message) {
     //std::bind here is intentional. We don't want to pass trace there.
     d->loop.post(std::bind(
         &log_handler_t::operator(),
-        std::make_shared<log_handler_t>(d->logger, std::move(message), trace_t::current().attributes<blackhole::attribute::set_t>())
+        std::make_shared<log_handler_t>(d->logger, std::move(message), trace_t::current().attributes<blackhole::attributes_t>())
     ));
 }
 
