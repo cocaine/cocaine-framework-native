@@ -1,3 +1,9 @@
+cocaine-framework-native (0.12.6-0) unstable; urgency=low
+
+  * Release.
+
+ -- Evgeny Safronov <division494@gmail.com>  Wed, 02 Mar 2016 16:22:39 +0300
+
 cocaine-framework-native (0.12.4-1) unstable; urgency=low
 
   * fix(worker): fix deadlock on receiver drop
