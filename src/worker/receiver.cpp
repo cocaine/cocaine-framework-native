@@ -34,9 +34,7 @@ typedef io::protocol<io::worker::rpc::invoke::upstream_type>::scope protocol;
 
 namespace {
 
-boost::optional<std::string>
-on_recv(task<decoded_message>::future_move_type future) {
-    const auto message = future.get();
+auto on_recv(const decoded_message& message) -> boost::optional<std::string> {
     const auto id = message.type();
     switch (id) {
     case io::event_traits<protocol::chunk>::id: {
@@ -63,13 +61,33 @@ on_recv(task<decoded_message>::future_move_type future) {
     return boost::none;
 }
 
+auto on_recv_data(task<decoded_message>::future_move_type future) -> boost::optional<std::string> {
+    return on_recv(future.get());
+}
+
+auto on_recv_with_meta(future<decoded_message>& future) -> boost::optional<frame_t> {
+    const auto message = future.get();
+    if (auto chunk = on_recv(message)) {
+        return boost::optional<frame_t>({*chunk});
+    }
+
+    return boost::none;
+}
+
 } // namespace
 
 worker::receiver::receiver(std::shared_ptr<basic_receiver_t<worker_session_t>> session) :
     session(std::move(session))
 {}
 
-auto worker::receiver::recv() -> task<boost::optional<std::string>>::future_type {
+template<>
+auto worker::receiver::recv<std::string>() -> future<boost::optional<std::string>> {
     return session->recv()
-        .then(std::bind(&on_recv, ph::_1));
+        .then(std::bind(&on_recv_data, ph::_1));
+}
+
+template<>
+auto worker::receiver::recv<frame_t>() -> future<boost::optional<frame_t>> {
+    return session->recv()
+        .then(std::bind(&on_recv_with_meta, ph::_1));
 }

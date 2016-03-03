@@ -22,29 +22,36 @@
 #include <boost/optional/optional.hpp>
 
 #include <cocaine/forwards.hpp>
+// #include <cocaine/hpack/header.hpp>
 
 #include "cocaine/framework/forwards.hpp"
 
 namespace cocaine {
-
 namespace framework {
-
 namespace worker {
+
+struct frame_t {
+    std::string data;
+    // hpack::header_storage_t meta;
+};
 
 class receiver {
     std::shared_ptr<basic_receiver_t<worker_session_t>> session;
 
 public:
-    /*!
-     * \note this constructor is intentionally left implicit.
-     */
+    /// \note this constructor is intentionally left implicit.
     receiver(std::shared_ptr<basic_receiver_t<worker_session_t>> session);
 
-    auto recv() -> task<boost::optional<std::string>>::future_type;
+    template<typename R = std::string>
+    auto recv() -> future<boost::optional<R>>;
 };
 
+template<>
+auto receiver::recv<std::string>() -> future<boost::optional<std::string>>;
+
+template<>
+auto receiver::recv<frame_t>() -> future<boost::optional<frame_t>>;
+
 } // namespace worker
-
 } // namespace framework
-
 } // namespace cocaine
