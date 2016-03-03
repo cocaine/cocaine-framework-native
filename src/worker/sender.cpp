@@ -61,6 +61,8 @@ worker::sender::~sender() {
 }
 
 auto worker::sender::write(std::string message) -> task<worker::sender>::future_type {
+    BOOST_ASSERT(this->session);
+
     auto session = std::move(this->session);
 
     return session->send<protocol::chunk>(std::move(message))
@@ -68,6 +70,8 @@ auto worker::sender::write(std::string message) -> task<worker::sender>::future_
 }
 
 auto worker::sender::error(int id, std::string reason) -> task<void>::future_type {
+    BOOST_ASSERT(this->session);
+
     auto session = std::move(this->session);
 
     return session->send<protocol::error>(std::error_code(id, std::system_category()), std::move(reason))
@@ -75,6 +79,8 @@ auto worker::sender::error(int id, std::string reason) -> task<void>::future_typ
 }
 
 auto worker::sender::close() -> task<void>::future_type {
+    BOOST_ASSERT(this->session);
+
     auto session = std::move(this->session);
 
     return session->send<protocol::choke>()

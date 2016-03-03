@@ -33,13 +33,16 @@ class sender {
 public:
     /// \note this constructor is intentionally left implicit.
     sender(std::shared_ptr<basic_sender_t<worker_session_t>> session);
-    sender(const sender& other) = delete;
-    sender(sender&&) = default;
 
+    /// Copy construction is explicitly forbidden to avoid protocol violation.
+    sender(const sender& other) = delete;
+    sender(sender&& other) = default;
+
+    /// Destroys this sender, closing the associated channel if it wasn't closed before.
     ~sender();
 
     auto operator=(const sender& other) -> sender& = delete;
-    auto operator=(sender&&) -> sender& = default;
+    auto operator=(sender&& other) -> sender& = default;
 
     /// Writes the provided message into the associated channel.
     ///
