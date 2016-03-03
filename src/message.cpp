@@ -29,17 +29,16 @@
 
 using namespace cocaine::framework;
 
-class decoded_message::impl {
+class decoded_message::inner_t {
 public:
-    impl() {}
+    inner_t() {}
 
-    impl(msgpack::object _obj, std::vector<char>&& _storage, std::vector<hpack::header_t> _headers) :
+    inner_t(msgpack::object _obj, std::vector<char>&& _storage, std::vector<hpack::header_t> _headers) :
         obj(std::move(_obj)),
         storage(std::move(_storage)),
         headers(std::move(_headers)),
         header_zone(headers)
-    {
-    }
+    {}
 
     msgpack::object obj;
     std::vector<char> storage;
@@ -48,23 +47,18 @@ public:
 };
 
 decoded_message::decoded_message(boost::none_t) :
-    d(new impl)
+    d(new inner_t)
 {}
 
 decoded_message::decoded_message(msgpack::object obj, std::vector<char>&& storage, std::vector<hpack::header_t> headers) :
-    d(new impl(std::move(obj), std::move(storage), std::move(headers)))
+    d(new inner_t(std::move(obj), std::move(storage), std::move(headers)))
 {}
 
-decoded_message::~decoded_message() {}
+decoded_message::~decoded_message() = default;
 
-decoded_message::decoded_message(decoded_message&& other) :
-    d(std::move(other.d))
-{}
+decoded_message::decoded_message(decoded_message&& other) = default;
 
-decoded_message& decoded_message::operator=(decoded_message&& other) {
-    d = std::move(other.d);
-    return *this;
-}
+auto decoded_message::operator=(decoded_message&& other) -> decoded_message& = default;
 
 auto decoded_message::span() const -> uint64_t {
     return d->obj.via.array.ptr[0].as<uint64_t>();
@@ -78,8 +72,12 @@ auto decoded_message::args() const -> const msgpack::object& {
     return d->obj.via.array.ptr[2];
 }
 
+auto decoded_message::meta() const noexcept -> const std::vector<hpack::header_t>& {
+    return d->headers;
+}
+
 auto decoded_message::get_header(const hpack::header::data_t& key) const -> boost::optional<hpack::header_t> {
-    for(auto& header : d->headers) {
+    for(auto& header : meta()) {
         if(header.get_name() == key) {
             return boost::make_optional(header);
         }

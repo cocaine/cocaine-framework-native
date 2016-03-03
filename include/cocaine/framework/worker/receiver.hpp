@@ -22,7 +22,7 @@
 #include <boost/optional/optional.hpp>
 
 #include <cocaine/forwards.hpp>
-// #include <cocaine/hpack/header.hpp>
+#include <cocaine/hpack/header.hpp>
 
 #include "cocaine/framework/forwards.hpp"
 
@@ -32,7 +32,7 @@ namespace worker {
 
 struct frame_t {
     std::string data;
-    // hpack::header_storage_t meta;
+    hpack::header_storage_t meta;
 };
 
 class receiver {

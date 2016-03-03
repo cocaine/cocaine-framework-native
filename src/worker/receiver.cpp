@@ -68,7 +68,14 @@ auto on_recv_data(task<decoded_message>::future_move_type future) -> boost::opti
 auto on_recv_with_meta(future<decoded_message>& future) -> boost::optional<frame_t> {
     const auto message = future.get();
     if (auto chunk = on_recv(message)) {
-        return boost::optional<frame_t>({*chunk});
+        // TODO(@antmat): WTF?
+        hpack::header_storage_t headers;
+
+        for (const auto& header : message.meta()) {
+            headers.push_back(header);
+        }
+
+        return boost::optional<frame_t>({*chunk, std::move(headers)});
     }
 
     return boost::none;
