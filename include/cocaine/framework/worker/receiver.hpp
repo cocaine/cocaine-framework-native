@@ -36,11 +36,16 @@ struct frame_t {
 };
 
 class receiver {
+    hpack::header_storage_t headers;
     std::shared_ptr<basic_receiver_t<worker_session_t>> session;
 
 public:
     /// \note this constructor is intentionally left implicit.
-    receiver(std::shared_ptr<basic_receiver_t<worker_session_t>> session);
+    receiver(const std::vector<hpack::header_t>& headers,
+             std::shared_ptr<basic_receiver_t<worker_session_t>> session);
+
+    /// Returns a const lvalue reference to headers that were passed with an invocation event.
+    auto invocation_headers() const noexcept -> const hpack::header_storage_t&;
 
     template<typename R = std::string>
     auto recv() -> future<boost::optional<R>>;

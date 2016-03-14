@@ -83,18 +83,32 @@ auto on_recv_with_meta(future<decoded_message>& future) -> boost::optional<frame
 
 } // namespace
 
-worker::receiver::receiver(std::shared_ptr<basic_receiver_t<worker_session_t>> session) :
+namespace cocaine {
+namespace framework {
+namespace worker {
+
+receiver::receiver(const std::vector<hpack::header_t>& headers,
+                   std::shared_ptr<basic_receiver_t<worker_session_t>> session) :
+    headers(headers),
     session(std::move(session))
 {}
 
+auto receiver::invocation_headers() const noexcept -> const hpack::header_storage_t& {
+    return headers;
+}
+
 template<>
-auto worker::receiver::recv<std::string>() -> future<boost::optional<std::string>> {
+auto receiver::recv<std::string>() -> future<boost::optional<std::string>> {
     return session->recv()
         .then(std::bind(&on_recv_data, ph::_1));
 }
 
 template<>
-auto worker::receiver::recv<frame_t>() -> future<boost::optional<frame_t>> {
+auto receiver::recv<frame_t>() -> future<boost::optional<frame_t>> {
     return session->recv()
         .then(std::bind(&on_recv_with_meta, ph::_1));
 }
+
+}  // namespace worker
+}  // namespace framework
+}  // namespace cocaine
