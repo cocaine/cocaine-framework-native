@@ -1,3 +1,9 @@
+cocaine-framework-native (0.12.7-1) unstable; urgency=low
+
+  * Feature: worker API now provides way to extract headers from receivers.
+
+ -- Evgeny Safronov <division494@gmail.com>  Mon, 14 Mar 2016 18:26:39 +0300
+
 cocaine-framework-native (0.12.6-1) unstable; urgency=low
 
   * Feature: check sender's state before invoking its methods to avoid protocol
