@@ -97,6 +97,26 @@ TEST(service, Echo) {
     rx.recv().get();
 }
 
+TEST(service, EchoHeaders) {
+    typedef cocaine::io::protocol<cocaine::io::app::enqueue::dispatch_type>::scope upstream;
+
+    service_manager_t manager(1);
+    auto echo = manager.create<cocaine::io::storage_tag>("echo-cpp");
+
+    auto channel = echo.invoke<cocaine::io::app::enqueue>("meta").get();
+    auto tx = std::move(channel.tx);
+    auto rx = std::move(channel.rx);
+
+    tx.send<upstream::chunk>("le message").get()
+        .send<upstream::choke>().get();
+    auto result = rx.recv().get();
+
+    EXPECT_EQ("le message", *result);
+
+    // Read the choke.
+    rx.recv().get();
+}
+
 namespace ph = std::placeholders;
 
 namespace {

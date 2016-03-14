@@ -34,9 +34,7 @@ typedef io::protocol<io::worker::rpc::invoke::upstream_type>::scope protocol;
 
 namespace {
 
-boost::optional<std::string>
-on_recv(task<decoded_message>::future_move_type future) {
-    const auto message = future.get();
+auto on_recv(const decoded_message& message) -> boost::optional<std::string> {
     const auto id = message.type();
     switch (id) {
     case io::event_traits<protocol::chunk>::id: {
@@ -63,13 +61,54 @@ on_recv(task<decoded_message>::future_move_type future) {
     return boost::none;
 }
 
+auto on_recv_data(task<decoded_message>::future_move_type future) -> boost::optional<std::string> {
+    return on_recv(future.get());
+}
+
+auto on_recv_with_meta(future<decoded_message>& future) -> boost::optional<frame_t> {
+    const auto message = future.get();
+    if (auto chunk = on_recv(message)) {
+        // TODO(@antmat): WTF?
+        hpack::header_storage_t headers;
+
+        for (const auto& header : message.meta()) {
+            headers.push_back(header);
+        }
+
+        return boost::optional<frame_t>({*chunk, std::move(headers)});
+    }
+
+    return boost::none;
+}
+
 } // namespace
 
-worker::receiver::receiver(std::shared_ptr<basic_receiver_t<worker_session_t>> session) :
+namespace cocaine {
+namespace framework {
+namespace worker {
+
+receiver::receiver(const std::vector<hpack::header_t>& headers,
+                   std::shared_ptr<basic_receiver_t<worker_session_t>> session) :
+    headers(headers),
     session(std::move(session))
 {}
 
-auto worker::receiver::recv() -> task<boost::optional<std::string>>::future_type {
-    return session->recv()
-        .then(std::bind(&on_recv, ph::_1));
+auto receiver::invocation_headers() const noexcept -> const hpack::header_storage_t& {
+    return headers;
 }
+
+template<>
+auto receiver::recv<std::string>() -> future<boost::optional<std::string>> {
+    return session->recv()
+        .then(std::bind(&on_recv_data, ph::_1));
+}
+
+template<>
+auto receiver::recv<frame_t>() -> future<boost::optional<frame_t>> {
+    return session->recv()
+        .then(std::bind(&on_recv_with_meta, ph::_1));
+}
+
+}  // namespace worker
+}  // namespace framework
+}  // namespace cocaine

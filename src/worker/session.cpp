@@ -22,6 +22,7 @@
 
 #include "cocaine/framework/scheduler.hpp"
 #include "cocaine/framework/worker/error.hpp"
+#include "cocaine/framework/worker/receiver.hpp"
 
 #include "cocaine/framework/detail/log.hpp"
 #include "cocaine/framework/detail/loop.hpp"
@@ -297,7 +298,10 @@ void worker_session_t::process_invoke(std::map<std::uint64_t, std::shared_ptr<sh
     auto id = message.span();
     auto tx = std::make_shared<basic_sender_t<worker_session_t>>(id, shared_from_this());
     auto state = std::make_shared<shared_state_t>();
-    auto rx = std::make_shared<basic_receiver_t<worker_session_t>>(id, shared_from_this(), state);
+    auto rx = worker::receiver(
+        message.meta(),
+        std::make_shared<basic_receiver_t<worker_session_t>>(id, shared_from_this(), state)
+    );
 
     trace_t trace(
         message.get_header<hpack::headers::trace_id<>>()->get_value().convert<uint64_t>(),

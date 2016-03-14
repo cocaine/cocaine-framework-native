@@ -27,12 +27,13 @@
 
 namespace msgpack { struct object; }
 
-namespace cocaine { namespace framework {
+namespace cocaine {
+namespace framework {
 
 /// The decoded message class represents movable unpacked MessagePack payload with internal storage.
 class decoded_message {
-    class impl;
-    std::unique_ptr<impl> d;
+    class inner_t;
+    std::unique_ptr<inner_t> d;
 
 public:
     /// Constructs a null-initialized message object.
@@ -60,6 +61,8 @@ public:
     /// Returns the object representation of message arguments.
     auto args() const -> const msgpack::object&;
 
+    auto meta() const noexcept -> const std::vector<hpack::header_t>&;
+
     template<class Header>
     boost::optional<hpack::header_t>
     get_header() const {
@@ -70,4 +73,5 @@ private:
     auto get_header(const hpack::header::data_t& key) const -> boost::optional<hpack::header_t>;
 };
 
-}} // namespace cocaine::framework
+} // namespace framework
+} // namespace cocaine
