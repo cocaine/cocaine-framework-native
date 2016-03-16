@@ -1,3 +1,9 @@
+cocaine-framework-native (0.12.7-2) unstable; urgency=low
+
+  * Constraint with core version of 0.12.7.
+
+ -- Evgeny Safronov <division494@gmail.com>  Wed, 16 Mar 2016 14:09:48 +0300
+
 cocaine-framework-native (0.12.7-1) unstable; urgency=low
 
   * Feature: worker API now provides way to extract headers from receivers.
