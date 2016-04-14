@@ -16,6 +16,7 @@
 
 #include "cocaine/framework/detail/worker/session.hpp"
 
+#include <cocaine/hpack/static_table.hpp>
 #include <cocaine/traits/enum.hpp>
 #include <cocaine/idl/streaming.hpp>
 #include <cocaine/framework/trace.hpp>
