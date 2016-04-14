@@ -26,6 +26,7 @@
 #include <cocaine/errors.hpp>
 
 #include <cocaine/hpack/header.hpp>
+#include <cocaine/hpack/msgpack_traits.hpp>
 
 #include <cocaine/rpc/asio/decoder.hpp>
 
