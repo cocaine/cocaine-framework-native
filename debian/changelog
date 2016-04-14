@@ -1,3 +1,9 @@
+cocaine-framework-native (0.12.8-1) unstable; urgency=low
+
+  * Adapt cocaine-core v0.12.8.
+
+ -- Anton Matveenko <antmat@me.com>  Thu, 14 Apr 2016 15:18:48 +0300
+
 cocaine-framework-native (0.12.7-2) unstable; urgency=low
 
   * Constraint with core version of 0.12.7.
