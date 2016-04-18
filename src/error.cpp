@@ -21,8 +21,8 @@
 using namespace cocaine::framework;
 
 /// Extended description formatting patterns.
-static const char ERROR_SERVICE_NOT_FOUND[] = "the service '%s' is not available";
-static const char ERROR_VERSION_MISMATCH[]  = "version mismatch (%d expected, but %d actual)";
+static const char ERROR_SERVICE_NOT_FOUND[] = "the service '{}' is not available";
+static const char ERROR_VERSION_MISMATCH[]  = "version mismatch ({} expected, but {} actual)";
 
 namespace {
 
@@ -125,8 +125,8 @@ int version_mismatch::actual() const noexcept {
 response_error::response_error(std::tuple<std::error_code, std::string>& err) :
     error_t(error::unspecified,
             std::get<1>(err).empty() ?
-                cocaine::format("[%d]: %s", std::get<0>(err).value(), std::get<0>(err).message()) :
-                cocaine::format("[%d]: %s - %s", std::get<0>(err).value(), std::get<0>(err).message(), std::get<1>(err))
+                cocaine::format("[{}]: {}", std::get<0>(err).value(), std::get<0>(err).message()) :
+                cocaine::format("[{}]: {} - {}", std::get<0>(err).value(), std::get<0>(err).message(), std::get<1>(err))
             ),
     ec_(std::get<0>(err))
 {}

@@ -19,9 +19,9 @@
 #include <cocaine/format.hpp>
 
 /// Extended description formatting patterns.
-static const char ERROR_DISOWNED[]       = "disowning due to timeout expiration (%d s)";
+static const char ERROR_DISOWNED[]       = "disowning due to timeout expiration ({} s)";
 static const char ERROR_TERMINATED[]     = "explicitly terminated by the runtime";
-static const char ERROR_INVALID_TYPE[]   = "received a message with invalid type (%d)";
+static const char ERROR_INVALID_TYPE[]   = "received a message with invalid type ({})";
 static const char ERROR_UNEXPECTED_EOF[] = "the runtime has unexpectedly closed the clannel";
 
 using namespace cocaine::framework::worker;
