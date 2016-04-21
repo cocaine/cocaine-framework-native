@@ -51,7 +51,9 @@ TARGET_LINK_LIBRARIES(cocaine-framework
 
 SET_TARGET_PROPERTIES(cocaine-framework PROPERTIES
     VERSION 1
-    COMPILE_FLAGS "-std=c++0x -W -Wall -Werror -pedantic")
+    COMPILE_FLAGS "-std=c++0x -W -Wall -Werror -pedantic"
+    LINK_FLAGS "-Wl,--version-script=${PROJECT_SOURCE_DIR}/libcocaine-framework.version"
+)
 
 IF(NOT COCAINE_LIBDIR)
     SET(COCAINE_LIBDIR lib)
