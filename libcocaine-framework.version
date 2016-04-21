@@ -1,0 +1,5 @@
+{
+    global: _ZN7cocaine9framework*; _ZTI*; _ZTS*; _ZTN*; _ZNK*;
+    local: *;
+};
+
