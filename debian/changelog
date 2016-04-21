@@ -1,3 +1,11 @@
+cocaine-framework-native (0.11.1.5) unstable; urgency=low
+
+  * Hide all internal symbols except type info and exceptions.
+    This is the default behavior for clang with modern linkers, but our ancient
+    GCC stupidly exports all mean-to-be-hidden symbols no matter what.
+
+ -- Evgeny Safronov <division494@gmail.com>  Thu, 21 Apr 2016 19:12:30 +0300
+
 cocaine-framework-native (0.11.1.4) unstable; urgency=low
 
   * fix object destroying sequence on exit
