@@ -1,3 +1,9 @@
+cocaine-framework-native (0.12.8-3) unstable; urgency=low
+
+  * Adapt cocaine-core v0.12.8 with fixed HPACK bug.
+
+ -- Evgeny Safronov <division494@gmail.com>  Thu, 28 Apr 2016 16:09:39 +0300
+
 cocaine-framework-native (0.12.8-2) unstable; urgency=low
 
   * Update control
