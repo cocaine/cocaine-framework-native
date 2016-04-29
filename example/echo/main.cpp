@@ -24,6 +24,10 @@ int main(int argc, char** argv) {
         std::cout << "After close" << std::endl;
     });
 
+    worker.on("error", [](worker::sender tx, worker::receiver) {
+        tx.error(100500, "fuck you");
+    });
+
     worker.on("meta", [](worker::sender tx, worker::receiver rx) {
         std::cout << "After invoke. Headers count: "
             << rx.invocation_headers().get_headers().size() << std::endl;

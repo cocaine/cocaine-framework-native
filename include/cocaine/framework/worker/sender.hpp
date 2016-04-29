@@ -54,7 +54,8 @@ public:
     ///
     /// \warning this sender will be invalidated after this call. The proper signature should
     ///     involve rvalue reference from this, but our compilers doesn't support it yey.
-    auto error(int id, std::string reason) -> task<void>::future_type;
+    auto error(int ec, std::string reason) -> task<void>::future_type;
+    auto error(std::error_code ec, std::string reason) -> task<void>::future_type;
 
     /// Closes the channel.
     ///

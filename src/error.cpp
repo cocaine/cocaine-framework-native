@@ -17,8 +17,27 @@
 #include "cocaine/framework/error.hpp"
 
 #include <cocaine/format.hpp>
+#include <cocaine/repository.hpp>
+#include <cocaine/service/node/error.hpp>
 
 using namespace cocaine::framework;
+
+struct error_category_registrator_t {
+    error_category_registrator_t() {
+        using cocaine::error::registrar;
+        using namespace cocaine::service;
+
+        registrar::add(node::worker_category(), node::worker_category_t::id());
+        registrar::add(node::worker_user_category(), node::worker_user_category_t::id());
+    }
+
+    static auto instance() -> error_category_registrator_t& {
+        static error_category_registrator_t self;
+        return self;
+    }
+};
+
+static const error_category_registrator_t registrator = error_category_registrator_t::instance();
 
 /// Extended description formatting patterns.
 static const char ERROR_SERVICE_NOT_FOUND[] = "the service '{}' is not available";

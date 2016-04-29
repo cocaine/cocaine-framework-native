@@ -16,22 +16,23 @@
 
 #include "cocaine/framework/worker/dispatch.hpp"
 
+#include "cocaine/service/node/error.hpp"
+
 using namespace cocaine::framework;
 
 namespace {
 
 void
 default_fallback(const std::string& event, worker::sender tx, worker::receiver) {
-    const auto id = 1;
     const auto reason = "event '" + event + "' not found";
 
-    tx.error(id, reason);
+    tx.error(make_error_code(cocaine::service::node::event_not_found), reason);
 }
 
 } // namespace
 
 dispatch_t::dispatch_t() {
-    data.fallback = &::default_fallback;
+    data.fallback = &default_fallback;
 }
 
 boost::optional<dispatch_t::handler_type>
