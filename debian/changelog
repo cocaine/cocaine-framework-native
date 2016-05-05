@@ -1,3 +1,9 @@
+cocaine-framework-native (0.12.8-6) unstable; urgency=low
+
+  * Feature: interrupt worker after any I/O error.
+
+ -- Evgeny Safronov <division494@gmail.com>  Thu, 05 May 2016 18:33:32 +0300
+
 cocaine-framework-native (0.12.8-5) unstable; urgency=low
 
   * Bug fix: transmit both user and framework error categories from workers.
