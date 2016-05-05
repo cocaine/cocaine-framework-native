@@ -203,6 +203,8 @@ void worker_session_t::on_error(const std::error_code& ec) {
         channel.second->put(ec);
     }
     channels->clear();
+
+    throw error_t(ec, "I/O error");
 }
 
 void worker_session_t::process() {
