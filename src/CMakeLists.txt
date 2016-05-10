@@ -58,7 +58,7 @@ add_library(${PROJECT} SHARED ${SOURCES})
 
 target_link_libraries(${PROJECT}
     ${Boost_LIBRARIES}
-    cocaine-util # Temporary link until required.
+    cocaine-io-util
     msgpack
     blackhole
 )
