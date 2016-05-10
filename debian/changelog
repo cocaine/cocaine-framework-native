@@ -1,3 +1,9 @@
+cocaine-framework-native (0.12.8-7) unstable; urgency=low
+
+  * Bug fix: use proper library name to link to.
+
+ -- Evgeny Safronov <division494@gmail.com>  Tue, 10 May 2016 20:50:33 +0300
+
 cocaine-framework-native (0.12.8-6) unstable; urgency=low
 
   * Feature: interrupt worker after any I/O error.
