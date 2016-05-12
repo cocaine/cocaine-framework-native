@@ -18,6 +18,8 @@ using namespace testing::util;
 
 #include <cocaine/framework/manager.hpp>
 
+#ifdef __clang__
+
 TEST(service_manager, MultipleLocations) {
     service_manager_t manager({std::make_tuple("localhost", 10053)}, 1);
     const auto endpoints = std::vector<boost::asio::ip::tcp::endpoint>{
@@ -40,9 +42,8 @@ TEST(service_manager, MoreMultipleLocations) {
     EXPECT_EQ(endpoints, manager.endpoints());
 }
 
-
 TEST(service_manager, ThrowsOnInvalidFqdn) {
-    EXPECT_THROW(service_manager_t manager({{"wtf", 10053}}, 1), std::exception);
+    EXPECT_THROW(service_manager_t manager({std::make_tuple("wtf", 10053)}, 1), std::exception);
 }
 
 TEST(service, NotFound) {
@@ -53,11 +54,13 @@ TEST(service, NotFound) {
 }
 
 TEST(service, ConnectionRefusedOnWrongLocator) {
-    service_manager_t manager({{ boost::asio::ip::tcp::v6(), 10052 }}, 1);
+    service_manager_t manager({{boost::asio::ip::tcp::v6(), 10052}}, 1);
     auto service = manager.create<cocaine::io::app_tag>("node");
 
     EXPECT_THROW(service.connect().get(), std::system_error);
 }
+
+#endif
 
 namespace testing {
 
