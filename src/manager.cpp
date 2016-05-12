@@ -16,7 +16,8 @@
 
 #include "cocaine/framework/manager.hpp"
 
-#include <boost/optional.hpp>
+#include <boost/lexical_cast.hpp>
+#include <boost/optional/optional.hpp>
 #include <boost/thread/thread.hpp>
 
 #include <cocaine/idl/logging.hpp>
@@ -86,6 +87,38 @@ public:
     {}
 };
 
+namespace {
+
+auto resolve(std::vector<std::tuple<std::string, std::uint16_t>> endpoints) ->
+    std::vector<service_manager_t::endpoint_type>
+{
+    std::vector<service_manager_t::endpoint_type> result;
+
+    boost::asio::io_service io_service;
+    boost::asio::ip::tcp::resolver resolver(io_service);
+
+    auto inserter = std::back_inserter(result);
+
+    boost::asio::ip::tcp::resolver::iterator end;
+    std::string host;
+    std::uint16_t port;
+    for (const auto& endpoint : endpoints) {
+        std::tie(host, port) = endpoint;
+
+        boost::asio::ip::tcp::resolver::query query(
+            host,
+            boost::lexical_cast<std::string>(port),
+            boost::asio::ip::tcp::resolver::query::flags::numeric_service
+        );
+        const auto it = resolver.resolve(query);
+        std::copy(it, end, inserter);
+    }
+
+    return result;
+}
+
+}  // namespace
+
 service_manager_t::service_manager_t() :
     d(new service_manager_data(DEFAULT_LOCATIONS))
 {
@@ -96,21 +129,19 @@ service_manager_t::service_manager_t() :
 service_manager_t::service_manager_t(unsigned int threads):
     d(new service_manager_data(DEFAULT_LOCATIONS))
 {
-    if (threads > 0) {
-        start(threads);
-    } else {
-        throw std::invalid_argument("thread count must be a positive number");
-    }
+    start(threads);
 }
 
 service_manager_t::service_manager_t(std::vector<endpoint_type> entries, unsigned int threads):
     d(new service_manager_data(std::move(entries)))
 {
-    if (threads > 0) {
-        start(threads);
-    } else {
-        throw std::invalid_argument("thread count must be a positive number");
-    }
+    start(threads);
+}
+
+service_manager_t::service_manager_t(std::vector<std::tuple<std::string, std::uint16_t>> entries, unsigned int threads) :
+    d(new service_manager_data(resolve(entries)))
+{
+    start(threads);
 }
 
 service_manager_t::~service_manager_t() {
@@ -132,6 +163,10 @@ service_manager_t::endpoints() const {
 
 void
 service_manager_t::start(unsigned int threads) {
+    if (threads == 0) {
+        throw std::invalid_argument("thread count must be a positive number");
+    }
+
     for (unsigned int i = 0; i < threads; ++i) {
         d->threads.emplace_back(named_runnable<loop_t>("[CF::M]", d->io));
     }

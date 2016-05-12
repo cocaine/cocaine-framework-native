@@ -16,7 +16,9 @@
 
 #pragma once
 
+#include <cstdint>
 #include <memory>
+#include <string>
 
 #include "cocaine/framework/forwards.hpp"
 #include "cocaine/framework/session.hpp"
@@ -43,8 +45,15 @@ public:
     explicit
     service_manager_t(unsigned int threads);
 
-    /// Constructs the service manager using the given entry points and number of worker threads.
+    /// Constructs a service manager using the given entry points and number of worker threads.
     service_manager_t(std::vector<endpoint_type> entries, unsigned int threads);
+
+    /// Constructs a new service manager after performing a blocking DNS resolving of a given
+    /// locator endpoints.
+    ///
+    /// \param entries locator endpoints as a list of FQDN:port pairs.
+    /// \param threads number of worker threads.
+    service_manager_t(std::vector<std::tuple<std::string, std::uint16_t>> entries, unsigned int threads);
 
     ~service_manager_t();
 

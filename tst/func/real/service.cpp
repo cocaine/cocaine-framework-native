@@ -18,6 +18,30 @@ using namespace testing::util;
 
 #include <cocaine/framework/manager.hpp>
 
+TEST(service_manager, MultipleLocations) {
+    service_manager_t manager({{"localhost", 10053}}, 1);
+    const auto endpoints = std::vector<boost::asio::ip::tcp::endpoint>{
+        {boost::asio::ip::address_v6({0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}), 10053},
+        {boost::asio::ip::address_v4({127, 0, 0, 1}), 10053}
+    };
+    EXPECT_EQ(endpoints, manager.endpoints());
+}
+
+TEST(service_manager, MoreMultipleLocations) {
+    service_manager_t manager({{"localhost", 10053}, {"127.0.0.1", 10054}}, 1);
+    const auto endpoints = std::vector<boost::asio::ip::tcp::endpoint>{
+        {boost::asio::ip::address_v6({0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}), 10053},
+        {boost::asio::ip::address_v4({127, 0, 0, 1}), 10053},
+        {boost::asio::ip::address_v4({127, 0, 0, 1}), 10054}
+    };
+    EXPECT_EQ(endpoints, manager.endpoints());
+}
+
+
+TEST(service_manager, ThrowsOnInvalidFqdn) {
+    EXPECT_THROW(service_manager_t manager({{"wtf", 10053}}, 1), std::exception);
+}
+
 TEST(service, NotFound) {
     service_manager_t manager(1);
     auto service = manager.create<cocaine::io::app_tag>("invalid");
