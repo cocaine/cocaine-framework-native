@@ -1,3 +1,10 @@
+cocaine-framework-native (0.12.8-8) unstable; urgency=low
+
+  * Feature: extend service manager API
+    Allowing to initialize a service manager using list of FQDN:port pairs.
+
+ -- Evgeny Safronov <division494@gmail.com>  Thu, 12 May 2016 16:28:20 +0300
+
 cocaine-framework-native (0.12.8-7) unstable; urgency=low
 
   * Bug fix: use proper library name to link to.
