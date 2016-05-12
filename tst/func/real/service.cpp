@@ -19,7 +19,7 @@ using namespace testing::util;
 #include <cocaine/framework/manager.hpp>
 
 TEST(service_manager, MultipleLocations) {
-    service_manager_t manager({{"localhost", 10053}}, 1);
+    service_manager_t manager({std::make_tuple("localhost", 10053)}, 1);
     const auto endpoints = std::vector<boost::asio::ip::tcp::endpoint>{
         {boost::asio::ip::address_v6({0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}), 10053},
         {boost::asio::ip::address_v4({127, 0, 0, 1}), 10053}
@@ -28,7 +28,10 @@ TEST(service_manager, MultipleLocations) {
 }
 
 TEST(service_manager, MoreMultipleLocations) {
-    service_manager_t manager({{"localhost", 10053}, {"127.0.0.1", 10054}}, 1);
+    service_manager_t manager({
+        std::make_tuple("localhost", 10053),
+        std::make_tuple("127.0.0.1", 10054)
+    }, 1);
     const auto endpoints = std::vector<boost::asio::ip::tcp::endpoint>{
         {boost::asio::ip::address_v6({0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}), 10053},
         {boost::asio::ip::address_v4({127, 0, 0, 1}), 10053},
