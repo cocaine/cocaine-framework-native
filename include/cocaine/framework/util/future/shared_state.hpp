@@ -145,14 +145,14 @@ public:
     void
     wait_for(const std::chrono::duration<Rep, Period>& rel_time) {
         std::unique_lock<std::mutex> lock(m_access_mutex);
-        m_ready.wait_for(lock, rel_time, std::bind(&shared_state::ready, this));
+        m_ready.wait_for(lock, rel_time, [this]() { return ready(); });
     }
 
     template<class Clock, class Duration>
     void
     wait_until(const std::chrono::time_point<Clock, Duration>& timeout_time) {
         std::unique_lock<std::mutex> lock(m_access_mutex);
-        m_ready.wait_until(lock, timeout_time, std::bind(&shared_state::ready, this));
+        m_ready.wait_until(lock, timeout_time, [this]() { return ready(); });
     }
 
     bool
