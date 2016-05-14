@@ -1,3 +1,9 @@
+cocaine-framework-native (0.12.8-9) unstable; urgency=low
+
+  * Bug fix: make `wait_*` methods of `future` compilable.
+
+ -- Evgeny Safronov <division494@gmail.com>  Sat, 14 May 2016 21:24:22 +0300
+ 
 cocaine-framework-native (0.12.8-8) unstable; urgency=low
 
   * Feature: extend service manager API
