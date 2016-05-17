@@ -1,3 +1,9 @@
+cocaine-framework-native (0.12.8-10) unstable; urgency=low
+
+  * Bug fix: fix the previous fix
+
+ -- Evgeny Safronov <division494@gmail.com>  Tue, 17 May 2016 15:42:37 +0300
+
 cocaine-framework-native (0.12.8-9) unstable; urgency=low
 
   * Bug fix: make `wait_*` methods of `future` compilable.
