@@ -84,9 +84,14 @@ add_cxx_compiler_flag(-Wunreachable-code)
 add_cxx_compiler_flag(-pedantic)
 add_cxx_compiler_flag(-pedantic-errors)
 
-set_target_properties(${PROJECT} PROPERTIES
-    VERSION 1
-)
+if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+    set_target_properties(${PROJECT} PROPERTIES
+        VERSION 1)
+else ()
+    set_target_properties(${PROJECT} PROPERTIES
+        VERSION 1
+        LINK_FLAGS -Wl,--version-script=${CMAKE_SOURCE_DIR}/libcocaine-framework.version)
+endif()
 
 # Install section.
 install(
