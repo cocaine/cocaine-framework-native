@@ -1,3 +1,9 @@
+cocaine-framework-native (0.12.8-11) unstable; urgency=low
+
+  * Fix: add symbol version script on linux
+
+ -- Evgeny Safronov <division494@gmail.com>  Tue, 17 May 2016 19:27:15 +0300
+
 cocaine-framework-native (0.12.8-10) unstable; urgency=low
 
   * Bug fix: fix the previous fix
