@@ -71,6 +71,8 @@ public:
     uint
     version() const noexcept;
 
+    auto hard_shutdown(bool policy = true) -> void;
+
     /// Tries to connect to the service through the Locator.
     ///
     /// \returns a future which is set after the connection is established.

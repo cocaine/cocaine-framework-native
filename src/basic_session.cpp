@@ -86,7 +86,8 @@ basic_session_t::basic_session_t(scheduler_t& scheduler) noexcept :
     closed(false),
     state(0),
     counter(1),
-    message(boost::none)
+    message(boost::none),
+    hard_shutdown_(false)
 {}
 
 basic_session_t::~basic_session_t() {}
@@ -131,7 +132,7 @@ basic_session_t::connect(const std::vector<endpoint_type>& endpoints) {
             socket_ref,
             converted.begin(), converted.end(),
             trace::wrap(trace_t::bind(
-				&basic_session_t::on_connect, 
+				&basic_session_t::on_connect,
                 shared_from_this(), ph::_1, std::move(pr), std::move(socket)
 			))
         );
@@ -155,6 +156,10 @@ basic_session_t::connect(const std::vector<endpoint_type>& endpoints) {
     return fr;
 }
 
+auto basic_session_t::hard_shutdown(bool policy) -> void {
+    hard_shutdown_ = policy;
+}
+
 boost::optional<basic_session_t::endpoint_type>
 basic_session_t::endpoint() const {
     // TODO: Implement `basic_session_t::endpoint()`.
@@ -171,7 +176,7 @@ basic_session_t::cancel() {
     CF_DBG(">> disconnecting ...");
 
     closed = true;
-    if (channels->empty()) {
+    if (channels->empty() || hard_shutdown_) {
         CF_DBG("<< stop listening");
         transport.synchronize()->reset();
     }

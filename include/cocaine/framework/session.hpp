@@ -68,6 +68,8 @@ public:
     auto connect(const endpoint_type& endpoint) -> task<void>::future_type;
     auto connect(const std::vector<endpoint_type>& endpoints) -> task<void>::future_type;
 
+    auto hard_shutdown(bool policy) -> void;
+
     auto endpoint() const -> boost::optional<endpoint_type>;
 
     native_handle_type

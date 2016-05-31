@@ -1,6 +1,7 @@
 #include <iostream>
 
-#include <boost/optional.hpp>
+#include <boost/lexical_cast.hpp>
+#include <boost/optional/optional.hpp>
 
 #include <cocaine/framework/worker.hpp>
 
@@ -22,6 +23,14 @@ int main(int argc, char** argv) {
         }
 
         std::cout << "After close" << std::endl;
+    });
+
+    worker.on("sleep", [](worker::sender tx, worker::receiver rx) {
+        std::cout << "Handling 'sleep' ..." << std::endl;
+        auto timeout = rx.recv().get();
+        ::sleep(boost::lexical_cast<int>(*timeout));
+        tx.write(*timeout).get()
+            .close().get();
     });
 
     worker.on("error", [](worker::sender tx, worker::receiver) {

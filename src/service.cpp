@@ -93,6 +93,10 @@ basic_service_t::version() const noexcept {
     return d->version;
 }
 
+auto basic_service_t::hard_shutdown(bool policy) -> void {
+    session->hard_shutdown(policy);
+}
+
 cocaine::framework::future<void>
 basic_service_t::connect() {
     CF_CTX("SC");

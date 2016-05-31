@@ -121,6 +121,11 @@ auto session<BasicSession>::connect(const std::vector<session::endpoint_type>& e
 }
 
 template<class BasicSession>
+auto session<BasicSession>::hard_shutdown(bool policy) -> void {
+    d->sess->hard_shutdown(policy);
+}
+
+template<class BasicSession>
 auto session<BasicSession>::endpoint() const -> boost::optional<endpoint_type> {
     return d->sess->endpoint();
 }

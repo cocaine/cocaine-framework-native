@@ -93,6 +93,8 @@ private:
     synchronized<std::shared_ptr<transport_type>> transport;
     synchronized<channel_map_type> channels;
 
+    std::atomic<bool> hard_shutdown_;
+
     std::mutex mutex;
 
 public:
@@ -118,6 +120,8 @@ public:
 
     /// \threadsafe
     auto connect(const std::vector<endpoint_type>& endpoints) -> task<std::error_code>::future_type;
+
+    auto hard_shutdown(bool policy) -> void;
 
     /// Returns the endpoint of the connected peer if the session is in connected state; otherwise
     /// returns none.

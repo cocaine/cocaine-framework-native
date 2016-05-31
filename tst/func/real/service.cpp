@@ -63,13 +63,11 @@ TEST(service, ConnectionRefusedOnWrongLocator) {
 #endif
 
 namespace testing {
-
 namespace mock {
 
 struct storage_tag;
 
 } // namespace mock
-
 } // namespace testing
 
 namespace cocaine { namespace io {
@@ -92,7 +90,13 @@ TEST(service, VersionMismatch) {
     EXPECT_THROW(service.connect().get(), version_mismatch);
 }
 
-TEST(service, Storage) {
+TEST(service, StorageWrite) {
+    service_manager_t manager(1);
+    auto storage = manager.create<cocaine::io::storage_tag>("storage");
+    storage.invoke<cocaine::io::storage::write>("collection", "key", "le value").get();
+}
+
+TEST(service, StorageRead) {
     service_manager_t manager(1);
     auto storage = manager.create<cocaine::io::storage_tag>("storage");
     auto result = storage.invoke<cocaine::io::storage::read>("collection", "key").get();
@@ -197,3 +201,61 @@ TEST(service, EchoAsynchronous) {
         .then(std::bind(&on_invoke, ph::_1))
         .get();
 }
+
+namespace cocaine {
+namespace framework {
+namespace {
+
+auto on_send(framework::future<sender<io::app::enqueue::dispatch_type, basic_session_t>>& future,
+             receiver<io::app::enqueue::upstream_type, basic_session_t> rx) ->
+    framework::future<boost::optional<std::string>>
+{
+    future.get();
+    return rx.recv();
+}
+
+auto on_recv(framework::future<boost::optional<std::string>>& future,
+             receiver<io::app::enqueue::upstream_type, basic_session_t> rx) ->
+    framework::future<boost::optional<std::string>>
+{
+    boost::optional<std::string> result = future.get();
+    EXPECT_EQ("5", *result);
+    return rx.recv();
+}
+
+auto on_choke(framework::future<boost::optional<std::string>>& future) -> void {
+    auto result = future.get();
+    EXPECT_FALSE(result);
+}
+
+auto on_invoke(framework::future<invocation_result<io::app::enqueue>::type>& future) ->
+    framework::future<void>
+{
+    typedef io::protocol<io::app::enqueue::dispatch_type>::scope upstream;
+
+    auto channel = future.get();
+    auto tx = std::move(channel.tx);
+    auto rx = std::move(channel.rx);
+    return tx.send<upstream::chunk>("5")
+        .then(std::bind(&on_send, ph::_1, rx))
+        .then(std::bind(&on_recv, ph::_1, rx))
+        .then(std::bind(&on_choke, ph::_1));
+}
+
+TEST(service, EchoSleepHardShutdownForce) {
+    std::unique_ptr<service_manager_t> manager(new service_manager_t(1));
+
+    {
+        auto echo = manager->create<io::storage_tag>("echo-cpp");
+        echo.hard_shutdown();
+        auto future = echo.invoke<cocaine::io::app::enqueue>("sleep")
+            .then(std::bind(&on_invoke, ph::_1));
+        ::sleep(1);
+    }
+
+    manager.reset();
+}
+
+}  // namespace
+}  // namespace framework
+}  // namespace cocaine
