@@ -1,3 +1,9 @@
+cocaine-framework-native (0.12.8-12) unstable; urgency=low
+
+  * Feature: add hard shutdown option for service.
+
+ -- Evgeny Safronov <division494@gmail.com>  Wed, 01 Jun 2016 14:11:35 +0300
+
 cocaine-framework-native (0.12.8-11) unstable; urgency=low
 
   * Fix: add symbol version script on linux
@@ -15,7 +21,7 @@ cocaine-framework-native (0.12.8-9) unstable; urgency=low
   * Bug fix: make `wait_*` methods of `future` compilable.
 
  -- Evgeny Safronov <division494@gmail.com>  Sat, 14 May 2016 21:24:22 +0300
- 
+
 cocaine-framework-native (0.12.8-8) unstable; urgency=low
 
   * Feature: extend service manager API
