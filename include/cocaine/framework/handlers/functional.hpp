@@ -42,6 +42,7 @@ public:
             function_type_t;
 
     function_handler_t(function_type_t f);
+    virtual ~function_handler_t();
 
     void
     on_chunk(const char *chunk,
