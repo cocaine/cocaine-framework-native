@@ -28,6 +28,10 @@ function_handler_t::function_handler_t(function_handler_t::function_type_t f) :
     // pass
 }
 
+function_handler_t::~function_handler_t()
+{
+}
+
 void
 function_handler_t::on_chunk(const char *chunk,
                              size_t size)
