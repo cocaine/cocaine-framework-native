@@ -1,3 +1,9 @@
+cocaine-framework-native (0.11.1.6) unstable; urgency=low
+
+  * functonal: implement virtual destructor to fix 'Undefined reference to vtable' error on g++ 5.3.1
+
+ -- Evgeniy Polyakov <zbr@ioremap.net>  Sun, 03 Jul 2016 18:02:41 +0400
+
 cocaine-framework-native (0.11.1.5) unstable; urgency=low
 
   * Hide all internal symbols except type info and exceptions.

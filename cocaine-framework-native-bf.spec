@@ -1,6 +1,6 @@
 Summary:    Cocaine - Native Framework
 Name:       cocaine-framework-native
-Version:    0.11.1.2
+Version:	0.11.1.6
 Release:    2%{?dist}
 
 License:    GPLv2+
@@ -67,5 +67,8 @@ rm -rf %{buildroot}
 
 
 %changelog
+* Sun Jul 03 2016 Evgeniy Polyakov <zbr@ioremap.net> - 0.11.1.6
+- functonal: implement virtual destructor to fix 'Undefined reference to vtable' error on g++ 5.3.1
+
 * Thu Jul 25 2013 Arkady L. Shane <ashejn@russianfedora.ru> - 0.10.5.5-1
 - initial build
