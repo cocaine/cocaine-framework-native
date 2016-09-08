@@ -34,7 +34,7 @@ set(SOURCES
 project(${PROJECT})
 
 add_executable(${PROJECT} ${SOURCES})
-add_dependencies(${PROJECT} googlemock)
+add_dependencies(${PROJECT} googletest)
 target_link_libraries(${PROJECT}
     cocaine-framework-native
     gmock
@@ -60,7 +60,7 @@ add_executable(load
     load/service/logging
 )
 
-add_dependencies(load googlemock)
+add_dependencies(load googletest)
 
 target_link_libraries(load
     cocaine-framework-native

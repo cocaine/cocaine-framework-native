@@ -16,4 +16,8 @@ add_subdirectory(src)
 add_subdirectory(example/echo)
 add_subdirectory(example/client)
 add_subdirectory(example/http)
-add_subdirectory(tst)
+
+#tests are incompatible with old compilers or cmake
+IF(NOT (CMAKE_VERSION VERSION_LESS 2.8.5 OR (DEFINED GCC_COMPILER_VERSION AND GCC_COMPILER_VERSION VERSION_LESS 4.8)))
+    add_subdirectory(tst)
+ENDIF()
