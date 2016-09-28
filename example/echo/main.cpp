@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
 
     worker.on("meta", [](worker::sender tx, worker::receiver rx) {
         std::cout << "After invoke. Headers count: "
-            << rx.invocation_headers().get_headers().size() << std::endl;
+            << rx.invocation_headers().size() << std::endl;
 
         if (auto frame = rx.recv<worker::frame_t>().get()) {
             std::cout << "After chunk: '" << frame->data << "'" << std::endl;

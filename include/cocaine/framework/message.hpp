@@ -66,11 +66,10 @@ public:
     template<class Header>
     boost::optional<hpack::header_t>
     get_header() const {
-        return get_header(Header::name());
+        auto header = hpack::header::find_first(meta(), Header::name());
+        return header ? boost::make_optional(*header) : boost::none;
     }
 
-private:
-    auto get_header(const hpack::header::data_t& key) const -> boost::optional<hpack::header_t>;
 };
 
 } // namespace framework

@@ -33,17 +33,15 @@ class decoded_message::inner_t {
 public:
     inner_t() {}
 
-    inner_t(msgpack::object _obj, std::vector<char>&& _storage, std::vector<hpack::header_t> _headers) :
+    inner_t(msgpack::object _obj, std::vector<char>&& _storage, hpack::header_storage_t _headers) :
         obj(std::move(_obj)),
         storage(std::move(_storage)),
-        headers(std::move(_headers)),
-        header_zone(headers)
+        headers(std::move(_headers))
     {}
 
     msgpack::object obj;
     std::vector<char> storage;
-    std::vector<hpack::header_t> headers;
-    hpack::header_t::zone_t header_zone;
+    hpack::header_storage_t headers;
 };
 
 decoded_message::decoded_message(boost::none_t) :
@@ -74,13 +72,4 @@ auto decoded_message::args() const -> const msgpack::object& {
 
 auto decoded_message::meta() const noexcept -> const std::vector<hpack::header_t>& {
     return d->headers;
-}
-
-auto decoded_message::get_header(const hpack::header::data_t& key) const -> boost::optional<hpack::header_t> {
-    for(auto& header : meta()) {
-        if(header.get_name() == key) {
-            return boost::make_optional(header);
-        }
-    }
-    return boost::none;
 }
