@@ -66,8 +66,7 @@ public:
     template<class Header>
     boost::optional<hpack::header_t>
     get_header() const {
-        auto header = hpack::header::find_first(meta(), Header::name());
-        return header ? boost::make_optional(*header) : boost::none;
+        return boost::optional<hpack::header_t>(hpack::header::find_first(meta(), Header::name()));
     }
 
 };
