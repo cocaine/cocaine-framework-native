@@ -1,3 +1,9 @@
+cocaine-framework-native (0.12.11-1) unstable; urgency=low
+
+  * Adapt with cocaine-core v0.12.11.
+
+ -- Evgeny Safronov <division494@gmail.com>  Thu, 22 Dec 2016 17:33:38 +0300
+
 cocaine-framework-native (0.12.10-1) unstable; urgency=low
 
   * Adapt with cocaine-core v0.12.10.
