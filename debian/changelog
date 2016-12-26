@@ -1,3 +1,10 @@
+cocaine-framework-native (0.12.11-2) unstable; urgency=low
+
+  * Fixed: make the code compilable again due to fixing prevent name
+    ambiguity (#17).
+
+ -- Evgeny Safronov <division494@gmail.com>  Mon, 26 Dec 2016 12:42:14 +0300
+
 cocaine-framework-native (0.12.11-1) unstable; urgency=low
 
   * Adapt with cocaine-core v0.12.11.
