@@ -13,7 +13,8 @@ add_executable(${PROJECT}
     ${SOURCES})
 
 target_link_libraries(${PROJECT}
-    cocaine-framework-native)
+    cocaine-framework-native
+    cocaine-io-util)
 
 add_definitions(-std=c++0x)
 

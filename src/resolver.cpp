@@ -43,7 +43,7 @@ typedef std::tuple<std::vector<asio::ip::tcp::endpoint>, uint, io::graph_root_t>
 
 resolver_t::result_t
 on_resolve(task<resolve_result>::future_move_type future,
-           std::shared_ptr<session_t>,
+           std::shared_ptr<framework::session_t>,
            std::string name)
 {
     try {
@@ -69,7 +69,7 @@ on_resolve(task<resolve_result>::future_move_type future,
 }
 
 task<resolve_result>::future_type
-on_invoke(task<channel<io::locator::resolve>>::future_move_type future, std::shared_ptr<session_t>) {
+on_invoke(task<channel<io::locator::resolve>>::future_move_type future, std::shared_ptr<framework::session_t>) {
     try {
         auto channel = future.get();
         return channel.rx.recv();
@@ -80,7 +80,7 @@ on_invoke(task<channel<io::locator::resolve>>::future_move_type future, std::sha
 }
 
 task<channel<io::locator::resolve>>::future_type
-on_connect(task<void>::future_move_type future, std::shared_ptr<session_t> locator, std::string name) {
+on_connect(task<void>::future_move_type future, std::shared_ptr<framework::session_t> locator, std::string name) {
     try {
         future.get();
 
@@ -114,7 +114,7 @@ void resolver_t::endpoints(std::vector<resolver_t::endpoint_type> endpoints) {
 auto resolver_t::resolve(std::string name) -> task<resolver_t::result_t>::future_type {
     CF_CTX("R");
 
-    auto locator = std::make_shared<session_t>(scheduler);
+    auto locator = std::make_shared<framework::session_t>(scheduler);
 
     CF_DBG(">> connecting to the locator ...");
     return locator->connect(endpoints())
