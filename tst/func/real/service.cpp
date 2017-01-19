@@ -60,6 +60,19 @@ TEST(service, ConnectionRefusedOnWrongLocator) {
     EXPECT_THROW(service.connect().get(), std::system_error);
 }
 
+TEST(service, ConnectionRefusedOnWrongLocatorInLoop) {
+    for (int port = 10040; port < 10054; ++port) {
+        service_manager_t manager({{boost::asio::ip::tcp::v6(), static_cast<unsigned short>(port)}}, 1);
+        auto service = manager.create<cocaine::io::app_tag>("node");
+
+        if (port == 10053) {
+            EXPECT_NO_THROW(service.connect().get());
+        } else {
+            EXPECT_THROW(service.connect().get(), std::system_error);
+        }
+    }
+}
+
 #endif
 
 namespace testing {
