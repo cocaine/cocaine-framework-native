@@ -25,6 +25,13 @@ int main(int argc, char** argv) {
         std::cout << "After close" << std::endl;
     });
 
+    std::string response(30 * 1024 * 1024, '0');
+    worker.on("fuck", [&](worker::sender tx, worker::receiver rx) {
+        std::cout << "After invoke" << std::endl;
+        tx.write(response).get();
+        std::cout << "After close" << std::endl;
+    });
+
     worker.on("sleep", [](worker::sender tx, worker::receiver rx) {
         std::cout << "Handling 'sleep' ..." << std::endl;
         auto timeout = rx.recv().get();
